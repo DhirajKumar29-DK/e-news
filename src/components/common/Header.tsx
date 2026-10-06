@@ -14,7 +14,6 @@ import {
 } from '@/data/mockNewsData';
 import { EPaperModal } from './EPaperModal';
 import { VideoModal } from './VideoModal';
-import { LanguageDropdown } from './LanguageDropdown';
 import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play } from 'lucide-react';
 
 interface HeaderProps {
