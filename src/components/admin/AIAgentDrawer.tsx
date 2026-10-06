@@ -6,6 +6,7 @@ import {
   Copy, Check, Loader2, ArrowRight, FileText, Download,
   ExternalLink, ChevronRight, Settings
 } from 'lucide-react';
+import { API_BASE_URL } from '@/config/env';
 
 export interface ParsedNewsPayload {
   actionType?: 'UPDATE_SLOT' | 'CREATE_NEW_SLOT';
@@ -100,9 +101,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
     setIsLoading(true);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const cleanBase = backendUrl.replace(/\/v1\/?$/, '');
-      const endpoint = `${cleanBase}/v1/epaper/ai-agent`;
+      const endpoint = `${API_BASE_URL}/epaper/ai-agent`;
 
       // Pass previous history for context
       const historyPayload = messages.slice(-6).map(m => ({

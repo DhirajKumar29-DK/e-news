@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { apiRequest } from '@/services/api';
+import { BACKEND_URL, API_BASE_URL, getFullMediaUrl } from '@/config/env';
 import {
   Newspaper, Eye, Download, Send, Plus, Upload, CheckCircle2,
   ChevronDown, Layers, Layout, Maximize2, Sparkles, FileText, Check,
@@ -508,7 +509,7 @@ function FullStudioInner() {
   useEffect(() => {
     async function loadEditionsFromApi() {
       try {
-        const res = await fetch('http://localhost:5000/api/v1/epaper/editions');
+        const res = await fetch(`${API_BASE_URL}/epaper/editions`);
         if (res.ok) {
           const data = await res.json();
           const items = Array.isArray(data) ? data : (data.data || data.editions || []);
@@ -725,7 +726,7 @@ function FullStudioInner() {
 
       // 1. Check Backend MySQL DB first (has full longtext & slots support)
       try {
-        const res = await fetch(`http://localhost:5000/api/v1/epaper/issue?edition=${currentEditionInfo.slug}&date=${archiveDate}`);
+        const res = await fetch(`${API_BASE_URL}/epaper/issue?edition=${currentEditionInfo.slug}&date=${archiveDate}`);
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.data?.pages && data.data.pages.length > 0) {
@@ -2020,7 +2021,7 @@ function FullStudioInner() {
     setIsGeneratingPdf(true);
     triggerToast('🚀 Publishing paper & compiling edition...');
     try {
-      const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const backendBase = API_BASE_URL;
 
       let publishRes: any = null;
       const enriched = enrichPagesWithComputedSections(pages);
@@ -2094,9 +2095,7 @@ function FullStudioInner() {
         console.warn('PDF fetch error:', pdfErr);
       }
 
-      const fullPdfUrl = pdfUrl
-        ? (pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5000${pdfUrl}`)
-        : null;
+      const fullPdfUrl = pdfUrl ? getFullMediaUrl(pdfUrl) : null;
 
       const publicReaderUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/epaper`
@@ -2159,7 +2158,7 @@ function FullStudioInner() {
     }
 
     try {
-      const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const backendBase = API_BASE_URL;
       const enriched = enrichPagesWithComputedSections(pages);
       const response = await fetch(`${backendBase}/epaper/generate-pdf`, {
         method: 'POST',
@@ -2179,9 +2178,7 @@ function FullStudioInner() {
       if (resData.success && resData.data?.pdfUrl) {
         triggerToast('🎉 PDF Generated!');
         const rawUrl = resData.data.pdfUrl;
-        const basePdf = rawUrl.startsWith('http')
-          ? rawUrl
-          : `http://localhost:5000${rawUrl}`;
+        const basePdf = getFullMediaUrl(rawUrl);
         const openUrl = `${basePdf}${basePdf.includes('?') ? '&' : '?'}v=${Date.now()}`;
 
         if (previewTab && !previewTab.closed) {

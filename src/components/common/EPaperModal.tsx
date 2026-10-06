@@ -8,6 +8,7 @@ import {
   Share2, Image as ImageIcon, Copy, Volume2, VolumeX, ZoomIn, ZoomOut, Plus, Minus,
   AlertCircle, Newspaper
 } from 'lucide-react';
+import { BACKEND_URL, API_BASE_URL, getFullMediaUrl } from '@/config/env';
 
 // Utility to decode HTML entities and format paragraphs properly
 function cleanAndFormatHtml(htmlOrText: string): string {
@@ -280,8 +281,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
       currentChunkIndexRef.current = index;
       const chunkText = audioChunksRef.current[index];
-      const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const audioUrl = `${backendBase}/epaper/tts?text=${encodeURIComponent(chunkText)}`;
+      const audioUrl = `${API_BASE_URL}/epaper/tts?text=${encodeURIComponent(chunkText)}`;
 
       try {
         if (!audioPlayerRef.current) {
@@ -619,7 +619,7 @@ ${rawBody}
     let isMounted = true;
     const fetchStatesAndEditions = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/v1/epaper/states-with-editions');
+        const res = await fetch(`${API_BASE_URL}/epaper/states-with-editions`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.success && Array.isArray(data.data) && data.data.length > 0) {
@@ -650,7 +650,7 @@ ${rawBody}
     let isMounted = true;
     const fetchArchiveDates = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/v1/epaper/archive-dates?edition=${activeEdition.slug}`);
+        const res = await fetch(`${API_BASE_URL}/epaper/archive-dates?edition=${activeEdition.slug}`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.success && Array.isArray(data.data)) {
@@ -686,7 +686,7 @@ ${rawBody}
 
       try {
         // 1. Fetch issue details from MySQL DB
-        const issueRes = await fetch('http://localhost:5000/api/v1/epaper/issue?edition=' + editionSlug + '&date=' + selectedDate);
+        const issueRes = await fetch(`${API_BASE_URL}/epaper/issue?edition=${editionSlug}&date=${selectedDate}`);
         const issueData = await issueRes.json();
 
         if (isMounted && issueData.success && issueData.data) {
@@ -734,7 +734,7 @@ ${rawBody}
   if (!isOpen) return null;
 
   const proxyPdfUrl = pdfUrl ? pdfUrl.replace('/uploads/', '/backend-uploads/') : null;
-  const directFullUrl = pdfUrl ? ('http://localhost:5000' + pdfUrl) : null;
+  const directFullUrl = pdfUrl ? getFullMediaUrl(pdfUrl) : null;
 
   // Single Page PDF URL with Toolbar Hidden (#toolbar=0&navpanes=0&scrollbar=0)
   const singlePagePdfUrl = proxyPdfUrl
@@ -746,11 +746,10 @@ ${rawBody}
   const currentPage = pages[currentPageIndex];
   const currentSlots: EPaperSlot[] = (currentPage && Array.isArray(currentPage.slots)) ? currentPage.slots : [];
 
-  const backendBaseUrl = 'http://localhost:5000';
   const rawPageImage = currentPage?.pageImage || currentPage?.pageImageUrl;
   const canvasImageUrl = rawPageImage
-    ? (rawPageImage.startsWith('http') ? rawPageImage : `${backendBaseUrl}${rawPageImage}`)
-    : `${backendBaseUrl}/uploads/epaper/pages/${activeEdition?.slug || 'patna-main'}-${selectedDate}-page-${currentPageIndex + 1}.webp`;
+    ? getFullMediaUrl(rawPageImage)
+    : getFullMediaUrl(`/uploads/epaper/pages/${activeEdition?.slug || 'patna-main'}-${selectedDate}-page-${currentPageIndex + 1}.webp`);
 
   // Pad number string e.g. 1 -> "01", 16 -> "16"
   const formattedCurrentPage = String(currentPageIndex + 1).padStart(2, '0');
@@ -1763,11 +1762,7 @@ ${rawBody}
                 {selectedArticle.imageUrl && (
                   <div className="rounded-xl border border-slate-100 shadow-xs mb-6 overflow-hidden bg-slate-50">
                     <img
-                      src={
-                        selectedArticle.imageUrl.startsWith('http') || selectedArticle.imageUrl.startsWith('data:')
-                          ? selectedArticle.imageUrl
-                          : `http://localhost:5000${selectedArticle.imageUrl}`
-                      }
+                      src={getFullMediaUrl(selectedArticle.imageUrl)}
                       alt={selectedArticle.headline || 'Article Image'}
                       className="w-full max-h-[420px] object-cover"
                     />
@@ -1837,11 +1832,7 @@ ${rawBody}
                     {selectedArticle.imageUrl && (
                       <div className="border border-slate-300 p-1 bg-white shadow-xs rounded-xs my-2">
                         <img
-                          src={
-                            selectedArticle.imageUrl.startsWith('http') || selectedArticle.imageUrl.startsWith('data:')
-                              ? selectedArticle.imageUrl
-                              : `http://localhost:5000${selectedArticle.imageUrl}`
-                          }
+                          src={getFullMediaUrl(selectedArticle.imageUrl)}
                           crossOrigin="anonymous"
                           alt={selectedArticle.headline || 'Print Clipping'}
                           className="w-full max-h-[380px] object-contain"
