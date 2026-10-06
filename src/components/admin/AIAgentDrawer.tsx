@@ -1,0 +1,581 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Sparkles, Send, X, AlertCircle, CheckCircle2, RotateCcw,
+  Copy, Check, Loader2, ArrowRight, FileText, Download,
+  ExternalLink, ChevronRight, Settings
+} from 'lucide-react';
+
+export interface ParsedNewsPayload {
+  actionType?: 'UPDATE_SLOT' | 'CREATE_NEW_SLOT';
+  categoryBadge?: string;
+  headline?: string;
+  subHeadline?: string;
+  content?: string;
+  imageUrl?: string;
+  imageAlignment?: 'Left' | 'Center' | 'Right';
+  imageVertAlign?: 'top' | 'middle' | 'bottom';
+  imageWidth?: number;
+  imageHeight?: number;
+  imageWrapMode?: 'auto' | 'top-span';
+  columnsCount?: number;
+  recommendedHeight?: number | null;
+  language?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  parsedNews?: ParsedNewsPayload | null;
+  timestamp: string;
+}
+
+interface AIAgentDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activeSlot: any | null;
+  onApplyToSlot: (news: ParsedNewsPayload) => void;
+}
+
+export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
+  isOpen,
+  onClose,
+  activeSlot,
+  onApplyToSlot
+}) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const [prompt, setPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [appliedToast, setAppliedToast] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Restore API key from localStorage if available
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedKey = localStorage.getItem('gemini_api_key') || '';
+      if (storedKey) {
+        setApiKey(storedKey);
+      }
+    }
+  }, []);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen, isLoading]);
+
+  // Focus textarea when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 150);
+    }
+  }, [isOpen]);
+
+
+
+  const handleSendMessage = async (customText?: string) => {
+    const textToSend = (customText || prompt).trim();
+    if (!textToSend || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text: textToSend,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    if (!customText) setPrompt('');
+    setIsLoading(true);
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const cleanBase = backendUrl.replace(/\/v1\/?$/, '');
+      const endpoint = `${cleanBase}/v1/epaper/ai-agent`;
+
+      // Pass previous history for context
+      const historyPayload = messages.slice(-6).map(m => ({
+        sender: m.sender,
+        text: m.text
+      }));
+
+      // Detect if user asked for full slot width photo / top banner / columns below
+      const isTopSpanRequested = /barabar|slot.*width|width.*slot|full.*width|banner|top-span|photo.*upar|upar.*photo|niche.*(?:column|कॉलम)|image.*barabar|photo.*barabar/i.test(textToSend);
+      const colRequestedMatch = textToSend.match(/([1-4])\s*(?:कॉलम|column)/i);
+      const requestedCols = colRequestedMatch ? parseInt(colRequestedMatch[1], 10) : (activeSlot?.columnsCount && activeSlot.columnsCount > 1 ? activeSlot.columnsCount : 2);
+
+      let effectivePrompt = textToSend;
+      if (isTopSpanRequested) {
+        const slotW = activeSlot?.width ? activeSlot.width - 24 : 600;
+        effectivePrompt += `\n[LAYOUT DIRECTIVE: The user explicitly requires a Top Banner Photo spanning the FULL WIDTH of the slot (imageWrapMode: 'top-span', imageWidth: ${slotW}, imageAlignment: 'Center', imageVertAlign: 'top'). Below this photo, format the content into ${requestedCols} columns. Set "imageWrapMode": "top-span", "columnsCount": ${requestedCols}, "imageAlignment": "Center", "imageVertAlign": "top", "imageWidth": ${slotW}.]`;
+      }
+
+      // Detect word count directive (e.g., 1000 words, 1200 shabd, etc.)
+      const wordMatch = textToSend.match(/(\d{3,4})\s*(?:words?|शब्द|shabd|शब्‍द|varn)/i);
+      let targetWordCount = 0;
+      if (wordMatch) {
+        targetWordCount = parseInt(wordMatch[1], 10);
+      } else {
+        const numMatch = textToSend.match(/\b(1500|1400|1200|1000|800|700|600|500)\b/);
+        if (numMatch && /(?:words?|शब्द|shabd|likho|likh|bana|article|news|kahani|report|vishesh|bada)/i.test(textToSend)) {
+          targetWordCount = parseInt(numMatch[1], 10);
+        }
+      }
+
+      if (targetWordCount >= 300) {
+        effectivePrompt += `\n[MANDATORY WORD COUNT DIRECTIVE: The user explicitly requires a comprehensive, detailed story of at least ${targetWordCount} words. You MUST write a full-length, in-depth broadsheet journalistic article with at least ${targetWordCount} words across multiple rich paragraphs (<p>), deep analysis, and quotes. Do NOT summarize or shorten! In the JSON block, set "columnsCount": ${targetWordCount >= 800 ? 3 : 2} and "recommendedHeight": ${Math.min(2200, Math.round(targetWordCount * 1.1 + 320))}. Put the entire detailed article in the JSON content field.]`;
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: effectivePrompt,
+          activeSlot: activeSlot ? {
+            id: activeSlot.id,
+            slotNumber: activeSlot.slotNumber,
+            headline: activeSlot.headline,
+            subHeadline: activeSlot.subHeadline,
+            summary: activeSlot.summary,
+            columnsCount: activeSlot.columnsCount || 1,
+            width: activeSlot.width,
+            height: activeSlot.height
+          } : null,
+          history: historyPayload,
+          apiKey: apiKey || undefined
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        const errorMsg = data.message || `Error (${res.status})`;
+        throw new Error(errorMsg);
+      }
+
+      const aiResponse = data.data;
+
+      // Helper to strip all <p>, </p>, <mark>, etc. to pure clean newspaper text
+      const stripHtmlTags = (str: string): string => {
+        if (!str) return '';
+        return str
+          .replace(/<\/?p[^>]*>/gi, '\n\n')
+          .replace(/&lt;\/?p[^&]*&gt;/gi, '\n\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+          .replace(/<\/?mark[^>]*>/gi, '')
+          .replace(/&lt;\/?mark[^&]*&gt;/gi, '')
+          .replace(/<\/?b>/gi, '')
+          .replace(/&lt;\/?b&gt;/gi, '')
+          .replace(/<\/?strong>/gi, '')
+          .replace(/&lt;\/?strong&gt;/gi, '')
+          .replace(/<\/?span[^>]*>/gi, '')
+          .replace(/&lt;\/?span[^&]*&gt;/gi, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&lt;[^&]*&gt;/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&')
+          .split(/\n+/)
+          .map(line => line.trim())
+          .filter(Boolean)
+          .join('\n\n')
+          .trim();
+      };
+
+      // Always direct news payload into the user's selected slot (never create new slots)
+      if (aiResponse.parsedNews) {
+        aiResponse.parsedNews.actionType = 'UPDATE_SLOT';
+        aiResponse.parsedNews.content = stripHtmlTags(aiResponse.parsedNews.content || '');
+
+        if (isTopSpanRequested) {
+          aiResponse.parsedNews.imageWrapMode = 'top-span';
+          aiResponse.parsedNews.imageAlignment = 'Center';
+          aiResponse.parsedNews.imageVertAlign = 'top';
+          aiResponse.parsedNews.columnsCount = requestedCols;
+          if (activeSlot?.width) {
+            aiResponse.parsedNews.imageWidth = Math.max(100, activeSlot.width - 24);
+          }
+        }
+
+        // Dynamically calibrate recommendedHeight based on actual generated content
+        const rawContent = (aiResponse.parsedNews.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const wordCount = rawContent.split(/\s+/).filter(Boolean).length;
+        if (wordCount > 250) {
+          const minEstH = Math.min(2200, Math.round(wordCount * 1.05 + 320));
+          aiResponse.parsedNews.recommendedHeight = Math.max(aiResponse.parsedNews.recommendedHeight || 0, minEstH);
+        } else if (wordCount > 0 && wordCount < 180) {
+          aiResponse.parsedNews.recommendedHeight = Math.min(aiResponse.parsedNews.recommendedHeight || 300, 320);
+        }
+      }
+
+      const aiMessage: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'ai',
+        text: aiResponse.reply || aiResponse.fullText || 'Response generated.',
+        parsedNews: aiResponse.parsedNews || null,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (err: any) {
+      const errorMessage: ChatMessage = {
+        id: `err-${Date.now()}`,
+        sender: 'ai',
+        text: `⚠️ **त्रुटि (Error):** ${err.message || 'AI सर्वर से संपर्क नहीं हो सका।'}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleLoadCurrentSlotText = () => {
+    if (!activeSlot) return;
+    const cleanHeadline = (activeSlot.headline || '').replace(/<[^>]*>/g, '');
+    const cleanSub = (activeSlot.subHeadline || '').replace(/<[^>]*>/g, '');
+    const cleanContent = (activeSlot.summary || '').replace(/<[^>]*>/g, '');
+
+    const loadedPrompt = `कृपया Slot #${activeSlot.slotNumber} के इस समाचार की वर्तनी, व्याकरण और तथ्य जांचें:\n\nशीर्षक: ${cleanHeadline}\nउप-शीर्षक: ${cleanSub}\nसामग्री: ${cleanContent}`;
+    setPrompt(loadedPrompt);
+    textareaRef.current?.focus();
+  };
+
+  const handleApplyNews = (news: ParsedNewsPayload) => {
+    onApplyToSlot(news);
+    setAppliedToast(true);
+    setTimeout(() => setAppliedToast(false), 2500);
+  };
+
+  const handleCopyText = (id: string, text: string) => {
+    if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Semi-transparent Backdrop for mobile/smaller screens */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/20 backdrop-blur-xs z-50 md:hidden"
+      />
+
+      {/* RIGHT SLIDE-OUT DRAWER (100% PURE LIGHT THEME - NO DARK MODE) */}
+      <aside
+        className="fixed top-0 right-0 bottom-0 w-full sm:w-[460px] md:w-[480px] bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col font-sans select-none animate-in slide-in-from-right duration-250 ease-out"
+      >
+        {/* 1. DRAWER TOP HEADER */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center shadow-md shadow-red-600/20">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-1.5">
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                  AI Editor
+                </h3>
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[9.5px] font-bold border border-emerald-300">
+                  AI Assistant
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 font-medium">
+                Bilingual Newsroom Editor & Fact-Checker
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('क्या आप चैट हिस्ट्री साफ़ करना चाहते हैं?')) {
+                  setMessages([]);
+                }
+              }}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition-colors cursor-pointer"
+              title="Reset Chat"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-600" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer ml-1"
+              title="Close Drawer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 2. ACTIVE SLOT TARGET BAR */}
+        <div className={`px-4 py-2 border-b flex items-center justify-between text-xs shrink-0 transition-colors ${
+          activeSlot ? 'bg-red-50/70 border-red-200/80' : 'bg-amber-50 border-amber-200'
+        }`}>
+          <div className="flex items-center space-x-1.5 text-slate-800 font-medium truncate">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${activeSlot ? 'bg-red-600 animate-pulse' : 'bg-amber-500'}`}></span>
+            <span className={`font-bold ${activeSlot ? 'text-red-800' : 'text-amber-800'}`}>
+              {activeSlot ? `चयनित स्लॉट: Slot #${activeSlot.slotNumber}` : '⚠️ कोई स्लॉट सिलेक्ट नहीं है (पहले कैनवास पर स्लॉट चुनें)'}
+            </span>
+            {activeSlot && (
+              <span className="text-[11px] text-slate-500 font-mono">
+                ({activeSlot.width}×{activeSlot.height}px • {activeSlot.columnsCount || 1} Col)
+              </span>
+            )}
+          </div>
+
+          {activeSlot && (
+            <button
+              type="button"
+              onClick={handleLoadCurrentSlotText}
+              className="text-[11px] font-bold text-red-700 hover:text-red-900 bg-white hover:bg-red-100/60 px-2.5 py-1 rounded-lg border border-red-300 shadow-xs flex items-center space-x-1 transition-all cursor-pointer shrink-0"
+              title="इस स्लॉट का टेक्स्ट चैट में भरें"
+            >
+              <FileText className="w-3 h-3 text-red-600" />
+              <span>Load Slot Content</span>
+            </button>
+          )}
+        </div>
+
+        {/* SUCCESS TOAST ALERT */}
+        {appliedToast && (
+          <div className="mx-4 mt-2 p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>समाचार सफलतापूर्वक स्लॉट पर लागू (Applied) हो गया!</span>
+          </div>
+        )}
+
+        {/* 3. SCROLLABLE CHAT MESSAGES FEED */}
+        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#fbfcfd] select-text">
+          {messages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-2 select-none">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-700">
+                Hi! I am your AI Agent
+              </p>
+              <p className="text-xs text-slate-500">
+                How may I help you today?
+              </p>
+            </div>
+          )}
+          {messages.map((msg) => {
+            const isUser = msg.sender === 'user';
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1.5`}
+              >
+                {/* Sender badge & timestamp */}
+                <div className="flex items-center space-x-1.5 text-[10px] text-slate-600 px-1">
+                  <span className="font-bold">
+                    {isUser ? 'आप (Editor)' : '🤖 AI'}
+                  </span>
+                  <span>•</span>
+                  <span>{msg.timestamp}</span>
+                </div>
+
+                {/* Message Bubble Card */}
+                <div
+                  className={`max-w-[90%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-xs ${
+                    isUser
+                      ? 'bg-red-50 text-slate-900 border border-red-200 font-medium rounded-tr-xs'
+                      : 'bg-white text-slate-800 border border-slate-200 rounded-tl-xs space-y-2.5'
+                  }`}
+                >
+                  {/* Clean text representation with basic markdown rendering */}
+                  <div className="whitespace-pre-wrap font-sans">
+                    {msg.text}
+                  </div>
+
+                  {/* STRUCTURED NEWS PREVIEW CARD (When AI generates or edits news) */}
+                  {msg.parsedNews && (
+                    <div className="mt-3 p-3.5 bg-amber-50/70 rounded-2xl border border-amber-300/80 space-y-2.5 shadow-xs">
+                      {/* Card Header & Badges */}
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/80 pb-2">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[10px] font-black uppercase text-amber-950 flex items-center space-x-1">
+                            <FileText className="w-3.5 h-3.5 text-amber-700" />
+                            <span>
+                              {activeSlot ? `Ready for Slot #${activeSlot.slotNumber}` : 'Slot Content Ready'}
+                            </span>
+                          </span>
+                          {msg.parsedNews.categoryBadge && (
+                            <span className="text-[9px] font-black uppercase bg-red-600 text-white px-2 py-0.5 rounded shadow-2xs">
+                              {msg.parsedNews.categoryBadge}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-1 text-[9.5px] font-mono font-bold text-amber-900">
+                          {msg.parsedNews.columnsCount && (
+                            <span className="bg-amber-200/90 px-1.5 py-0.5 rounded border border-amber-300/60">
+                              {msg.parsedNews.columnsCount} Col
+                            </span>
+                          )}
+                          <span className="bg-amber-200/90 px-1.5 py-0.5 rounded border border-amber-300/60">
+                            {msg.parsedNews.language === 'en' ? 'EN' : 'HI'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Photo Thumbnail Preview (If Generated) */}
+                      {msg.parsedNews.imageUrl && (
+                        <div className="relative rounded-xl overflow-hidden border border-amber-300/80 bg-slate-900 max-h-36 group/aiimg">
+                          <img
+                            src={msg.parsedNews.imageUrl}
+                            alt="AI Generated Story Photo"
+                            className="w-full h-36 object-cover block"
+                            onError={(e) => {
+                              // Hide broken image preview
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-xs text-amber-300 text-[8px] font-mono font-bold px-2 py-0.5 rounded shadow">
+                            AI Photo • {msg.parsedNews.imageAlignment || 'Right'}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Headline */}
+                      {msg.parsedNews.headline && (
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">शीर्षक (Headline):</span>
+                          <h4 className="text-sm font-black text-slate-950 font-serif leading-snug">
+                            {msg.parsedNews.headline}
+                          </h4>
+                        </div>
+                      )}
+
+                      {/* Sub-headline */}
+                      {msg.parsedNews.subHeadline && (
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">उप-शीर्षक (Sub-Headline):</span>
+                          <p className="text-xs font-bold text-red-700 font-serif leading-tight">
+                            {msg.parsedNews.subHeadline}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Content summary with bold & highlights */}
+                      {msg.parsedNews.content && (
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">समाचार विवरण (Body with Formatting):</span>
+                          <div
+                            className="text-[11px] text-slate-800 font-serif line-clamp-5 leading-normal bg-white/80 p-2.5 rounded-xl border border-amber-200/60"
+                            dangerouslySetInnerHTML={{ __html: msg.parsedNews.content }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Action Buttons: 1-Click Apply to Selected Slot */}
+                      <div className="pt-1.5 flex items-center space-x-2">
+                        <button
+                          type="button"
+                          disabled={!activeSlot}
+                          onClick={() => handleApplyNews(msg.parsedNews!)}
+                          className={`flex-1 py-2.5 px-3.5 ${
+                            activeSlot
+                              ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-600/20 cursor-pointer hover:scale-[1.01]'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                          } font-black text-xs rounded-xl flex items-center justify-center space-x-2 transition-all transform`}
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>
+                            {activeSlot
+                              ? `🚀 Apply to Slot #${activeSlot.slotNumber}`
+                              : '⚠️ पहले कैनवास पर स्लॉट सिलेक्ट करें'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(msg.id, `${msg.parsedNews?.headline || ''}\n${msg.parsedNews?.subHeadline || ''}\n\n${msg.parsedNews?.content || ''}`)}
+                          className="p-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl cursor-pointer"
+                          title="कॉपी करें"
+                        >
+                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-700" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Typing / Loading Spinner */}
+          {isLoading && (
+            <div className="flex items-center space-x-2 text-xs text-slate-600 p-2 bg-white rounded-xl border border-slate-200 w-max shadow-xs">
+              <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
+              <span>AI समाचार तैयार कर रहा है...</span>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* 4. BOTTOM INPUT BOX */}
+        <div className="p-3 bg-white border-t border-slate-200 shrink-0 space-y-2">
+          <div className="relative flex items-end bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl p-2.5 focus-within:border-red-500 focus-within:bg-white focus-within:ring-3 focus-within:ring-red-500/10 shadow-xs transition-all">
+            <textarea
+              ref={textareaRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask AI Editor anything..."
+              rows={2}
+              className="w-full bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-xs text-slate-800 placeholder:text-slate-400 leading-relaxed font-sans"
+            />
+
+            <button
+              type="button"
+              disabled={!prompt.trim() || isLoading}
+              onClick={() => handleSendMessage()}
+              className="ml-2 p-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-300 text-white rounded-xl shadow-md transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
+              title="भेजें (Enter)"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-600 px-1">
+            <span>Shift + Enter for new line • Enter to send</span>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+};
