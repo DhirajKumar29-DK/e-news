@@ -12,7 +12,7 @@ import {
   mockQuickHighlightArticles,
   mockWorldCards
 } from '@/data/mockNewsData';
-import { EPaperModal } from './EPaperModal';
+import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
 import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play } from 'lucide-react';
 
@@ -30,7 +30,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const { theme, toggleTheme } = useTheme();
   const { language, supportedLanguages, t, toggleLanguage } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isEPaperOpen, setIsEPaperOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [formattedDate, setFormattedDate] = useState('Sun, Sep 20, 2026 | Updated 04:14 PM IST');
   const [isVisible, setIsVisible] = useState(true);
@@ -57,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     mockHeroLeadArticle,
     ...mockHeroSubLeads,
     ...mockQuickHighlightArticles,
-    ...mockWorldCards.map(w => ({
+    ...mockWorldCards.map((w: any) => ({
       id: w.id,
       title: typeof w.title === 'string' ? { en: w.title, hi: w.title } : w.title,
       category: w.category,
@@ -80,6 +79,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     const currentDate = new Date();
     const timeString = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toUpperCase();
     setFormattedDate(`Sun, Sep 20, 2026 | Updated ${timeString} IST`);
+
+    // Silently pre-warm backend so ePaper / API is instantly awake
+    prewarmBackend();
   }, []);
 
   useEffect(() => {
@@ -124,7 +126,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
               </button>
               <span className="opacity-40">•</span>
-              <button onClick={() => setIsEPaperOpen(true)} className="text-slate-300 hover:text-amber-400 font-medium">
+              <button
+                onClick={() => router.push('/epaper')}
+                onMouseEnter={prewarmBackend}
+                className="text-slate-300 hover:text-amber-400 font-medium"
+              >
                 E-Paper
               </button>
             </div>
@@ -278,7 +284,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
             {/* ePaper Action Pill Button */}
             <button
-              onClick={() => setIsEPaperOpen(true)}
+              onClick={() => router.push('/epaper')}
+              onMouseEnter={prewarmBackend}
               className="hidden sm:flex items-center space-x-2 h-9 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-bold transition-all shadow-xs group cursor-pointer"
               title="Read Today's ePaper"
             >
@@ -297,6 +304,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               </div>
               <span className="tracking-wide">Videos</span>
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping ml-0.5" />
+            </button>
+
+            {/* Mobile ePaper Quick Action Button */}
+            <button
+              onClick={() => router.push('/epaper')}
+              onMouseEnter={prewarmBackend}
+              className="sm:hidden flex items-center space-x-1.5 h-8 px-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[11px] font-bold transition-all shadow-2xs"
+              title="ePaper"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>ePaper</span>
             </button>
 
             {/* Mobile Search Button (Visible on smallest screens) */}
@@ -337,7 +355,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 </button>
               </li>
 
-              {mockCategoryTabs.filter(t => t.slug !== 'all').map((tab) => {
+              {/* Mobile Drawer E-Paper Link */}
+              <li className="lg:hidden border-b border-red-100 dark:border-slate-800 pb-1 mb-1">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    router.push('/epaper');
+                  }}
+                  className="w-full flex items-center space-x-2 py-2 px-2 text-jagran-red font-black uppercase tracking-tight text-xs"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>डिजिटल ई-पेपर (ePaper)</span>
+                </button>
+              </li>
+
+              {mockCategoryTabs.filter((t: any) => t.slug !== 'all').map((tab: any) => {
                 const isActive = activeCategory === tab.slug;
                 return (
                   <li key={tab.id} className="whitespace-nowrap shrink-0">
@@ -391,9 +423,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
           </div>
         </div>
       )} */}
-
-      {/* E-Paper Modal */}
-      <EPaperModal isOpen={isEPaperOpen} onClose={() => setIsEPaperOpen(false)} />
 
       {/* Live Video Hub Modal */}
       <VideoModal isOpen={isVideoModalOpen} onClose={() => setIsVideoModalOpen(false)} />

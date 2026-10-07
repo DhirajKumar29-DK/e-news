@@ -521,11 +521,47 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   // Dynamic States & Editions Data
   const [statesData, setStatesData] = useState<StateItem[]>([]);
   const [activeStateSlug, setActiveStateSlug] = useState<string>('bihar');
-  const [activeEdition, setActiveEdition] = useState<EditionItem>(DEFAULT_FALLBACK_EDITION);
+  const [activeEdition, setActiveEdition] = useState<EditionItem>(() => {
+    if (typeof window !== 'undefined') {
+      const urlEd = new URLSearchParams(window.location.search).get('edition');
+      if (urlEd) {
+        if (urlEd === DEFAULT_FALLBACK_EDITION.slug) {
+          return DEFAULT_FALLBACK_EDITION;
+        }
+        return {
+          ...DEFAULT_FALLBACK_EDITION,
+          slug: urlEd,
+          id: urlEd,
+          name: DEFAULT_FALLBACK_EDITION.name
+        };
+      }
+      const savedEd = localStorage.getItem('epaper_active_edition');
+      if (savedEd) {
+        if (savedEd === DEFAULT_FALLBACK_EDITION.slug) {
+          return DEFAULT_FALLBACK_EDITION;
+        }
+        return {
+          ...DEFAULT_FALLBACK_EDITION,
+          slug: savedEd,
+          id: savedEd,
+          name: DEFAULT_FALLBACK_EDITION.name
+        };
+      }
+    }
+    return DEFAULT_FALLBACK_EDITION;
+  });
   const [isEditionMenuOpen, setIsEditionMenuOpen] = useState(false);
 
   // Date state & Archive Dates List
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlDate = new URLSearchParams(window.location.search).get('date');
+      if (urlDate) return urlDate;
+      const savedDate = localStorage.getItem('epaper_selected_date');
+      if (savedDate) return savedDate;
+    }
+    return new Date().toISOString().split('T')[0];
+  });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
   const [archiveDatesList, setArchiveDatesList] = useState<ArchiveDateItem[]>([]);
 
@@ -543,7 +579,15 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   // Data state
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pages, setPages] = useState<EPaperPage[]>([]);
-  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const urlPage = new URLSearchParams(window.location.search).get('page');
+      if (urlPage && !isNaN(Number(urlPage))) return Math.max(0, Number(urlPage) - 1);
+      const savedPage = localStorage.getItem('epaper_page');
+      if (savedPage && !isNaN(Number(savedPage))) return Math.max(0, Number(savedPage) - 1);
+    }
+    return 0;
+  });
   const [totalPagesCount, setTotalPagesCount] = useState<number>(4);
   const [showAllPagesGrid, setShowAllPagesGrid] = useState<boolean>(false);
 
@@ -556,9 +600,10 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   const [fontSize, setFontSize] = useState<number>(18);
   const [articleCopiedToast, setArticleCopiedToast] = useState<boolean>(false);
   const [isDownloadingArticle, setIsDownloadingArticle] = useState<boolean>(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
   const [articleDownloadedToast, setArticleDownloadedToast] = useState<string>('');
   const [readerViewMode, setReaderViewMode] = useState<'newspaper' | 'pdf'>('newspaper');
-  const [canvasZoom, setCanvasZoom] = useState<number>(0.90);
+  const [canvasZoom, setCanvasZoom] = useState<number>(1.0);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [clippingZoom, setClippingZoom] = useState<number>(1);
   const [imageLoadError, setImageLoadError] = useState<boolean>(false);
@@ -1007,6 +1052,46 @@ ${rawBody}
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Track if this is initial mount/refresh so we preserve the selected page
+  const isInitialLoadRef = useRef(true);
+
+  // Synchronize URL parameters and localStorage when reading ePaper
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (activeEdition?.slug) {
+      localStorage.setItem('epaper_active_edition', activeEdition.slug);
+    }
+    if (selectedDate) {
+      localStorage.setItem('epaper_selected_date', selectedDate);
+    }
+    localStorage.setItem('epaper_page', String(currentPageIndex + 1));
+
+    if (window.location.pathname === '/epaper') {
+      const currentParams = new URLSearchParams(window.location.search);
+      let changed = false;
+
+      if (activeEdition?.slug && currentParams.get('edition') !== activeEdition.slug) {
+        currentParams.set('edition', activeEdition.slug);
+        changed = true;
+      }
+      if (selectedDate && currentParams.get('date') !== selectedDate) {
+        currentParams.set('date', selectedDate);
+        changed = true;
+      }
+      const pageStr = String(currentPageIndex + 1);
+      if (currentParams.get('page') !== pageStr) {
+        currentParams.set('page', pageStr);
+        changed = true;
+      }
+
+      if (changed) {
+        const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  }, [activeEdition?.slug, selectedDate, currentPageIndex]);
+
   // 1. Fetch Dynamic States & Editions on Open
   useEffect(() => {
     if (!isOpen) return;
@@ -1017,10 +1102,41 @@ ${rawBody}
         const data = await fetchStatesWithEditions();
         if (isMounted && data.length > 0) {
           setStatesData(data);
-          const firstState = data[0];
-          setActiveStateSlug(firstState.slug);
-          if (firstState.editions && firstState.editions.length > 0) {
-            setActiveEdition(firstState.editions[0]);
+
+          let preferredSlug = '';
+          if (typeof window !== 'undefined') {
+            preferredSlug = new URLSearchParams(window.location.search).get('edition') || '';
+            if (!preferredSlug) {
+              preferredSlug = localStorage.getItem('epaper_active_edition') || '';
+            }
+          }
+
+          let matchedEdition: EditionItem | null = null;
+          let matchedStateSlug = data[0].slug;
+
+          if (preferredSlug) {
+            for (const st of data) {
+              const found = st.editions?.find((e: any) => e.slug === preferredSlug || e._id === preferredSlug || e.id === preferredSlug);
+              if (found) {
+                matchedEdition = found;
+                matchedStateSlug = st.slug;
+                break;
+              }
+            }
+          }
+
+          if (!matchedEdition && data[0]?.editions?.length > 0) {
+            matchedEdition = data[0].editions[0];
+          }
+
+          if (matchedEdition) {
+            setActiveStateSlug(matchedStateSlug);
+            setActiveEdition((prev) => {
+              if (prev.slug === matchedEdition.slug && prev.name === matchedEdition.name) {
+                return prev;
+              }
+              return matchedEdition;
+            });
           }
         }
       } catch (err) {
@@ -1068,8 +1184,12 @@ ${rawBody}
       setErrorMsg(null);
       setPdfUrl(null);
       setPages([]);
-      setCurrentPageIndex(0);
       setShowAllPagesGrid(false);
+
+      if (!isInitialLoadRef.current) {
+        // If user changed date or edition actively after initial mount, reset to page 0
+        setCurrentPageIndex(0);
+      }
 
       const editionSlug = activeEdition.slug || 'patna-main';
 
@@ -1091,6 +1211,15 @@ ${rawBody}
             }
             setPages(rawPages);
             setTotalPagesCount(rawPages.length);
+
+            if (isInitialLoadRef.current) {
+              isInitialLoadRef.current = false;
+              setCurrentPageIndex((prev) => {
+                if (prev >= rawPages.length) return 0;
+                return prev;
+              });
+            }
+
             setIsLoading(false);
             return;
           }
@@ -1098,10 +1227,12 @@ ${rawBody}
 
         // If not published or no content, do NOT auto-generate for past or uncreated dates!
         if (isMounted) {
+          isInitialLoadRef.current = false;
           setErrorMsg('NOT_CREATED');
         }
       } catch (err) {
         if (isMounted) {
+          isInitialLoadRef.current = false;
           console.error(err);
           setErrorMsg('सर्वर से कनेक्ट करने में असमर्थ। कृपया backend server चेक करें।');
         }
@@ -1121,13 +1252,17 @@ ${rawBody}
 
   if (!isOpen) return null;
 
-  const proxyPdfUrl = pdfUrl ? pdfUrl.replace('/uploads/', '/backend-uploads/') : null;
-  const directFullUrl = pdfUrl ? getFullMediaUrl(pdfUrl) : null;
+  const activePdfPath = pdfUrl || `/uploads/pdfs/epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`;
+  const proxyPdfUrl = activePdfPath ? activePdfPath.replace('/uploads/', '/backend-uploads/') : null;
+  const directFullUrl = getFullMediaUrl(activePdfPath);
 
   // Single Page PDF URL with Toolbar Hidden (#toolbar=0&navpanes=0&scrollbar=0)
   const singlePagePdfUrl = proxyPdfUrl
     ? (proxyPdfUrl + '#page=' + (currentPageIndex + 1) + '&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : null;
+
+  // Base visual scale multiplier: expands base paper width by 1.05x while keeping zoom base at 100%
+  const effectiveCanvasScale = Number((canvasZoom * 1.05).toFixed(3));
 
   const totalPages = Math.max(1, pages.length > 0 ? pages.length : totalPagesCount);
 
@@ -1135,9 +1270,7 @@ ${rawBody}
   const currentSlots: EPaperSlot[] = (currentPage && Array.isArray(currentPage.slots)) ? currentPage.slots : [];
 
   const rawPageImage = currentPage?.pageImage || currentPage?.pageImageUrl;
-  const canvasImageUrl = rawPageImage
-    ? getFullMediaUrl(rawPageImage)
-    : getFullMediaUrl(`/uploads/epaper/pages/${activeEdition?.slug || 'patna-main'}-${selectedDate}-page-${currentPageIndex + 1}.webp`);
+  const canvasImageUrl = rawPageImage ? getFullMediaUrl(rawPageImage) : null;
 
   // Pad number string e.g. 1 -> "01", 16 -> "16"
   const formattedCurrentPage = String(currentPageIndex + 1).padStart(2, '0');
@@ -1223,8 +1356,78 @@ ${rawBody}
     }
   }
 
+  // Download complete multi-page PDF with all pages compiled
+  const handleDownloadFullPdf = async () => {
+    if (!directFullUrl) return;
+    setIsDownloadingPdf(true);
+    const fileName = `epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`;
+
+    try {
+      const downloadTarget = proxyPdfUrl || directFullUrl;
+      const res = await fetch(downloadTarget);
+      if (!res.ok) throw new Error('Fetch failed');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
+      }, 1200);
+    } catch {
+      // Direct window open fallback
+      const a = document.createElement('a');
+      a.href = directFullUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
+  const [headerCopiedToast, setHeaderCopiedToast] = useState<boolean>(false);
+
+  const handleHeaderCopy = async () => {
+    try {
+      const url = typeof window !== 'undefined' ? window.location.href : '';
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+      setHeaderCopiedToast(true);
+      setTimeout(() => setHeaderCopiedToast(false), 2000);
+    } catch {
+      setHeaderCopiedToast(true);
+      setTimeout(() => setHeaderCopiedToast(false), 2000);
+    }
+  };
+
+  const handleHeaderShare = async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const shareData = {
+      title: `डिजिटल ई-पेपर - ${activeEdition?.name || 'दैनिक समाचार'}`,
+      text: `आज का ई-पेपर ऑनलाइन पढ़ें (${formatHindiDate(selectedDate)}): ${url}`,
+      url: url,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User closed share dialog
+      }
+    } else {
+      handleHeaderCopy();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-[#111827] flex flex-col text-slate-100 font-sans select-none overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
 
       {/* 1. TOP CONTROL TOOLBAR */}
       <header className="h-[64px] bg-gradient-to-r from-[#ba1228] via-[#8a0b1d] to-[#680714] px-4 sm:px-8 flex items-center justify-between shrink-0 shadow-2xl relative z-40 border-b border-red-900/60">
@@ -1528,24 +1731,61 @@ ${rawBody}
 
         </div>
 
-        {/* Right Tools & Download */}
-        <div className="flex items-center space-x-2">
-          {directFullUrl && (
-            <button
-              type="button"
-              onClick={() => window.open(directFullUrl, '_blank')}
-              className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#ba1228] font-extrabold text-xs rounded-lg flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">PDF डाउनलोड</span>
-              <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
-            </button>
-          )}
+        {/* Right Tools: ZoomIn, ZoomOut, Copy, Download, Share, Close */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* 1. Zoom In Button */}
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(prev => Math.min(2.0, Number((prev + 0.1).toFixed(2))))}
+            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            title="ज़ूम बढ़ाएं (Zoom In)"
+          >
+            <ZoomIn className="w-5 h-5" />
+          </button>
 
+          {/* 2. Zoom Out Button */}
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(prev => Math.max(0.4, Number((prev - 0.1).toFixed(2))))}
+            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            title="ज़ूम कम करें (Zoom Out)"
+          >
+            <ZoomOut className="w-5 h-5" />
+          </button>
+
+          {/* 3. Download Full PDF Button */}
+          <button
+            type="button"
+            onClick={handleDownloadFullPdf}
+            disabled={isDownloadingPdf}
+            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            title="पूरा ई-पेपर PDF डाउनलोड करें (सभी पृष्ठ - Download Full PDF)"
+          >
+            {isDownloadingPdf ? (
+              <Loader2 className="w-5 h-5 animate-spin text-amber-300" />
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* 5. Share Button */}
+          <button
+            type="button"
+            onClick={handleHeaderShare}
+            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            title="ई-पेपर शेयर करें (Share ePaper)"
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+
+          <div className="h-6 w-px bg-white/20 mx-1 hidden sm:block" />
+
+          {/* 6. Close Modal Button */}
           <button
             type="button"
             onClick={onClose}
             className="p-2 rounded-lg bg-black/30 hover:bg-white/20 text-white cursor-pointer transition-colors"
+            title="बंद करें (Close)"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1554,16 +1794,16 @@ ${rawBody}
       </header>
 
       {/* 2. MAIN BROADSHEET PDF VIEWER STAGE */}
-      <main className="flex-1 overflow-hidden bg-[#0a0e17] p-0 flex flex-col items-center justify-start relative">
+      <main className="flex-1 overflow-hidden bg-[#f8fafc] p-0 flex flex-col items-center justify-start relative">
 
         {/* Loading Spinner */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center p-8 space-y-3 text-center my-auto">
             <Loader2 className="w-12 h-12 text-red-500 animate-spin" />
-            <p className="text-sm font-bold text-slate-200 font-serif">
+            <p className="text-sm font-bold text-slate-800 font-serif">
               ई-पेपर ब्रॉडशीट लोड हो रहा है...
             </p>
-            <p className="text-xs text-slate-400 font-sans">
+            <p className="text-xs text-slate-500 font-sans">
               {activeEdition.name} • {formatHindiDate(selectedDate)}
             </p>
           </div>
@@ -1638,8 +1878,8 @@ ${rawBody}
                 <div
                   className="transition-transform duration-150 origin-top mt-0 mb-8"
                   style={{
-                    width: `${Math.round(1344 * canvasZoom)}px`,
-                    height: `${Math.round(2112 * canvasZoom)}px`,
+                    width: `${Math.round(1344 * effectiveCanvasScale)}px`,
+                    height: `${Math.round(2112 * effectiveCanvasScale)}px`,
                   }}
                 >
                                     <div
@@ -1651,10 +1891,10 @@ ${rawBody}
                       height: '2112px',
                       minHeight: '2112px',
                       maxHeight: '2112px',
-                      transform: `scale(${canvasZoom})`,
+                      transform: `scale(${effectiveCanvasScale})`,
                       transformOrigin: 'top left',
                     }}
-                    className="bg-[#fffdf7] text-slate-950 border border-slate-300/80 shadow-2xl ring-1 ring-slate-900/5 p-6 sm:p-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
+                    className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 p-6 sm:p-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
                   >
                     {/* Top Date Line Bar */}
                     <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-xs font-sans font-bold text-slate-800">
@@ -1683,7 +1923,7 @@ ${rawBody}
                     {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
                     {currentSlots.map((rawSlot, sIdx) => {
                       const s = normalizeSlotData(rawSlot);
-                      const comp = (s.computedSections && s.computedSections.text1 !== undefined) ? s.computedSections : computeSlotSections(s);
+                      const comp = computeSlotSections(s);
                       const cardContentW = Math.max(100, s.width - 24);
                       const vertAlign: 'top' | 'middle' | 'bottom' = s.imageVertAlign || 'top';
                       const normAlign = (s.imageAlignment || s.imageAlign || 'Center').toLowerCase();
@@ -2044,8 +2284,8 @@ ${rawBody}
                       );
                     })}
 
-                    {/* High-Res Compiled WebP Photo Layer (Overlays if generated & successfully loaded) */}
-                    {!imageLoadError && canvasImageUrl && (
+                    {/* High-Res Compiled WebP Photo Layer (Only when no digital slots exist on page e.g. scanned print edition) */}
+                    {currentSlots.length === 0 && !imageLoadError && canvasImageUrl && (
                       <img
                         key={canvasImageUrl}
                         src={canvasImageUrl}
@@ -2116,57 +2356,6 @@ ${rawBody}
                 <span className="text-xs">सभी पृष्ठ देखें</span>
               </button>
 
-              {/* View Mode Toggle (Newspaper vs PDF) */}
-              {singlePagePdfUrl && (
-                <>
-                  <div className="h-5 w-px bg-slate-500/50" />
-                  <button
-                    type="button"
-                    onClick={() => setReaderViewMode(prev => prev === 'newspaper' ? 'pdf' : 'newspaper')}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/80 text-amber-300 transition-colors cursor-pointer"
-                    title={readerViewMode === 'newspaper' ? 'मूल PDF ब्रॉडशीट देखें' : 'अखबार कैनवास देखें'}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="text-xs">
-                      {readerViewMode === 'newspaper' ? 'PDF देखें' : 'अखबार देखें'}
-                    </span>
-                  </button>
-                </>
-              )}
-
-              {/* Canvas Zoom Controls (When in Broadsheet Canvas view) */}
-              {readerViewMode === 'newspaper' && (
-                <>
-                  <div className="h-5 w-px bg-slate-500/50" />
-                  <div className="flex items-center space-x-1 bg-slate-800/80 px-2 py-1 rounded-xl border border-slate-600/50">
-                    <button
-                      type="button"
-                      onClick={() => setCanvasZoom(prev => Math.max(0.3, Number((prev - 0.05).toFixed(2))))}
-                      className="p-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                      title="ज़ूम कम करें (Zoom Out -5%)"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCanvasZoom(0.90)}
-                      className="font-mono text-[11px] font-bold text-amber-300 px-1 hover:text-white cursor-pointer"
-                      title="रीसेट ज़ूम (Reset 90%)"
-                    >
-                      {Math.round(canvasZoom * 100)}%
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCanvasZoom(prev => Math.min(2.0, Number((prev + 0.05).toFixed(2))))}
-                      className="p-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                      title="ज़ूम बढ़ाएं (Zoom In +5%)"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </>
-              )}
-
               {/* Vertical Divider Line | */}
               <div className="h-5 w-px bg-slate-500/50" />
 
@@ -2221,6 +2410,43 @@ ${rawBody}
 
             </div>
           </div>
+        )}
+
+        {/* 3.1 HINDUSTAN EPAPER STYLE LEFT & RIGHT SIDE PAGE NAVIGATION PADDLES */}
+        {!isLoading && !errorMsg && totalPages > 1 && (
+          <>
+            {/* Left Paddle (Previous Page) */}
+            <button
+              type="button"
+              disabled={currentPageIndex === 0}
+              onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
+              className={`fixed sm:absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl shadow-lg shadow-black/30 flex items-center justify-center text-white transition-all border border-white/20 select-none group ${
+                currentPageIndex === 0
+                  ? 'opacity-0 pointer-events-none'
+                  : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
+              }`}
+              title="पिछला पृष्ठ (Previous Page)"
+              aria-label="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[2.5] group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* Right Paddle (Next Page) */}
+            <button
+              type="button"
+              disabled={currentPageIndex >= totalPages - 1}
+              onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
+              className={`fixed sm:absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl shadow-lg shadow-black/30 flex items-center justify-center text-white transition-all border border-white/20 select-none group ${
+                currentPageIndex >= totalPages - 1
+                  ? 'opacity-0 pointer-events-none'
+                  : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
+              }`}
+              title="अगला पृष्ठ (Next Page)"
+              aria-label="Next Page"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </>
         )}
 
       </main>
