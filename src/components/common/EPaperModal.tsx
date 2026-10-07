@@ -261,6 +261,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [clippingZoom, setClippingZoom] = useState<number>(1);
   const [imageLoadError, setImageLoadError] = useState<boolean>(false);
+  const [hasImageLoaded, setHasImageLoaded] = useState<boolean>(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const currentChunkIndexRef = useRef<number>(0);
   const audioChunksRef = useRef<string[]>([]);
@@ -269,6 +270,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
   useEffect(() => {
     setImageLoadError(false);
+    setHasImageLoaded(false);
   }, [currentPageIndex, activeEdition.slug, selectedDate]);
 
   // Helper to split text into natural punctuation chunks (<160 chars) for smooth streaming audio
@@ -1341,7 +1343,7 @@ ${rawBody}
                 >
                                     <div
                     ref={pageContainerRef}
-                    className="relative bg-white shadow-2xl rounded overflow-hidden select-none border border-slate-700/60 shrink-0"
+                    className="relative bg-[#fffdf7] shadow-2xl rounded overflow-hidden select-none border border-slate-700/60 shrink-0"
                     style={{
                       width: '1344px',
                       minWidth: '1344px',
@@ -1353,22 +1355,144 @@ ${rawBody}
                       transformOrigin: 'top left',
                     }}
                   >
-                    {/* 1. Generated 1344x2112 Broadsheet Page WebP (Exact 1:1 Canvas Photo) */}
-                    <img
-                      key={canvasImageUrl}
-                      src={canvasImageUrl}
-                      alt={`${activeEdition.name} - Page ${currentPageIndex + 1}`}
-                      className="w-full h-full object-cover block select-none pointer-events-none"
-                      onError={(e) => {
-                        setImageLoadError(true);
-                        const target = e.target as HTMLImageElement;
-                        if (!target.src.includes('placehold.co')) {
-                          target.src = `https://placehold.co/1344x2112/fffdf7/ba1228?text=${encodeURIComponent((activeEdition.title || 'ई-पेपर') + ' - पेज ' + (currentPageIndex + 1))}`;
-                        }
-                      }}
-                    />
+                    {/* 1. BROADSHEET MASTHEAD & DATE BAR */}
+                    <div className="absolute top-0 left-0 right-0 px-8 pt-5 pb-3 bg-[#fffdf7] border-b-2 border-slate-900 z-0">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-1 text-xs font-sans font-bold text-slate-800">
+                        <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
+                        <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
+                        <span>पेज {formattedCurrentPage}</span>
+                      </div>
+                      <div className="text-center pt-2 pb-0.5">
+                        <h1
+                          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
+                          className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight"
+                        >
+                          {activeEdition.title || 'डिजिटल ई-पेपर'}
+                        </h1>
+                        <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-1">
+                          <span className="bg-red-600 text-white px-2 py-0.5 rounded font-black">ई-पेपर डिजिटल संस्करण</span>
+                          <span>•</span>
+                          <span>{(activeEdition as any).state || 'बिहार'}</span>
+                          <span>•</span>
+                          <span>{activeEdition.name || 'पटना'}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                    {/* 2. Interactive Hotspot Overlay Boxes with Light Red Border & Red Overlay Tint */}
+                    {/* 2. LIVE BROADSHEET SLOTS RENDERED DIRECTLY FROM DATABASE JSON */}
+                    {currentSlots.map((rawSlot, sIdx) => {
+                      const slot = normalizeSlotData(rawSlot);
+                      if (slot.isAd) {
+                        return (
+                          <div
+                            key={`rendered-ad-${slot.id || sIdx}`}
+                            style={{
+                              position: 'absolute',
+                              left: `${slot.x}px`,
+                              top: `${slot.y}px`,
+                              width: `${slot.width}px`,
+                              height: `${slot.height}px`,
+                            }}
+                            className="p-3 bg-amber-50 rounded border-2 border-amber-300 text-center flex flex-col justify-center overflow-hidden z-0"
+                          >
+                            <h4 className="text-base font-black text-blue-900 font-sans">{slot.headline}</h4>
+                            {slot.subHeadline && <p className="text-xs font-bold text-red-700">{slot.subHeadline}</p>}
+                            {slot.summary && <p className="text-[11px] text-slate-600 mt-1">{slot.summary}</p>}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={`rendered-slot-${slot.id || sIdx}`}
+                          style={{
+                            position: 'absolute',
+                            left: `${slot.x}px`,
+                            top: `${slot.y}px`,
+                            width: `${slot.width}px`,
+                            height: `${slot.height}px`,
+                          }}
+                          className="p-2 border border-slate-300/60 bg-[#fffdf7] overflow-hidden flex flex-col z-0 rounded-xs shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                        >
+                          {/* Category Badge */}
+                          {Boolean((slot.categoryBadge || slot.categoryTag)?.trim()) && (
+                            <div className="mb-1">
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide">
+                                {(slot.categoryBadge || slot.categoryTag).trim()}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Headline */}
+                          <h2
+                            style={{
+                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                              fontSize: `${slot.headlineFontSize || 22}px`,
+                              color: slot.headlineColor || '#020617',
+                            }}
+                            className="font-black leading-tight break-words mb-1"
+                            dangerouslySetInnerHTML={{ __html: slot.headline || '' }}
+                          />
+
+                          {/* SubHeadline */}
+                          {slot.subHeadline && (
+                            <p
+                              style={{
+                                fontFamily: "'Mukta', 'Inter', sans-serif",
+                                fontSize: `${slot.subHeadlineFontSize || 13}px`,
+                                color: slot.subHeadlineColor || '#b91c1c',
+                              }}
+                              className="font-bold leading-tight mb-1 text-red-700 italic"
+                              dangerouslySetInnerHTML={{ __html: slot.subHeadline }}
+                            />
+                          )}
+
+                          {/* Image */}
+                          {slot.imageUrl && (
+                            <div className="my-1 overflow-hidden rounded-xs border border-slate-200">
+                              <img
+                                src={getFullMediaUrl(slot.imageUrl)}
+                                alt={slot.headline || 'News'}
+                                className="w-full object-cover max-h-[220px]"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Summary / Body columns */}
+                          {slot.summary && (
+                            <div
+                              style={{
+                                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                                fontSize: `${slot.summaryFontSize || 13}px`,
+                                color: slot.summaryColor || '#1e293b',
+                                columnCount: slot.columnsCount > 1 ? slot.columnsCount : 1,
+                                columnGap: `${slot.columnGap || 14}px`,
+                                columnRule: slot.showColumnDivider ? '1px solid #cbd5e1' : undefined,
+                                textAlign: 'justify',
+                                textJustify: 'inter-word',
+                              }}
+                              className="flex-1 overflow-hidden leading-relaxed whitespace-pre-line text-justify"
+                              dangerouslySetInnerHTML={{ __html: slot.summary }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* 3. HIGH-RES COMPILED WEBP IMAGE (Smoothly overlays if generated and successfully loaded) */}
+                    {!imageLoadError && canvasImageUrl && (
+                      <img
+                        key={canvasImageUrl}
+                        src={canvasImageUrl}
+                        alt={`${activeEdition.name} - Page ${currentPageIndex + 1}`}
+                        onLoad={() => setHasImageLoaded(true)}
+                        onError={() => setImageLoadError(true)}
+                        className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10 transition-opacity duration-300 ${hasImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                      />
+                    )}
+
+                    {/* 4. INTERACTIVE HOTSPOT OVERLAY BOXES WITH LIGHT RED BORDER & RED OVERLAY TINT */}
                     {currentSlots.map((rawSlot, sIdx) => {
                       const slot = normalizeSlotData(rawSlot);
                       return (
@@ -1379,7 +1503,7 @@ ${rawBody}
                             setIsArticleModalOpen(true);
                           }}
                           title={slot.headline || ''}
-                          className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-10 select-none"
+                          className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-20 select-none"
                           style={{
                             position: 'absolute',
                             left: `${slot.x}px`,

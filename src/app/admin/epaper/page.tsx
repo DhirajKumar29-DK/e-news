@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
+import RichTextEditor from '@/components/admin/RichTextEditor';
 
 export interface EPaperSlotData {
   id: string;
@@ -633,10 +634,7 @@ function FullStudioInner() {
   const handleSaveRichEditor = () => {
     if (!richEditingSlot) return;
 
-    let finalHtml = richSummaryHtml;
-    if (richEditorContentRef.current) {
-      finalHtml = richEditorContentRef.current.innerHTML;
-    }
+    const finalHtml = richSummaryHtml;
 
     setPages(prevPages => prevPages.map(pg => {
       return {
@@ -3869,325 +3867,112 @@ function FullStudioInner() {
 
 
 
-      {/* WORD-STYLE RICH TEXT EDITOR & HIGHLIGHTER MODAL POPUP */}
+      {/* WORD-STYLE RICH TEXT EDITOR MODAL POPUP */}
       {isRichEditorOpen && richEditingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150">
-          <div className="bg-[#1e2430] text-slate-100 rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-slate-700 flex flex-col font-sans">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150">
+          <div className="bg-[#1e2430] text-slate-100 rounded-3xl max-w-5xl w-full max-h-[94vh] shadow-2xl border border-slate-700 flex flex-col font-sans">
 
             {/* 1. Modal Top Header */}
-            <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+            <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center justify-between shrink-0 rounded-t-3xl">
               <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-sm">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-black text-white font-serif tracking-wide flex items-center space-x-2">
-                    <span>Word-Style Text Editor & Word Highlighter</span>
-                    <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded text-xs font-mono font-bold">
+                    <span>e-Paper Slot Story & Rich Text Editor</span>
+                    <span className="bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold shadow-xs">
                       Slot #{richEditingSlot.slotNumber}
                     </span>
                   </h2>
                   <p className="text-xs text-slate-400 font-sans">
-                    किसी भी शब्द/वाक्य को माउस से सिलेक्ट करें और MS Word की तरह तुरंत हाइलाइट करें या रंग बदलें
+                    शीर्षक, उप-शीर्षक और वर्ड-स्टाइल रिच फॉर्मेटिंग (टेबल्स, हाइलाइटर, कार्ड्स) संपादित करें
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsRichEditorOpen(false)}
-                className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
                 title="बंद करें (Close)"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* 2. MS Word-Style Formatting Ribbon / Toolbar */}
-            <div className="bg-slate-800/90 px-4 py-2.5 border-b border-slate-700 flex flex-wrap items-center gap-2 text-xs shrink-0 select-none">
-
-              {/* Group 1: Font Style (Bold, Italic, Underline) */}
-              <div className="flex items-center bg-slate-900 rounded-lg p-0.5 border border-slate-700">
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyRichCommand('bold')}
-                  className="px-2.5 py-1.5 rounded font-black hover:bg-slate-800 text-slate-200 hover:text-white transition-colors cursor-pointer"
-                  title="Bold (Ctrl+B)"
-                >
-                  <Bold className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyRichCommand('italic')}
-                  className="px-2.5 py-1.5 rounded italic hover:bg-slate-800 text-slate-200 hover:text-white transition-colors cursor-pointer"
-                  title="Italic (Ctrl+I)"
-                >
-                  <Italic className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyRichCommand('underline')}
-                  className="px-2.5 py-1.5 rounded underline hover:bg-slate-800 text-slate-200 hover:text-white transition-colors cursor-pointer"
-                  title="Underline (Ctrl+U)"
-                >
-                  <Underline className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Group 2: Word Highlighters (🟡 Yellow, 🟢 Green, 🔵 Cyan, 🟠 Orange, 🔴 Rose) */}
-              <div className="relative">
-                <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyHighlight(currentSelectedHighlight)}
-                    className="px-2.5 py-1.5 flex items-center space-x-1.5 hover:bg-slate-800 transition-colors cursor-pointer"
-                    title={`सिलेक्टेड शब्द को ${currentSelectedHighlight} से हाइलाइट करें`}
-                  >
-                    <Highlighter className="w-4 h-4 text-amber-300" />
-                    <span
-                      className="w-3.5 h-3.5 rounded border border-white/40 shadow-xs"
-                      style={{ backgroundColor: currentSelectedHighlight }}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleHighlightDropdown}
-                    className="px-1.5 py-1.5 hover:bg-slate-800 border-l border-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                    title="हाइलाइटर रंग चुनें"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
+            {/* 2. Modal Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/60">
+              {/* Slot Headline & Sub-Headline Quick Edit Inputs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                    मुख्य शीर्षक (Headline)
+                  </label>
+                  <input
+                    type="text"
+                    value={richHeadline}
+                    onChange={(e) => setRichHeadline(e.target.value)}
+                    placeholder="मुख्य शीर्षक दर्ज करें..."
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-serif font-black text-sm outline-none focus:border-amber-400 shadow-inner"
+                  />
                 </div>
 
-                {/* Highlighter Color Palette Dropdown */}
-                {showHighlightDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 p-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 flex items-center space-x-2 animate-in fade-in zoom-in-95 duration-100">
-                    {[
-                      { color: '#fef08a', name: 'Yellow (पीला)' },
-                      { color: '#bbf7d0', name: 'Green (हरा)' },
-                      { color: '#a5f3fc', name: 'Cyan (हल्का नीला)' },
-                      { color: '#fed7aa', name: 'Orange (नारंगी)' },
-                      { color: '#fecdd3', name: 'Rose (गुलाबी/लाल)' },
-                      { color: 'transparent', name: 'No Color (हटाएं)' }
-                    ].map(item => (
-                      <button
-                        key={item.color}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setCurrentSelectedHighlight(item.color);
-                          applyHighlight(item.color);
-                          setShowHighlightDropdown(false);
-                        }}
-                        className="w-6 h-6 rounded-lg border border-slate-600 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center shadow-xs"
-                        style={{ backgroundColor: item.color === 'transparent' ? '#1e293b' : item.color }}
-                        title={item.name}
-                      >
-                        {item.color === 'transparent' && <span className="text-[10px] text-red-400 font-bold">✕</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Group 3: Text Font Color Dropdown */}
-              <div className="relative">
-                <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyTextColor(currentSelectedTextColor)}
-                    className="px-2.5 py-1.5 flex items-center space-x-1.5 hover:bg-slate-800 transition-colors cursor-pointer"
-                    title={`सिलेक्टेड शब्द का फॉन्ट रंग बदलें`}
-                  >
-                    <Palette className="w-4 h-4 text-red-400" />
-                    <span
-                      className="w-3.5 h-3.5 rounded border border-white/40 shadow-xs"
-                      style={{ backgroundColor: currentSelectedTextColor }}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleTextColorDropdown}
-                    className="px-1.5 py-1.5 hover:bg-slate-800 border-l border-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                    title="फॉन्ट रंग चुनें"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                    उप-शीर्षक (Sub-Headline)
+                  </label>
+                  <input
+                    type="text"
+                    value={richSubHeadline}
+                    onChange={(e) => setRichSubHeadline(e.target.value)}
+                    placeholder="उप-शीर्षक यहाँ लिखें..."
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-red-400 font-bold text-xs outline-none focus:border-amber-400 shadow-inner"
+                  />
                 </div>
-
-                {/* Font Color Palette Dropdown */}
-                {showTextColorDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 p-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 flex items-center space-x-2 animate-in fade-in zoom-in-95 duration-100">
-                    {[
-                      { color: '#b91c1c', name: 'Editorial Red (संपादकीय लाल)' },
-                      { color: '#1e3a8a', name: 'Dark Navy Blue (गहरा नीला)' },
-                      { color: '#15803d', name: 'Forest Green (हरा)' },
-                      { color: '#b45309', name: 'Amber Gold (सुनहरा)' },
-                      { color: '#0f172a', name: 'Black (काला)' },
-                      { color: '#64748b', name: 'Slate Gray (ग्रे)' }
-                    ].map(item => (
-                      <button
-                        key={item.color}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setCurrentSelectedTextColor(item.color);
-                          applyTextColor(item.color);
-                          setShowTextColorDropdown(false);
-                        }}
-                        className="w-6 h-6 rounded-lg border border-slate-600 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center shadow-xs"
-                        style={{ backgroundColor: item.color }}
-                        title={item.name}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
 
-              {/* Group 4: Font Size Control */}
-              <div className="relative">
-                <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
-                  <div className="px-2.5 py-1.5 flex items-center space-x-1 text-slate-200">
-                    <Type className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-mono text-xs font-bold">{currentSelectedFontSize}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={toggleFontSizeDropdown}
-                    className="px-1.5 py-1.5 hover:bg-slate-800 border-l border-slate-800 text-slate-400 hover:text-white cursor-pointer"
-                    title="फॉन्ट साइज चुनें"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                </div>
-
-                {/* Font Size Dropdown Menu */}
-                {showFontSizeDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 w-28 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1 animate-in fade-in zoom-in-95 duration-100">
-                    {[
-                      { size: '1', label: '10px (Very Small)' },
-                      { size: '2', label: '12px (Small)' },
-                      { size: '3', label: '14px (Normal Body)' },
-                      { size: '4', label: '16px (Medium)' },
-                      { size: '5', label: '18px (Sub-lead)' },
-                      { size: '6', label: '24px (Large)' }
-                    ].map(item => (
-                      <button
-                        key={item.size}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setCurrentSelectedFontSize(item.label.split(' ')[0]);
-                          applyRichCommand('fontSize', item.size);
-                          setShowFontSizeDropdown(false);
-                        }}
-                        className="w-full text-left px-2.5 py-1 rounded-lg text-xs hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Group 5: Remove Formatting (Eraser) */}
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => applyRichCommand('removeFormat')}
-                className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-red-400 transition-colors cursor-pointer flex items-center space-x-1"
-                title="सिलेक्टेड शब्दों से फॉर्मेटिंग और हाइलाइटर हटाएं"
-              >
-                <Eraser className="w-4 h-4" />
-                <span className="hidden sm:inline text-[11px]">Clear Format</span>
-              </button>
-
-            </div>
-
-            {/* 3. Editor Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/50">
-              {/* Slot Headline Quick Edit */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                  मुख्य शीर्षक (Headline)
-                </label>
-                <input
-                  type="text"
-                  value={richHeadline}
-                  onChange={(e) => setRichHeadline(e.target.value)}
-                  placeholder="मुख्य शीर्षक दर्ज करें..."
-                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-serif font-black text-sm outline-none focus:border-red-500 shadow-inner"
-                />
-              </div>
-
-              {/* Slot SubHeadline Quick Edit */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                  उप-शीर्षक (Sub-Headline)
-                </label>
-                <input
-                  type="text"
-                  value={richSubHeadline}
-                  onChange={(e) => setRichSubHeadline(e.target.value)}
-                  placeholder="उप-शीर्षक यहाँ लिखें..."
-                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-red-400 font-bold text-xs outline-none focus:border-red-500 shadow-inner"
-                />
-              </div>
-
-              {/* WYSIWYG Editable Story Body with Word Highlighting */}
+              {/* Advanced Rich Text Editor Component */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-400 uppercase tracking-wider">
-                    कंटेंट बॉडी (WYSIWYG Live Editor)
+                  <span className="font-bold text-slate-300 uppercase tracking-wider">
+                    स्टोरी कंटेंट बॉडी (Rich Text Editor)
                   </span>
                   <span className="text-[11px] text-amber-400 font-medium">
-                    💡 माउस से शब्द चुनें और ऊपर दिए गए हाइलाइटर टूल का प्रयोग करें
+                    💡 टेबल्स, हाइलाइटर, समरी कार्ड्स और फुल-स्क्रीन एडिटर सपोर्टेड
                   </span>
                 </div>
 
-                <div
-                  ref={richEditorContentRef}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={() => {
-                    if (richEditorContentRef.current) {
-                      setRichSummaryHtml(richEditorContentRef.current.innerHTML);
-                    }
-                  }}
-                  className="min-h-[220px] max-h-[360px] overflow-y-auto p-4 bg-white text-slate-950 font-serif text-[15px] leading-relaxed rounded-xl shadow-inner border-2 border-slate-700 focus:border-amber-400 outline-none select-text"
-                  style={{
-                    fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                    whiteSpace: 'pre-wrap',
-                    textAlign: 'justify'
-                  }}
-                />
+                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-700">
+                  <RichTextEditor
+                    key={richEditingSlot.id}
+                    value={richSummaryHtml}
+                    onChange={(html) => setRichSummaryHtml(html)}
+                    label={`Slot #${richEditingSlot.slotNumber} News Editor`}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* 4. Bottom Footer Action Bar */}
-            <div className="bg-slate-900 px-6 py-3.5 border-t border-slate-700 flex items-center justify-between shrink-0">
+            {/* 3. Bottom Footer Action Bar */}
+            <div className="bg-slate-900 px-6 py-4 border-t border-slate-700 flex items-center justify-between shrink-0 rounded-b-3xl">
               <span className="text-xs text-slate-400 hidden sm:inline">
-                ✨ शब्द सिलेक्ट करके ऊपर दिए गए 🟡 पीला, 🟢 हरा, 🔴 लाल हाइलाइटर दबाएं
+                ✨ स्लॉट में सभी बदलाव सीधे कैनवास और ई-पेपर में लाइव रिफ्लेक्ट होंगे
               </span>
               <div className="flex items-center space-x-3 ml-auto">
                 <button
                   type="button"
                   onClick={() => setIsRichEditorOpen(false)}
-                  className="px-5 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs transition-colors cursor-pointer"
                 >
                   रद्द करें (Cancel)
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveRichEditor}
-                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/30 flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-105"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-105"
                 >
                   <Check className="w-4 h-4" />
-                  <span>स्लॉट में लागू करें (Apply to Slot)</span>
+                  <span>कैनवास पर सेव करें (Save to Canvas)</span>
                 </button>
               </div>
             </div>
