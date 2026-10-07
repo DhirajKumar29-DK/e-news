@@ -8,7 +8,13 @@ import {
   Share2, Image as ImageIcon, Copy, Volume2, VolumeX, ZoomIn, ZoomOut, Plus, Minus,
   AlertCircle, Newspaper
 } from 'lucide-react';
-import { BACKEND_URL, API_BASE_URL, getFullMediaUrl } from '@/config/env';
+import { BACKEND_URL, getFullMediaUrl } from '@/config/env';
+import {
+  fetchStatesWithEditions,
+  fetchArchiveDates,
+  fetchEpaperIssue,
+  getTtsAudioUrl,
+} from '@/services/epaperService';
 
 // Utility to decode HTML entities and format paragraphs properly
 function cleanAndFormatHtml(htmlOrText: string): string {
@@ -115,13 +121,99 @@ const MONTH_NAMES = [
 
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
 
+function formatHindiDateString(dateStr: string) {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const days = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
+    const months = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+    return `${days[d.getDay()]} • ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 function formatHindiDate(dateStr: string) {
-  if (!dateStr) return 'आज का अंक';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const days = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
-  const months = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
-  return days[d.getDay()] + ' • ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  return formatHindiDateString(dateStr);
+}
+
+export function stripHtmlTagsToPlainText(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  if (str.includes('&lt;') && str.includes('&gt;')) {
+    str = str
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  str = str
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '\n');
+  str = str.replace(/<[^>]*>/g, '');
+  return str.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function normalizeSlotData(s: any): any {
+  const width = s.width !== undefined && s.width !== null ? Number(s.width) : 400;
+  const height = s.height !== undefined && s.height !== null ? Number(s.height) : 250;
+  const columnsCount = Number(
+    s.columnsCount ?? s.columnCount ?? s.columns_count ?? s.colsCount ?? (width >= 550 ? 2 : 1)
+  );
+  const colGap = Number(s.columnGap ?? s.column_gap ?? 14);
+  const showColumnDivider = Boolean(
+    s.showColumnDivider ?? s.show_column_divider ?? s.showColumnDividers ?? false
+  );
+  const imageWidth = s.imageWidth !== undefined && s.imageWidth !== null
+    ? Number(s.imageWidth)
+    : (s.image_width !== undefined ? Number(s.image_width) : undefined);
+  const imageHeight = s.imageHeight !== undefined && s.imageHeight !== null
+    ? Number(s.imageHeight)
+    : (s.image_height !== undefined ? Number(s.image_height) : 140);
+  const imgPxX = s.imgPxX !== undefined ? Number(s.imgPxX) : (s.img_px_x !== undefined ? Number(s.img_px_x) : undefined);
+  const imgPxY = s.imgPxY !== undefined ? Number(s.imgPxY) : (s.img_px_y !== undefined ? Number(s.img_px_y) : undefined);
+
+  const rawHlSize = s.headlineFontSize ?? s.headline_font_size ?? s.content?.headlineFontSize ?? s.content?.headline_font_size;
+  const rawSubHlSize = s.subHeadlineFontSize ?? s.sub_headline_font_size ?? s.content?.subHeadlineFontSize ?? s.content?.sub_headline_font_size;
+  const rawSummarySize = s.summaryFontSize ?? s.summary_font_size ?? s.bodyFontSize ?? s.body_font_size ?? s.content?.summaryFontSize ?? s.content?.bodyFontSize ?? s.content?.summary_font_size ?? s.content?.fontSize;
+
+  return {
+    ...s,
+    id: s.id || s.slot_id || `slot-${Math.random().toString(36).substr(2, 9)}`,
+    x: s.x !== undefined && s.x !== null ? Number(s.x) : 16,
+    y: s.y !== undefined && s.y !== null ? Number(s.y) : 115,
+    width,
+    height,
+    headline: s.headline || s.content?.headline || '',
+    subHeadline: s.subHeadline || s.content?.subHeadline || '',
+    categoryBadge: s.categoryBadge || s.categoryTag || s.content?.categoryBadge || s.content?.categoryTag || '',
+    categoryTag: s.categoryTag || s.categoryBadge || s.content?.categoryTag || s.content?.categoryBadge || '',
+    summary: s.summary || s.contentText || s.content?.body || s.content?.summary || '',
+    imageUrl: s.imageUrl || s.content?.imageUrl || '',
+    imageAlignment: s.imageAlignment || s.imageAlign || 'Left',
+    imageAlign: s.imageAlign || s.imageAlignment || 'Left',
+    imageWidth,
+    imageHeight,
+    imgPxX,
+    imgPxY,
+    headlineFontSize: rawHlSize !== undefined && rawHlSize !== null && !isNaN(Number(rawHlSize)) ? Number(rawHlSize) : 22,
+    headlineColor: s.headlineColor || s.headline_color || s.content?.headlineColor || '#020617',
+    subHeadlineFontSize: rawSubHlSize !== undefined && rawSubHlSize !== null && !isNaN(Number(rawSubHlSize)) ? Number(rawSubHlSize) : 13,
+    subHeadlineColor: s.subHeadlineColor || s.sub_headline_color || s.content?.subHeadlineColor || '#b91c1c',
+    summaryFontSize: rawSummarySize !== undefined && rawSummarySize !== null && !isNaN(Number(rawSummarySize)) ? Number(rawSummarySize) : 14,
+    summaryColor: s.summaryColor || s.summary_color || s.bodyTextColor || s.content?.summaryColor || undefined,
+    columnsCount,
+    columnGap: colGap,
+    showColumnDivider,
+    imageWrapMode: s.imageWrapMode || s.image_wrap_mode || 'auto',
+    imageVertAlign: s.imageVertAlign || s.image_vert_align || 'top',
+    isAd: s.isAd || s.type === 'ad' || false,
+    computedSections: s.computedSections
+  };
 }
 
 export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => {
@@ -281,7 +373,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
       currentChunkIndexRef.current = index;
       const chunkText = audioChunksRef.current[index];
-      const audioUrl = `${API_BASE_URL}/epaper/tts?text=${encodeURIComponent(chunkText)}`;
+      const audioUrl = getTtsAudioUrl(chunkText);
 
       try {
         if (!audioPlayerRef.current) {
@@ -617,18 +709,15 @@ ${rawBody}
     if (!isOpen) return;
 
     let isMounted = true;
-    const fetchStatesAndEditions = async () => {
+    const loadStatesAndEditions = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/epaper/states-with-editions`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.success && Array.isArray(data.data) && data.data.length > 0) {
-            setStatesData(data.data);
-            const firstState = data.data[0];
-            setActiveStateSlug(firstState.slug);
-            if (firstState.editions && firstState.editions.length > 0) {
-              setActiveEdition(firstState.editions[0]);
-            }
+        const data = await fetchStatesWithEditions();
+        if (isMounted && data.length > 0) {
+          setStatesData(data);
+          const firstState = data[0];
+          setActiveStateSlug(firstState.slug);
+          if (firstState.editions && firstState.editions.length > 0) {
+            setActiveEdition(firstState.editions[0]);
           }
         }
       } catch (err) {
@@ -636,7 +725,7 @@ ${rawBody}
       }
     };
 
-    fetchStatesAndEditions();
+    loadStatesAndEditions();
 
     return () => {
       isMounted = false;
@@ -648,21 +737,18 @@ ${rawBody}
     if (!isOpen || !activeEdition?.slug) return;
 
     let isMounted = true;
-    const fetchArchiveDates = async () => {
+    const loadArchiveDates = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/epaper/archive-dates?edition=${activeEdition.slug}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.success && Array.isArray(data.data)) {
-            setArchiveDatesList(data.data);
-          }
+        const data = await fetchArchiveDates(activeEdition.slug);
+        if (isMounted) {
+          setArchiveDatesList(data);
         }
       } catch (err) {
         console.error('Failed to fetch archive dates:', err);
       }
     };
 
-    fetchArchiveDates();
+    loadArchiveDates();
 
     return () => {
       isMounted = false;
@@ -685,13 +771,12 @@ ${rawBody}
       const editionSlug = activeEdition.slug || 'patna-main';
 
       try {
-        // 1. Fetch issue details from MySQL DB
-        const issueRes = await fetch(`${API_BASE_URL}/epaper/issue?edition=${editionSlug}&date=${selectedDate}`);
-        const issueData = await issueRes.json();
+        // 1. Fetch issue details from DB via service
+        const issueData = await fetchEpaperIssue(editionSlug, selectedDate);
 
-        if (isMounted && issueData.success && issueData.data) {
-          const issue = issueData.data.issue;
-          const rawPages = issueData.data.pages || (issue && issue.pages) || [];
+        if (isMounted && issueData) {
+          const issue = issueData.issue;
+          const rawPages = issueData.pages || (issue && issue.pages) || [];
 
           // Only show paper if it is actually published with valid pages/slots
           const isPublished = issue?.status === 'PUBLISHED';
@@ -907,8 +992,8 @@ ${rawBody}
                             onClick={() => setActiveStateSlug(st.slug)}
                             onMouseEnter={() => setActiveStateSlug(st.slug)}
                             className={`w-full text-left px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-between ${isSelectedState
-                                ? 'bg-[#ba1228] text-white shadow-sm'
-                                : 'hover:bg-slate-200/70 text-slate-700'
+                              ? 'bg-[#ba1228] text-white shadow-sm'
+                              : 'hover:bg-slate-200/70 text-slate-700'
                               }`}
                           >
                             <span>{st.name}</span>
@@ -951,8 +1036,8 @@ ${rawBody}
                                   setIsEditionMenuOpen(false);
                                 }}
                                 className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${isCurrentActive
-                                    ? 'border-[#ba1228] bg-red-50/70 text-[#ba1228] ring-1 ring-[#ba1228]'
-                                    : 'border-slate-200 hover:border-red-300 hover:bg-slate-50 text-slate-800'
+                                  ? 'border-[#ba1228] bg-red-50/70 text-[#ba1228] ring-1 ring-[#ba1228]'
+                                  : 'border-slate-200 hover:border-red-300 hover:bg-slate-50 text-slate-800'
                                   }`}
                               >
                                 <div className="text-xs font-extrabold flex items-center justify-between">
@@ -1048,8 +1133,8 @@ ${rawBody}
                     onClick={handleNextMonth}
                     disabled={isCurrentOrFutureMonth}
                     className={`w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 transition-colors ${isCurrentOrFutureMonth
-                        ? 'opacity-40 cursor-not-allowed bg-slate-50 text-slate-300'
-                        : 'hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                      ? 'opacity-40 cursor-not-allowed bg-slate-50 text-slate-300'
+                      : 'hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
                       }`}
                     aria-label="Next Month"
                   >
@@ -1100,8 +1185,8 @@ ${rawBody}
                         type="button"
                         onClick={() => setTempSelectedDate(cell.dateStr)}
                         className={`h-8 rounded-xl flex flex-col items-center justify-center text-xs transition-all relative cursor-pointer ${isSelected
-                            ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                            : 'text-slate-700 font-semibold hover:bg-slate-100 hover:text-slate-900'
+                          ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                          : 'text-slate-700 font-semibold hover:bg-slate-100 hover:text-slate-900'
                           }`}
                       >
                         <span>{cell.dayNum}</span>
@@ -1254,17 +1339,21 @@ ${rawBody}
                     height: `${Math.round(2112 * canvasZoom)}px`,
                   }}
                 >
-                  <div
+                                    <div
                     ref={pageContainerRef}
-                    className="relative bg-white shadow-2xl rounded overflow-hidden select-none border border-slate-700/60"
+                    className="relative bg-white shadow-2xl rounded overflow-hidden select-none border border-slate-700/60 shrink-0"
                     style={{
                       width: '1344px',
+                      minWidth: '1344px',
+                      maxWidth: '1344px',
                       height: '2112px',
+                      minHeight: '2112px',
+                      maxHeight: '2112px',
                       transform: `scale(${canvasZoom})`,
                       transformOrigin: 'top left',
                     }}
                   >
-                    {/* Generated 1344x2112 Broadsheet Page WebP */}
+                    {/* 1. Generated 1344x2112 Broadsheet Page WebP (Exact 1:1 Canvas Photo) */}
                     <img
                       key={canvasImageUrl}
                       src={canvasImageUrl}
@@ -1279,9 +1368,9 @@ ${rawBody}
                       }}
                     />
 
-                    {/* Interactive Hotspot Overlay Boxes & News Content Rendering */}
-                    {currentSlots.map((slot, sIdx) => {
-                      const showRawTextCards = imageLoadError && !rawPageImage;
+                    {/* 2. Interactive Hotspot Overlay Boxes with Light Red Border & Red Overlay Tint */}
+                    {currentSlots.map((rawSlot, sIdx) => {
+                      const slot = normalizeSlotData(rawSlot);
                       return (
                         <div
                           key={slot.id || `slot-${currentPageIndex}-${sIdx}`}
@@ -1290,65 +1379,15 @@ ${rawBody}
                             setIsArticleModalOpen(true);
                           }}
                           title={slot.headline || ''}
-                          className={`absolute cursor-pointer border border-transparent hover:border-[#ba1228] hover:bg-[#ba1228]/15 transition-all duration-150 rounded-xs z-10 p-2 overflow-hidden ${showRawTextCards ? 'bg-white shadow-xs border-slate-400/40' : 'bg-transparent'
-                            }`}
+                          className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-10 select-none"
                           style={{
+                            position: 'absolute',
                             left: `${slot.x}px`,
                             top: `${slot.y}px`,
                             width: `${slot.width}px`,
                             height: `${slot.height}px`
                           }}
-                        >
-                          {/* Render Rich News Content if page background is empty/not rendered */}
-                          {showRawTextCards && (
-                            <div className="w-full h-full flex flex-col overflow-hidden pointer-events-none">
-                              {(slot.categoryTag || slot.categoryBadge) && (
-                                <div className="mb-1">
-                                  <span className="inline-block bg-[#ba1228] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-xs uppercase tracking-wider">
-                                    {slot.categoryTag || slot.categoryBadge}
-                                  </span>
-                                </div>
-                              )}
-                              {slot.headline && (
-                                <h3
-                                  className="font-serif font-black text-slate-900 leading-tight mb-1"
-                                  style={{
-                                    fontSize: `${slot.headlineFontSize || 16}px`,
-                                    color: slot.headlineColor || '#0f172a'
-                                  }}
-                                >
-                                  {slot.headline}
-                                </h3>
-                              )}
-                              {slot.subHeadline && (
-                                <h4
-                                  className="font-sans font-bold text-red-700 leading-tight mb-1.5"
-                                  style={{
-                                    fontSize: `${slot.subHeadlineFontSize || 12}px`,
-                                    color: slot.subHeadlineColor || '#ba1228'
-                                  }}
-                                >
-                                  {slot.subHeadline}
-                                </h4>
-                              )}
-                              {slot.imageUrl && (
-                                <div className="my-1 overflow-hidden rounded-xs border border-slate-200 shrink-0">
-                                  <img
-                                    src={slot.imageUrl}
-                                    alt={slot.headline || 'News photo'}
-                                    className="w-full h-auto object-cover max-h-[160px]"
-                                  />
-                                </div>
-                              )}
-                              {(slot.contentText || slot.summary) && (
-                                <div
-                                  className="text-slate-800 font-serif leading-relaxed text-xs text-justify overflow-hidden"
-                                  dangerouslySetInnerHTML={{ __html: slot.summary || slot.contentText || '' }}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        />
                       );
                     })}
                   </div>
@@ -1574,8 +1613,8 @@ ${rawBody}
                 type="button"
                 onClick={() => setActiveViewTab('text')}
                 className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
-                    ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                    : 'text-slate-600 font-semibold hover:text-slate-900'
+                  ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                  : 'text-slate-600 font-semibold hover:text-slate-900'
                   }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -1585,8 +1624,8 @@ ${rawBody}
                 type="button"
                 onClick={() => setActiveViewTab('image')}
                 className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
-                    ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                    : 'text-slate-600 font-semibold hover:text-slate-900'
+                  ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                  : 'text-slate-600 font-semibold hover:text-slate-900'
                   }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
@@ -1656,8 +1695,8 @@ ${rawBody}
                 type="button"
                 onClick={handleToggleSpeech}
                 className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${isSpeaking
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
-                    : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                  : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
                   }`}
                 title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
               >

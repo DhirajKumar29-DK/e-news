@@ -90,3 +90,15 @@ b, strong {
   font-weight: 800 !important;
 }
 
+/* Website E-Paper Hotspot Card Hover */
+.epaper-slot-hotspot {
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease-in-out;
+}
+.epaper-slot-hotspot:hover {
+  border-color: rgba(220, 38, 38, 0.65) !important;
+  background-color: rgba(220, 38, 38, 0.12) !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+}
+

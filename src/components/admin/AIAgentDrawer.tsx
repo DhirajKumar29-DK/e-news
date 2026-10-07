@@ -6,7 +6,7 @@ import {
   Copy, Check, Loader2, ArrowRight, FileText, Download,
   ExternalLink, ChevronRight, Settings
 } from 'lucide-react';
-import { API_BASE_URL } from '@/config/env';
+import { callAIAgent } from '@/services/epaperService';
 
 export interface ParsedNewsPayload {
   actionType?: 'UPDATE_SLOT' | 'CREATE_NEW_SLOT';
@@ -101,8 +101,6 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
     setIsLoading(true);
 
     try {
-      const endpoint = `${API_BASE_URL}/epaper/ai-agent`;
-
       // Pass previous history for context
       const historyPayload = messages.slice(-6).map(m => ({
         sender: m.sender,
@@ -136,34 +134,21 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
         effectivePrompt += `\n[MANDATORY WORD COUNT DIRECTIVE: The user explicitly requires a comprehensive, detailed story of at least ${targetWordCount} words. You MUST write a full-length, in-depth broadsheet journalistic article with at least ${targetWordCount} words across multiple rich paragraphs (<p>), deep analysis, and quotes. Do NOT summarize or shorten! In the JSON block, set "columnsCount": ${targetWordCount >= 800 ? 3 : 2} and "recommendedHeight": ${Math.min(2200, Math.round(targetWordCount * 1.1 + 320))}. Put the entire detailed article in the JSON content field.]`;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: effectivePrompt,
-          activeSlot: activeSlot ? {
-            id: activeSlot.id,
-            slotNumber: activeSlot.slotNumber,
-            headline: activeSlot.headline,
-            subHeadline: activeSlot.subHeadline,
-            summary: activeSlot.summary,
-            columnsCount: activeSlot.columnsCount || 1,
-            width: activeSlot.width,
-            height: activeSlot.height
-          } : null,
-          history: historyPayload,
-          apiKey: apiKey || undefined
-        })
+      const aiResponse = await callAIAgent({
+        prompt: effectivePrompt,
+        activeSlot: activeSlot ? {
+          id: activeSlot.id,
+          slotNumber: activeSlot.slotNumber,
+          headline: activeSlot.headline,
+          subHeadline: activeSlot.subHeadline,
+          summary: activeSlot.summary,
+          columnsCount: activeSlot.columnsCount || 1,
+          width: activeSlot.width,
+          height: activeSlot.height
+        } : null,
+        history: historyPayload,
+        apiKey: apiKey || undefined
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        const errorMsg = data.message || `Error (${res.status})`;
-        throw new Error(errorMsg);
-      }
-
-      const aiResponse = data.data;
 
       // Helper to strip all <p>, </p>, <mark>, etc. to pure clean newspaper text
       const stripHtmlTags = (str: string): string => {
@@ -284,9 +269,9 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
         className="fixed inset-0 bg-slate-900/20 backdrop-blur-xs z-50 md:hidden"
       />
 
-      {/* RIGHT SLIDE-OUT DRAWER (100% PURE LIGHT THEME - NO DARK MODE) */}
+      {/* RIGHT SLIDE-OUT DRAWER (Same width as right panel: w-80 / 320px) */}
       <aside
-        className="fixed top-0 right-0 bottom-0 w-full sm:w-[460px] md:w-[480px] bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col font-sans select-none animate-in slide-in-from-right duration-250 ease-out"
+        className="fixed top-0 right-0 bottom-0 w-full sm:w-80 md:w-80 bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col font-sans select-none animate-in slide-in-from-right duration-250 ease-out"
       >
         {/* 1. DRAWER TOP HEADER */}
         <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between shrink-0">
@@ -334,31 +319,41 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
         </div>
 
         {/* 2. ACTIVE SLOT TARGET BAR */}
-        <div className={`px-4 py-2 border-b flex items-center justify-between text-xs shrink-0 transition-colors ${
+        <div className={`px-3.5 py-2 border-b text-xs shrink-0 transition-colors ${
           activeSlot ? 'bg-red-50/70 border-red-200/80' : 'bg-amber-50 border-amber-200'
         }`}>
-          <div className="flex items-center space-x-1.5 text-slate-800 font-medium truncate">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${activeSlot ? 'bg-red-600 animate-pulse' : 'bg-amber-500'}`}></span>
-            <span className={`font-bold ${activeSlot ? 'text-red-800' : 'text-amber-800'}`}>
-              {activeSlot ? `चयनित स्लॉट: Slot #${activeSlot.slotNumber}` : '⚠️ कोई स्लॉट सिलेक्ट नहीं है (पहले कैनवास पर स्लॉट चुनें)'}
-            </span>
-            {activeSlot && (
-              <span className="text-[11px] text-slate-500 font-mono">
-                ({activeSlot.width}×{activeSlot.height}px • {activeSlot.columnsCount || 1} Col)
-              </span>
-            )}
-          </div>
+          {activeSlot ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full shrink-0 bg-red-600 animate-pulse"></span>
+                  <span className="font-bold text-red-800 text-xs truncate">
+                    चयनित: Slot #{activeSlot.slotNumber}
+                  </span>
+                </div>
 
-          {activeSlot && (
-            <button
-              type="button"
-              onClick={handleLoadCurrentSlotText}
-              className="text-[11px] font-bold text-red-700 hover:text-red-900 bg-white hover:bg-red-100/60 px-2.5 py-1 rounded-lg border border-red-300 shadow-xs flex items-center space-x-1 transition-all cursor-pointer shrink-0"
-              title="इस स्लॉट का टेक्स्ट चैट में भरें"
-            >
-              <FileText className="w-3 h-3 text-red-600" />
-              <span>Load Slot Content</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleLoadCurrentSlotText}
+                  className="text-[10.5px] font-bold text-red-700 hover:text-red-900 bg-white hover:bg-red-100/70 px-2 py-0.5 rounded-lg border border-red-300 shadow-xs flex items-center space-x-1 transition-all cursor-pointer shrink-0"
+                  title="इस स्लॉट का टेक्स्ट चैट में भरें"
+                >
+                  <FileText className="w-3 h-3 text-red-600 shrink-0" />
+                  <span>Load Content</span>
+                </button>
+              </div>
+
+              <div className="text-[10px] text-slate-500 font-mono pl-3.5 flex items-center space-x-1.5">
+                <span>{activeSlot.width}×{activeSlot.height}px</span>
+                <span>•</span>
+                <span>{activeSlot.columnsCount || 1} {activeSlot.columnsCount === 1 ? 'Col' : 'Cols'}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1.5 text-amber-800 font-medium text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+              <span className="truncate">⚠️ कोई स्लॉट सिलेक्ट नहीं (कैनवास पर स्लॉट चुनें)</span>
+            </div>
           )}
         </div>
 
