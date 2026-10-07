@@ -140,10 +140,26 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* 3. BOTTOM COPYRIGHT STRIP */}
-      <div className="bg-slate-950 border-t border-slate-900 py-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-500">
-        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div className="bg-slate-950 border-t border-slate-900 py-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-400">
+        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© {new Date().getFullYear()} Jagran Media Network. All rights reserved.</p>
-          <p className="text-[11px] text-slate-600">
+          
+          {/* Designed & Developed by Nighwan Technology */}
+          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
+            <span>Designed &amp; Developed by</span>
+            <a
+              href="https://www.nighwantech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-amber-400 hover:text-amber-300 transition-colors inline-flex items-center gap-1 group cursor-pointer"
+              title="Nighwan Technology Official Website"
+            >
+              <span className="group-hover:underline">Nighwan Technology</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-amber-400/80 group-hover:text-amber-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </a>
+          </div>
+
+          <p className="text-[11px] text-slate-500">
             The Daily Jagran Digital News Network
           </p>
         </div>
