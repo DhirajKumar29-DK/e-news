@@ -216,6 +216,307 @@ function normalizeSlotData(s: any): any {
   };
 }
 
+
+function sliceHtmlTokens(html: string): string[] {
+  if (!html) return [];
+  const tagRegex = /(<[^>]+>|[^\s<]+|\s+)/g;
+  return html.match(tagRegex) || [];
+}
+
+function buildHtmlFromTokens(tokens: string[], startIdx: number, endIdx: number): string {
+  if (!tokens || tokens.length === 0 || startIdx >= tokens.length || startIdx >= endIdx) return '';
+  const rawChunk = tokens.slice(startIdx, endIdx).join('');
+  if (typeof document === 'undefined') return rawChunk;
+
+  const openStack: { tag: string; full: string }[] = [];
+  for (let i = 0; i < startIdx; i++) {
+    const t = tokens[i];
+    if (t.startsWith('</')) {
+      const tagName = t.slice(2, -1).toLowerCase().split(' ')[0];
+      for (let j = openStack.length - 1; j >= 0; j--) {
+        if (openStack[j].tag === tagName) {
+          openStack.splice(j, 1);
+          break;
+        }
+      }
+    } else if (t.startsWith('<') && !t.endsWith('/>') && !t.startsWith('<!')) {
+      const match = t.match(/<([a-zA-Z0-9]+)/);
+      if (match) {
+        const tagName = match[1].toLowerCase();
+        if (!['br', 'img', 'hr', 'input'].includes(tagName)) {
+          openStack.push({ tag: tagName, full: t });
+        }
+      }
+    }
+  }
+  const prefix = openStack.map(item => item.full).join('');
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = prefix + rawChunk;
+  return tempDiv.innerHTML;
+}
+
+let readerMeasureContainer: HTMLDivElement | null = null;
+function getReaderMeasureDiv(): HTMLDivElement | null {
+  if (typeof document === 'undefined') return null;
+  if (!readerMeasureContainer || !document.body.contains(readerMeasureContainer)) {
+    readerMeasureContainer = document.createElement('div');
+    readerMeasureContainer.id = '__epaper_reader_measure_div__';
+    readerMeasureContainer.style.position = 'fixed';
+    readerMeasureContainer.style.left = '-99999px';
+    readerMeasureContainer.style.top = '-99999px';
+    readerMeasureContainer.style.visibility = 'hidden';
+    readerMeasureContainer.style.pointerEvents = 'none';
+    readerMeasureContainer.style.zIndex = '-9999';
+    document.body.appendChild(readerMeasureContainer);
+  }
+  return readerMeasureContainer;
+}
+
+function getSummaryLineHeight(fontSize: number): number {
+  const f = Math.round(Number(fontSize) || 14);
+  if (f <= 12) return 17;
+  if (f === 13) return 19;
+  if (f === 14) return 21;
+  if (f === 15) return 22;
+  if (f === 16) return 24;
+  if (f === 17) return 25;
+  if (f === 18) return 26;
+  return Math.round(f * 1.47);
+}
+
+function findBestTokenFit(
+  tokens: string[],
+  startTokenIdx: number,
+  width: number,
+  height: number,
+  cols: number,
+  fontSize: number,
+  colGap: number = 14
+): number {
+  if (startTokenIdx >= tokens.length) return tokens.length;
+  const div = getReaderMeasureDiv();
+  if (!div) {
+    return tokens.length;
+  }
+
+  const targetW = Math.max(50, width);
+  const targetH = Math.max(20, height);
+
+  const lineH = getSummaryLineHeight(fontSize);
+  div.style.width = `${targetW}px`;
+  div.style.height = `${targetH}px`;
+  div.style.maxHeight = `${targetH}px`;
+  div.style.fontSize = `${fontSize || 14}px`;
+  div.style.fontFamily = "'Noto Serif Devanagari', 'Merriweather', serif";
+  div.style.lineHeight = `${lineH}px`;
+  div.style.textAlign = 'justify';
+  (div.style as any).textJustify = 'inter-word';
+  div.style.wordBreak = 'break-word';
+  div.style.overflow = 'hidden';
+  div.style.boxSizing = 'border-box';
+  div.style.padding = '0';
+  div.style.margin = '0';
+  div.style.whiteSpace = 'pre-line';
+
+  if (cols > 1) {
+    div.style.columnCount = `${cols}`;
+    div.style.columnGap = `${colGap}px`;
+    div.style.columnFill = 'auto';
+  } else {
+    div.style.columnCount = 'unset';
+    div.style.columnGap = 'unset';
+    div.style.columnFill = 'unset';
+  }
+
+  const fullHtml = buildHtmlFromTokens(tokens, startTokenIdx, tokens.length);
+  div.innerHTML = fullHtml;
+  const fitsAll = cols === 1
+    ? (div.scrollHeight <= targetH)
+    : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+
+  if (fitsAll) {
+    return tokens.length;
+  }
+
+  let low = startTokenIdx + 1;
+  let high = tokens.length;
+  let bestFit = startTokenIdx;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    div.innerHTML = buildHtmlFromTokens(tokens, startTokenIdx, mid);
+    const fits = cols === 1
+      ? (div.scrollHeight <= targetH)
+      : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+
+    if (fits) {
+      bestFit = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return Math.max(startTokenIdx + 1, bestFit);
+}
+
+function computeSlotSections(s: any) {
+  const colsCount = s.columnsCount || 1;
+  const colGap = s.columnGap || 14;
+  const cardH = s.height || 400;
+  const cardContentW = Math.max(100, s.width - 24);
+  const showDivider = s.showColumnDivider || false;
+
+  const hasBadge = Boolean((s.categoryBadge || s.categoryTag)?.trim());
+  const badgeH = hasBadge ? 18 : 0;
+
+  const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
+  const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 13;
+  const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
+  const lineH = getSummaryLineHeight(summaryFont);
+
+  const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
+  const hlLines = s.headline ? Math.max(1, Math.ceil(s.headline.length / hlCharsPerLine)) : 0;
+  const hlH = hlLines * hlFont * 1.25;
+
+  const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
+  const subLines = s.subHeadline ? Math.max(1, Math.ceil(s.subHeadline.length / subCharsPerLine)) : 0;
+  const subH = subLines * subFont * 1.25;
+
+  const cardFraming = 14;
+  let headerTotalH = Math.ceil(badgeH + hlH + subH + cardFraming);
+  if (typeof document !== 'undefined') {
+    const liveHeader = document.getElementById(`reader-slot-header-${s.id}`);
+    if (liveHeader && liveHeader.offsetHeight > 0) {
+      headerTotalH = Math.ceil(liveHeader.offsetHeight + cardFraming);
+    }
+  }
+
+  const rawStoryH = Math.max(lineH, cardH - headerTotalH);
+  const fullStoryH = Math.max(lineH, Math.floor(rawStoryH / lineH) * lineH);
+
+  const imgW = s.imageWidth || 180;
+  const imgH = s.imageHeight || 140;
+  const isFullCardPhoto = imgW >= cardContentW - 30 || s.imageWrapMode === 'top-span';
+
+  const rawUnderPhotoH = Math.max(lineH, fullStoryH - imgH - 8);
+  const underPhotoH = Math.max(lineH, Math.floor(rawUnderPhotoH / lineH) * lineH);
+
+  if (colsCount === 1 || isFullCardPhoto) {
+    return {
+      isFullWidth: true,
+      text1: s.summary || '',
+      text2: '',
+      text2b: '',
+      text3: '',
+      leftCols: 0,
+      photoCols: colsCount,
+      rightCols: 0,
+      leftSectionW: 0,
+      photoSectionW: cardContentW,
+      rightSectionW: 0,
+      underPhotoH,
+      fullStoryH,
+      colsCount,
+      colGap,
+      singleColW: cardContentW,
+      showDivider,
+      startCol: 0
+    };
+  }
+
+  const singleColW = Math.max(60, Math.floor((cardContentW - (colGap * (colsCount - 1))) / colsCount));
+  const colStep = singleColW + colGap;
+  const spanCols = Math.min(colsCount - 1, Math.max(1, Math.round((imgW + (colGap * 0.5)) / colStep)));
+  const maxStartCol = Math.max(0, colsCount - spanCols);
+
+  const normAlign = (s.imageAlignment || s.imageAlign || 'Left').toLowerCase();
+  const isLeft = normAlign === 'left';
+  const isRight = normAlign === 'right';
+
+  let startCol = 0;
+  if (s.imgPxX !== undefined && maxStartCol >= 1) {
+    startCol = Math.max(0, Math.min(maxStartCol, Math.round(s.imgPxX / colStep)));
+  } else if (isLeft) {
+    startCol = 0;
+  } else if (isRight) {
+    startCol = maxStartCol;
+  } else {
+    startCol = 0;
+  }
+
+  const leftCols = startCol;
+  const photoCols = spanCols;
+  const rightCols = colsCount - (startCol + spanCols);
+
+  const leftSectionW = leftCols > 0 ? (leftCols * singleColW) + ((leftCols - 1) * colGap) : 0;
+  const photoSectionW = (photoCols * singleColW) + ((photoCols - 1) * colGap);
+  const rightSectionW = rightCols > 0 ? (rightCols * singleColW) + ((rightCols - 1) * colGap) : 0;
+  const vertAlign = s.imageVertAlign || 'top';
+
+  const tokens = sliceHtmlTokens(s.summary || '');
+  let text1 = '';
+  let text2 = '';
+  let text2b = '';
+  let text3 = '';
+  let currentTokenIdx = 0;
+
+  if (leftCols > 0) {
+    const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
+    text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
+    currentTokenIdx = fit1;
+  }
+
+  if (vertAlign === 'middle') {
+    const midTopH = Math.max(20, Math.floor(underPhotoH / 2));
+    const midBottomH = Math.max(20, Math.ceil(underPhotoH / 2));
+
+    if (currentTokenIdx < tokens.length) {
+      const fit2a = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midTopH, photoCols, summaryFont, colGap);
+      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2a);
+      currentTokenIdx = fit2a;
+    }
+
+    if (currentTokenIdx < tokens.length) {
+      const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
+      text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
+      currentTokenIdx = fit2b;
+    }
+  } else {
+    if (currentTokenIdx < tokens.length) {
+      const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+      currentTokenIdx = fit2;
+    }
+  }
+
+  if (rightCols > 0 && currentTokenIdx < tokens.length) {
+    const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
+    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
+  }
+
+  return {
+    isFullWidth: false,
+    text1,
+    text2,
+    text2b,
+    text3,
+    leftCols,
+    photoCols,
+    rightCols,
+    leftSectionW,
+    photoSectionW,
+    rightSectionW,
+    underPhotoH,
+    fullStoryH,
+    colsCount,
+    colGap,
+    singleColW,
+    showDivider,
+    startCol
+  };
+}
+
 export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => {
   // Dynamic States & Editions Data
   const [statesData, setStatesData] = useState<StateItem[]>([]);
@@ -1343,7 +1644,6 @@ ${rawBody}
                 >
                                     <div
                     ref={pageContainerRef}
-                    className="relative bg-[#fffdf7] shadow-2xl rounded overflow-hidden select-none border border-slate-700/60 shrink-0"
                     style={{
                       width: '1344px',
                       minWidth: '1344px',
@@ -1354,133 +1654,397 @@ ${rawBody}
                       transform: `scale(${canvasZoom})`,
                       transformOrigin: 'top left',
                     }}
+                    className="bg-[#fffdf7] text-slate-950 border border-slate-300/80 shadow-2xl ring-1 ring-slate-900/5 p-6 sm:p-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
                   >
-                    {/* 1. BROADSHEET MASTHEAD & DATE BAR */}
-                    <div className="absolute top-0 left-0 right-0 px-8 pt-5 pb-3 bg-[#fffdf7] border-b-2 border-slate-900 z-0">
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-1 text-xs font-sans font-bold text-slate-800">
-                        <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
-                        <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
-                        <span>पेज {formattedCurrentPage}</span>
-                      </div>
-                      <div className="text-center pt-2 pb-0.5">
-                        <h1
-                          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
-                          className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight"
-                        >
-                          {activeEdition.title || 'डिजिटल ई-पेपर'}
-                        </h1>
-                        <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-1">
-                          <span className="bg-red-600 text-white px-2 py-0.5 rounded font-black">ई-पेपर डिजिटल संस्करण</span>
-                          <span>•</span>
-                          <span>{(activeEdition as any).state || 'बिहार'}</span>
-                          <span>•</span>
-                          <span>{activeEdition.name || 'पटना'}</span>
-                        </div>
+                    {/* Top Date Line Bar */}
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-xs font-sans font-bold text-slate-800">
+                      <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
+                      <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
+                      <span>पेज {formattedCurrentPage}</span>
+                    </div>
+
+                    {/* BIG RED BROADSHEET MASTHEAD (Exact Match to Admin Broadsheet Canvas) */}
+                    <div className="text-center border-b-4 border-double border-slate-900 pb-1.5 space-y-0.5">
+                      <h1
+                        style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
+                        className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight select-none"
+                      >
+                        {activeEdition.title || 'डिजिटल ई-पेपर'}
+                      </h1>
+                      <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-0.5">
+                        <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black">Free-Form Canvas</span>
+                        <span>•</span>
+                        <span>{(activeEdition as any).state || 'बिहार'}</span>
+                        <span>•</span>
+                        <span>{activeEdition.name || 'पटना'}</span>
                       </div>
                     </div>
 
-                    {/* 2. LIVE BROADSHEET SLOTS RENDERED DIRECTLY FROM DATABASE JSON */}
+                    {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
                     {currentSlots.map((rawSlot, sIdx) => {
-                      const slot = normalizeSlotData(rawSlot);
-                      if (slot.isAd) {
+                      const s = normalizeSlotData(rawSlot);
+                      const comp = (s.computedSections && s.computedSections.text1 !== undefined) ? s.computedSections : computeSlotSections(s);
+                      const cardContentW = Math.max(100, s.width - 24);
+                      const vertAlign: 'top' | 'middle' | 'bottom' = s.imageVertAlign || 'top';
+                      const normAlign = (s.imageAlignment || s.imageAlign || 'Center').toLowerCase();
+                      const isLeft = normAlign === 'left';
+                      const isRight = normAlign === 'right';
+                      const hasImage = Boolean(s.imageUrl);
+
+                      const slotStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        left: `${s.x}px`,
+                        top: `${s.y}px`,
+                        width: `${s.width}px`,
+                        height: `${s.height}px`,
+                      };
+
+                      if (s.isAd) {
                         return (
                           <div
-                            key={`rendered-ad-${slot.id || sIdx}`}
-                            style={{
-                              position: 'absolute',
-                              left: `${slot.x}px`,
-                              top: `${slot.y}px`,
-                              width: `${slot.width}px`,
-                              height: `${slot.height}px`,
-                            }}
-                            className="p-3 bg-amber-50 rounded border-2 border-amber-300 text-center flex flex-col justify-center overflow-hidden z-0"
+                            key={`slot-ad-${s.id || sIdx}`}
+                            style={slotStyle}
+                            className="p-3.5 bg-amber-100/90 rounded-xl border-2 border-amber-400 text-center space-y-1 relative overflow-hidden select-none z-0"
                           >
-                            <h4 className="text-base font-black text-blue-900 font-sans">{slot.headline}</h4>
-                            {slot.subHeadline && <p className="text-xs font-bold text-red-700">{slot.subHeadline}</p>}
-                            {slot.summary && <p className="text-[11px] text-slate-600 mt-1">{slot.summary}</p>}
+                            <h4 className="text-lg font-black text-blue-900 font-sans tracking-wide break-words">{s.headline}</h4>
+                            {s.subHeadline && <p className="text-[11px] font-bold text-red-700 font-sans leading-tight block break-words">{s.subHeadline}</p>}
+                            {s.summary && <p className="text-[10px] font-semibold text-slate-700 font-mono break-words">{s.summary}</p>}
+                          </div>
+                        );
+                      }
+
+                      const headerContent = (
+                        <div id={`reader-slot-header-${s.id}`} className="space-y-0.5">
+                          {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
+                            <div className="mb-1 flex items-center">
+                              <span
+                                style={{ fontFamily: "'Inter', 'Mukta', sans-serif" }}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide leading-none shadow-xs"
+                              >
+                                {(s.categoryBadge || (s as any).categoryTag).trim()}
+                              </span>
+                            </div>
+                          )}
+
+                          <h2
+                            style={{
+                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                              fontSize: `${s.headlineFontSize || 22}px`,
+                              color: s.headlineColor || '#020617'
+                            }}
+                            className="font-black text-slate-950 leading-tight break-words"
+                            dangerouslySetInnerHTML={{ __html: s.headline || '' }}
+                          />
+
+                          {s.subHeadline && (
+                            <p
+                              style={{
+                                fontFamily: "'Mukta', 'Inter', sans-serif",
+                                fontSize: `${s.subHeadlineFontSize || 13}px`,
+                                color: s.subHeadlineColor || '#b91c1c'
+                              }}
+                              className="font-bold text-red-700 leading-tight block break-words text-justify my-0.5"
+                              dangerouslySetInnerHTML={{ __html: s.subHeadline || '' }}
+                            />
+                          )}
+                        </div>
+                      );
+
+                      let bodyContent = null;
+                      const lineH = getSummaryLineHeight(s.summaryFontSize || 14);
+
+                      if (!hasImage) {
+                        bodyContent = (
+                          <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full overflow-hidden shrink-0">
+                            <div
+                              style={{
+                                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                                lineHeight: `${lineH}px`,
+                                columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
+                                columnGap: `${comp.colGap}px`,
+                                columnFill: 'auto',
+                                height: `${comp.fullStoryH}px`,
+                                maxHeight: `${comp.fullStoryH}px`,
+                                overflow: 'hidden',
+                                columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                                textAlign: 'justify',
+                                textJustify: 'inter-word',
+                                fontSize: `${s.summaryFontSize || 14}px`,
+                                color: s.summaryColor || undefined,
+                                whiteSpace: 'pre-line',
+                                boxSizing: 'border-box',
+                                paddingRight: '2px'
+                              }}
+                              className="leading-normal h-full overflow-hidden whitespace-pre-line text-justify"
+                              dangerouslySetInnerHTML={{ __html: s.summary || '' }}
+                            />
+                          </div>
+                        );
+                      } else if (comp.isFullWidth) {
+                        const bannerTextH = comp.underPhotoH;
+                        const isTopSpanPhoto = s.imageWrapMode === 'top-span' || (s.imageWidth && s.imageWidth >= cardContentW - 30);
+                        const currentImgW = isTopSpanPhoto ? cardContentW : Math.min(s.imageWidth || 180, cardContentW);
+                        const maxPxX = Math.max(0, cardContentW - currentImgW);
+
+                        let photoPxX = 0;
+                        if (isTopSpanPhoto) {
+                          photoPxX = 0;
+                        } else if (s.imgPxX !== undefined) {
+                          photoPxX = Math.max(0, Math.min(maxPxX, s.imgPxX));
+                        } else {
+                          if (isLeft) photoPxX = 0;
+                          else if (isRight) photoPxX = maxPxX;
+                          else photoPxX = Math.round(maxPxX / 2);
+                        }
+
+                        const singleColPhoto = (
+                          <div className="w-full mb-1.5 shrink-0 relative select-none">
+                            <div
+                              style={{
+                                width: isTopSpanPhoto ? '100%' : `${currentImgW}px`,
+                                height: `${s.imageHeight || 140}px`,
+                                marginLeft: isTopSpanPhoto ? '0px' : `${photoPxX}px`,
+                              }}
+                              className="overflow-hidden rounded-[4px] relative bg-slate-900 shadow-xs border border-slate-300"
+                            >
+                              <img
+                                src={getFullMediaUrl(s.imageUrl)}
+                                alt="Slot photo"
+                                className="w-full h-full object-cover block"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            </div>
+                          </div>
+                        );
+
+                        const textDiv = (
+                          <div
+                            style={{
+                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                              lineHeight: `${lineH}px`,
+                              columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
+                              columnGap: `${comp.colGap}px`,
+                              columnFill: 'auto',
+                              height: `${bannerTextH}px`,
+                              maxHeight: `${bannerTextH}px`,
+                              overflow: 'hidden',
+                              columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                              textAlign: 'justify',
+                              textJustify: 'inter-word',
+                              fontSize: `${s.summaryFontSize || 14}px`,
+                              color: s.summaryColor || undefined,
+                              whiteSpace: 'pre-line',
+                              boxSizing: 'border-box',
+                              paddingRight: '2px'
+                            }}
+                            className="leading-[1.35] flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                            dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
+                          />
+                        );
+
+                        bodyContent = (
+                          <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full flex flex-col overflow-hidden shrink-0">
+                            {vertAlign === 'bottom' ? (
+                              <>
+                                {textDiv}
+                                {singleColPhoto}
+                              </>
+                            ) : (
+                              <>
+                                {singleColPhoto}
+                                {textDiv}
+                              </>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        const colStyleLeft: React.CSSProperties = {
+                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                          lineHeight: `${lineH}px`,
+                          columnCount: comp.leftCols > 1 ? comp.leftCols : undefined,
+                          columnGap: `${comp.colGap}px`,
+                          columnFill: 'auto',
+                          height: `${comp.fullStoryH}px`,
+                          maxHeight: `${comp.fullStoryH}px`,
+                          overflow: 'hidden',
+                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                          textAlign: 'justify',
+                          textJustify: 'inter-word',
+                          fontSize: `${s.summaryFontSize || 14}px`,
+                          color: s.summaryColor || undefined,
+                          whiteSpace: 'pre-line',
+                          boxSizing: 'border-box',
+                          paddingRight: '2px'
+                        };
+
+                        const colStylePhoto: React.CSSProperties = {
+                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                          lineHeight: `${lineH}px`,
+                          columnCount: comp.photoCols > 1 ? comp.photoCols : undefined,
+                          columnGap: `${comp.colGap}px`,
+                          columnFill: 'auto',
+                          height: `${comp.underPhotoH}px`,
+                          maxHeight: `${comp.underPhotoH}px`,
+                          overflow: 'hidden',
+                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                          textAlign: 'justify',
+                          textJustify: 'inter-word',
+                          fontSize: `${s.summaryFontSize || 14}px`,
+                          color: s.summaryColor || undefined,
+                          whiteSpace: 'pre-line',
+                          boxSizing: 'border-box',
+                          paddingRight: '2px'
+                        };
+
+                        const colStyleRight: React.CSSProperties = {
+                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                          lineHeight: `${lineH}px`,
+                          columnCount: comp.rightCols > 1 ? comp.rightCols : undefined,
+                          columnGap: `${comp.colGap}px`,
+                          columnFill: 'auto',
+                          height: `${comp.fullStoryH}px`,
+                          maxHeight: `${comp.fullStoryH}px`,
+                          overflow: 'hidden',
+                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                          textAlign: 'justify',
+                          textJustify: 'inter-word',
+                          fontSize: `${s.summaryFontSize || 14}px`,
+                          color: s.summaryColor || undefined,
+                          whiteSpace: 'pre-line',
+                          boxSizing: 'border-box',
+                          paddingRight: '2px'
+                        };
+
+                        const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
+                        const localMaxPxX = Math.max(0, comp.photoSectionW - displayImgW);
+                        let localPhotoPxX = 0;
+                        if (s.imgPxX !== undefined) {
+                          const sectionStartX = comp.leftCols > 0 ? (comp.leftCols * comp.singleColW) + (comp.leftCols * comp.colGap) : 0;
+                          localPhotoPxX = Math.max(0, Math.min(localMaxPxX, s.imgPxX - sectionStartX));
+                        } else {
+                          if (isLeft) localPhotoPxX = 0;
+                          else if (isRight) localPhotoPxX = localMaxPxX;
+                          else localPhotoPxX = Math.round(localMaxPxX / 2);
+                        }
+
+                        const photoBlock = (
+                          <div className="w-full mb-1.5 shrink-0 relative select-none">
+                            <div
+                              style={{
+                                width: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${displayImgW}px` : '100%',
+                                height: `${s.imageHeight || 140}px`,
+                                marginLeft: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${localPhotoPxX}px` : '0px',
+                              }}
+                              className="overflow-hidden rounded-[4px] relative bg-slate-900 shadow-xs border border-slate-300"
+                            >
+                              <img
+                                src={getFullMediaUrl(s.imageUrl)}
+                                alt="Slot photo"
+                                className="w-full h-full object-cover block"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            </div>
+                          </div>
+                        );
+
+                        bodyContent = (
+                          <div
+                            style={{ gap: `${comp.colGap}px` }}
+                            className="flex-1 min-h-0 font-serif text-slate-800 leading-normal select-none w-full flex items-start overflow-hidden shrink-0"
+                          >
+                            {comp.leftCols > 0 && (
+                              <>
+                                <div
+                                  style={{ width: `${comp.leftSectionW}px`, height: '100%' }}
+                                  className="flex flex-col shrink-0 overflow-hidden"
+                                >
+                                  <div
+                                    style={colStyleLeft}
+                                    className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text1 }}
+                                  />
+                                </div>
+                                {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
+                              </>
+                            )}
+
+                            <div
+                              style={{ width: `${comp.photoSectionW}px`, height: '100%' }}
+                              className="flex flex-col shrink-0 overflow-hidden"
+                            >
+                              {vertAlign === 'top' && (
+                                <>
+                                  {photoBlock}
+                                  <div
+                                    style={colStylePhoto}
+                                    className="leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                                  />
+                                </>
+                              )}
+
+                              {vertAlign === 'bottom' && (
+                                <>
+                                  <div
+                                    style={colStylePhoto}
+                                    className="leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                                  />
+                                  {photoBlock}
+                                </>
+                              )}
+
+                              {vertAlign === 'middle' && (
+                                <>
+                                  <div
+                                    style={{ ...colStylePhoto, height: `${Math.floor(comp.underPhotoH / 2)}px`, maxHeight: `${Math.floor(comp.underPhotoH / 2)}px`, flex: 'none' }}
+                                    className="leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                                  />
+                                  {photoBlock}
+                                  <div
+                                    style={{ ...colStylePhoto, height: `${Math.ceil(comp.underPhotoH / 2)}px`, maxHeight: `${Math.ceil(comp.underPhotoH / 2)}px`, flex: '1' }}
+                                    className="leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text2b }}
+                                  />
+                                </>
+                              )}
+                            </div>
+
+                            {comp.rightCols > 0 && (
+                              <>
+                                {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
+                                <div
+                                  style={{ width: `${comp.rightSectionW}px`, height: '100%' }}
+                                  className="flex flex-col flex-1 overflow-hidden"
+                                >
+                                  <div
+                                    style={colStyleRight}
+                                    className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                                    dangerouslySetInnerHTML={{ __html: comp.text3 }}
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       }
 
                       return (
                         <div
-                          key={`rendered-slot-${slot.id || sIdx}`}
-                          style={{
-                            position: 'absolute',
-                            left: `${slot.x}px`,
-                            top: `${slot.y}px`,
-                            width: `${slot.width}px`,
-                            height: `${slot.height}px`,
-                          }}
-                          className="p-2 border border-slate-300/60 bg-[#fffdf7] overflow-hidden flex flex-col z-0 rounded-xs shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                          key={`rendered-slot-${s.id || sIdx}`}
+                          style={slotStyle}
+                          className="relative z-0 select-none overflow-hidden"
                         >
-                          {/* Category Badge */}
-                          {Boolean((slot.categoryBadge || slot.categoryTag)?.trim()) && (
-                            <div className="mb-1">
-                              <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide">
-                                {(slot.categoryBadge || slot.categoryTag).trim()}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Headline */}
-                          <h2
-                            style={{
-                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                              fontSize: `${slot.headlineFontSize || 22}px`,
-                              color: slot.headlineColor || '#020617',
-                            }}
-                            className="font-black leading-tight break-words mb-1"
-                            dangerouslySetInnerHTML={{ __html: slot.headline || '' }}
-                          />
-
-                          {/* SubHeadline */}
-                          {slot.subHeadline && (
-                            <p
-                              style={{
-                                fontFamily: "'Mukta', 'Inter', sans-serif",
-                                fontSize: `${slot.subHeadlineFontSize || 13}px`,
-                                color: slot.subHeadlineColor || '#b91c1c',
-                              }}
-                              className="font-bold leading-tight mb-1 text-red-700 italic"
-                              dangerouslySetInnerHTML={{ __html: slot.subHeadline }}
-                            />
-                          )}
-
-                          {/* Image */}
-                          {slot.imageUrl && (
-                            <div className="my-1 overflow-hidden rounded-xs border border-slate-200">
-                              <img
-                                src={getFullMediaUrl(slot.imageUrl)}
-                                alt={slot.headline || 'News'}
-                                className="w-full object-cover max-h-[220px]"
-                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                              />
-                            </div>
-                          )}
-
-                          {/* Summary / Body columns */}
-                          {slot.summary && (
-                            <div
-                              style={{
-                                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                                fontSize: `${slot.summaryFontSize || 13}px`,
-                                color: slot.summaryColor || '#1e293b',
-                                columnCount: slot.columnsCount > 1 ? slot.columnsCount : 1,
-                                columnGap: `${slot.columnGap || 14}px`,
-                                columnRule: slot.showColumnDivider ? '1px solid #cbd5e1' : undefined,
-                                textAlign: 'justify',
-                                textJustify: 'inter-word',
-                              }}
-                              className="flex-1 overflow-hidden leading-relaxed whitespace-pre-line text-justify"
-                              dangerouslySetInnerHTML={{ __html: slot.summary }}
-                            />
-                          )}
+                          <div className="w-full h-full p-2 flex flex-col overflow-hidden space-y-1">
+                            {headerContent}
+                            {bodyContent}
+                          </div>
                         </div>
                       );
                     })}
 
-                    {/* 3. HIGH-RES COMPILED WEBP IMAGE (Smoothly overlays if generated and successfully loaded) */}
+                    {/* High-Res Compiled WebP Photo Layer (Overlays if generated & successfully loaded) */}
                     {!imageLoadError && canvasImageUrl && (
                       <img
                         key={canvasImageUrl}
@@ -1492,7 +2056,7 @@ ${rawBody}
                       />
                     )}
 
-                    {/* 4. INTERACTIVE HOTSPOT OVERLAY BOXES WITH LIGHT RED BORDER & RED OVERLAY TINT */}
+                    {/* Interactive Hotspot Overlay Boxes with Light Red Border & Red Overlay Tint */}
                     {currentSlots.map((rawSlot, sIdx) => {
                       const slot = normalizeSlotData(rawSlot);
                       return (
