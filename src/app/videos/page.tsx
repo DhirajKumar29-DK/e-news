@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
@@ -10,6 +10,16 @@ export default function VideosPage() {
   const router = useRouter();
   const { language, t } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = 'Latest News Videos, Bulletins & Visual Reports | The Daily Jagran';
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', 'Watch top news videos, breaking bulletins, field reports, and expert analysis on The Daily Jagran.');
+      }
+    }
+  }, []);
 
   // Default Featured Video
   const defaultHero = {
@@ -162,7 +172,7 @@ export default function VideosPage() {
       <Header
         onOpenSearch={() => setIsSearchOpen(true)}
         activeCategory="videos"
-        onSelectCategory={(slug) => router.push(slug === 'all' ? '/' : (slug === 'videos' ? '/videos' : `/category/${slug}`))}
+        onSelectCategory={(slug) => router.push(slug === 'all' ? '/' : (slug === 'videos' ? '/videos' : `/${slug}`))}
       />
 
       {/* 2. Top Dark Pinstriped Hero Featured Video Banner */}
@@ -285,7 +295,7 @@ export default function VideosPage() {
 
                 {/* Title & Time */}
                 <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
                     {t(vid.title)}
                   </h3>
                   <span className="text-xs text-slate-400 block font-medium">
@@ -331,7 +341,7 @@ export default function VideosPage() {
 
               {/* Title & Time */}
               <div className="space-y-1">
-                <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
                   {t(vid.title)}
                 </h4>
                 <span className="text-[11px] text-slate-400 block font-medium">

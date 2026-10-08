@@ -28,7 +28,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
           </button>
 
           {/* Cric Daily */}
-          <a href="/category/cricket" className="flex flex-col items-center space-y-1 text-slate-300 hover:text-jagran-red transition-colors">
+          <a href="/cricket" className="flex flex-col items-center space-y-1 text-slate-300 hover:text-jagran-red transition-colors">
             <Trophy className="w-4 h-4 text-emerald-400" />
             <span>CRIC DAILY</span>
           </a>

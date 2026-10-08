@@ -24,7 +24,7 @@ export const Footer: React.FC = () => {
         <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center md:text-left">
             <h3 className="text-lg font-bold font-serif text-white">
-              Subscribe to The Newspaper Briefing
+              Subscribe to The Daily Jagran Briefing
             </h3>
             <p className="text-xs text-slate-400">
               Top curated headlines delivered straight to your inbox every morning
@@ -36,8 +36,8 @@ export const Footer: React.FC = () => {
             <Mail className="w-5 h-5 text-jagran-red shrink-0" />
             <div>
               <p className="font-bold text-white">Grievances & Feedback:</p>
-              <a href="mailto:grievance@thenewspaper.com" className="text-amber-400 hover:underline">
-                grievance@thenewspaper.com
+              <a href="mailto:grievance@dailyjagran.com" className="text-amber-400 hover:underline">
+                grievance@dailyjagran.com
               </a>
             </div>
           </div>
@@ -50,7 +50,7 @@ export const Footer: React.FC = () => {
         {/* Col 1: Brand Info */}
         <div className="space-y-3">
           <h2 className="text-xl font-black font-serif text-white uppercase">
-            THE <span className="text-[#E43854]">NEWSPAPER</span>
+            THE <span className="text-[#E43854]">DAILY JAGRAN</span>
           </h2>
           <p className="text-slate-400 leading-relaxed">
             Official digital news publication of Jagran Media Network. Connect, share, thrive together.

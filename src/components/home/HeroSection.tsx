@@ -3,22 +3,146 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
-import {
-  mockHeroLeftHeadlines,
-  mockHeroLeadArticle,
-  mockHeroSubLeads,
-  mockLatestVideos,
-  mockRightTopNews
-} from '@/data/mockNewsData';
+import { mockLatestVideos } from '@/data/mockNewsData';
 import { Play, TrendingUp, Video } from 'lucide-react';
 
-export const HeroSection: React.FC = () => {
+import { HomeArticlesResponse } from '@/services/articleService';
+import { formatTimeAgo } from '@/utils/timeAgo';
+
+interface HeroSectionProps {
+  dynamicData?: HomeArticlesResponse | null;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
   const router = useRouter();
   const { language, t } = useLanguage();
 
   const handleArticleClick = (id: string) => {
     router.push(`/article/${id}`);
   };
+
+  // While data is fetching from DB, render a sleek newspaper skeleton to prevent any mock flash
+  if (!dynamicData) {
+    return (
+      <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto animate-pulse">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column Skeleton */}
+          <div className="lg:col-span-3 space-y-4 bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+            <div className="h-5 w-36 bg-slate-200 dark:bg-slate-700 rounded"></div>
+            <div className="space-y-4 divide-y divide-slate-100 dark:divide-slate-800">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="pt-3 space-y-2">
+                  <div className="h-3 w-16 bg-red-100 dark:bg-red-950/40 rounded"></div>
+                  <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>
+                  <div className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Center Column Skeleton */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="aspect-[16/9] bg-slate-200 dark:bg-slate-800"></div>
+              <div className="p-5 space-y-3">
+                <div className="h-7 w-4/5 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>
+                <div className="h-4 w-2/3 bg-slate-200 dark:bg-slate-700 rounded"></div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex space-x-4">
+                  <div className="w-28 sm:w-36 aspect-[16/10] bg-slate-200 dark:bg-slate-700 rounded-lg shrink-0"></div>
+                  <div className="flex-1 space-y-2 py-1">
+                    <div className="h-3 w-16 bg-red-100 dark:bg-red-950/40 rounded"></div>
+                    <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>
+                    <div className="h-4 w-1/2 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column Skeleton */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-3">
+              <div className="h-5 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
+              <div className="grid grid-cols-2 gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-3">
+              <div className="h-5 w-28 bg-slate-200 dark:bg-slate-700 rounded"></div>
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex space-x-2.5 items-center">
+                    <div className="h-6 w-6 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-12 bg-red-100 dark:bg-red-950/40 rounded"></div>
+                      <div className="h-3.5 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 1. Dynamic Center Lead Story (Only from real DB)
+  const leadArticle = dynamicData.leadStory ? {
+    id: dynamicData.leadStory.slug || dynamicData.leadStory.id,
+    title: dynamicData.leadStory.title,
+    summary: dynamicData.leadStory.subHeadline || dynamicData.leadStory.content.slice(0, 160) + '...',
+    imageUrl: dynamicData.leadStory.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
+    category: dynamicData.leadStory.category.toUpperCase(),
+    timeAgo: formatTimeAgo(dynamicData.leadStory.publishedAt || dynamicData.leadStory.createdAt)
+  } : null;
+
+  // 2. Dynamic Center 4 Sub-leads (Only from real DB)
+  const subLeads = (dynamicData.subLeads || []).map(sub => ({
+    id: sub.slug || sub.id,
+    title: sub.title,
+    imageUrl: sub.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
+    category: sub.category.toUpperCase(),
+    timeAgo: formatTimeAgo(sub.publishedAt || sub.createdAt)
+  }));
+
+  // 4. Dynamic Right 1-5 Top Trending (TOP NEWS from real DB)
+  const trendingList = (dynamicData.trending || []).map((item, idx) => ({
+    id: item.slug || item.id,
+    rank: idx + 1,
+    title: item.title,
+    category: item.category.toUpperCase(),
+    timeAgo: formatTimeAgo(item.publishedAt || item.createdAt)
+  }));
+
+  // Top News & Lead Story identifiers to strictly prevent duplicate news
+  const topNewsIds = new Set(trendingList.map(t => String(t.id).toLowerCase()));
+  const topNewsTitles = new Set(trendingList.map(t => String(typeof t.title === 'string' ? t.title : ((t.title as any)?.en || '')).trim().toLowerCase()));
+  const leadId = leadArticle ? String(leadArticle.id).toLowerCase() : '';
+  const leadTitle = leadArticle ? String(typeof leadArticle.title === 'string' ? leadArticle.title : ((leadArticle.title as any)?.en || '')).trim().toLowerCase() : '';
+
+  // 3. Dynamic Left 5 Quick Highlights: MUST NOT be in Top News and NEVER the same
+  const candidateHighlights = dynamicData.quickHighlights || [];
+
+  const filteredHighlights = (candidateHighlights as any[]).filter(item => {
+    const id = String(item.slug || item.id || '').toLowerCase();
+    const title = (typeof item.title === 'string' ? item.title : (item.title?.en || item.title?.hi || '')).trim().toLowerCase();
+    return !topNewsIds.has(id) && !topNewsTitles.has(title) && id !== leadId && title !== leadTitle;
+  });
+
+  const leftHeadlines = (filteredHighlights as any[]).slice(0, 5).map(item => ({
+    id: item.slug || item.id,
+    title: item.title,
+    category: (item.category || 'NEWS').toUpperCase(),
+    timeAgo: formatTimeAgo(item.publishedAt || item.createdAt)
+  }));
 
   return (
     <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto">
@@ -36,7 +160,7 @@ export const HeroSection: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {mockHeroLeftHeadlines.map((item) => (
+            {leftHeadlines.map((item) => (
               <article
                 key={item.id}
                 onClick={() => handleArticleClick(item.id)}
@@ -45,7 +169,7 @@ export const HeroSection: React.FC = () => {
                 <span className="text-xs font-black uppercase text-jagran-red block mb-0.5">
                   {item.category}
                 </span>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug">
                   {t(item.title)}
                 </h3>
                 <span className="text-xs text-slate-400 block mt-0.5 font-medium">
@@ -62,37 +186,39 @@ export const HeroSection: React.FC = () => {
         <div className="lg:col-span-6 space-y-6">
 
           {/* Main 16:9 Lead Feature Story */}
-          <article
-            onClick={() => handleArticleClick(mockHeroLeadArticle.id)}
-            className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group"
-          >
-            <div className="aspect-[16/9] bg-slate-900 overflow-hidden relative">
-              <img
-                src={mockHeroLeadArticle.imageUrl}
-                alt={t(mockHeroLeadArticle.title)}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <span className="absolute top-3.5 left-3.5 bg-jagran-red text-white text-xs font-black px-3 py-1 rounded uppercase">
-                {mockHeroLeadArticle.category}
-              </span>
-            </div>
-
-            <div className="p-5 sm:p-6 space-y-3">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight">
-                {t(mockHeroLeadArticle.title)}
-              </h1>
-              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed font-medium">
-                {t(mockHeroLeadArticle.summary)}
-              </p>
-              <div className="text-xs text-slate-500 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-semibold">
-                <span>{t(mockHeroLeadArticle.timeAgo)}</span>
+          {leadArticle && (
+            <article
+              onClick={() => handleArticleClick(leadArticle.id)}
+              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group"
+            >
+              <div className="aspect-[16/9] bg-slate-900 overflow-hidden relative">
+                <img
+                  src={leadArticle.imageUrl}
+                  alt={typeof leadArticle.title === 'string' ? leadArticle.title : t(leadArticle.title)}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <span className="absolute top-3.5 left-3.5 bg-jagran-red text-white text-xs font-black px-3 py-1 rounded uppercase">
+                  {leadArticle.category}
+                </span>
               </div>
-            </div>
-          </article>
+
+              <div className="p-5 sm:p-6 space-y-3">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight">
+                  {typeof leadArticle.title === 'string' ? leadArticle.title : t(leadArticle.title)}
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                  {typeof leadArticle.summary === 'string' ? leadArticle.summary : t(leadArticle.summary)}
+                </p>
+                <div className="text-xs text-slate-500 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-semibold">
+                  <span>{typeof leadArticle.timeAgo === 'string' ? leadArticle.timeAgo : t(leadArticle.timeAgo)}</span>
+                </div>
+              </div>
+            </article>
+          )}
 
           {/* Stack of 4 Horizontal Sub-Lead Cards */}
           <div className="space-y-4">
-            {mockHeroSubLeads.map((sub) => (
+            {subLeads.map((sub) => (
               <article
                 key={sub.id}
                 onClick={() => handleArticleClick(sub.id)}
@@ -109,7 +235,7 @@ export const HeroSection: React.FC = () => {
                   <span className="text-xs font-black uppercase text-jagran-red block">
                     {sub.category}
                   </span>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
                     {t(sub.title)}
                   </h3>
                   <span className="text-xs text-slate-400 block font-medium">
@@ -151,7 +277,7 @@ export const HeroSection: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors line-clamp-2 leading-tight">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-tight">
                     {t(vid.title)}
                   </h4>
                 </div>
@@ -169,7 +295,7 @@ export const HeroSection: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {mockRightTopNews.map((item) => (
+              {trendingList.map((item) => (
                 <article
                   key={item.id}
                   onClick={() => handleArticleClick(item.id)}
@@ -182,7 +308,7 @@ export const HeroSection: React.FC = () => {
                     <span className="text-xs font-black uppercase text-jagran-red block mb-0.5">
                       {item.category}
                     </span>
-                    <h4 className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                    <h4 className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug">
                       {t(item.title)}
                     </h4>
                   </div>

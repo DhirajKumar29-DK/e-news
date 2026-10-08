@@ -228,7 +228,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
                       <span className="text-[10px] font-black uppercase text-jagran-red block">
                         {vid.category || 'NEWS'}
                       </span>
-                      <h4 className={`text-xs font-bold line-clamp-2 leading-snug ${isActive ? 'text-amber-300 font-serif' : 'text-slate-200 group-hover:text-white'}`}>
+                      <h4 className={`text-xs font-bold leading-snug ${isActive ? 'text-amber-300 font-serif' : 'text-slate-200 group-hover:text-white'}`}>
                         {t(vid.title)}
                       </h4>
                       <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-medium">

@@ -137,6 +137,14 @@ function formatHindiDate(dateStr: string) {
   return formatHindiDateString(dateStr);
 }
 
+export function getTodayDateString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function stripHtmlTagsToPlainText(input: string): string {
   if (!input) return '';
   let str = input.trim();
@@ -375,12 +383,16 @@ function computeSlotSections(s: any) {
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
+  // Strip combining marks/matras for accurate visual character length in Hindi:
+  const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+  const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+
   const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
-  const hlLines = s.headline ? Math.max(1, Math.ceil(s.headline.length / hlCharsPerLine)) : 0;
+  const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
   const hlH = hlLines * hlFont * 1.25;
 
   const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
-  const subLines = s.subHeadline ? Math.max(1, Math.ceil(s.subHeadline.length / subCharsPerLine)) : 0;
+  const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
   const subH = subLines * subFont * 1.25;
 
   const cardFraming = 14;
@@ -462,9 +474,14 @@ function computeSlotSections(s: any) {
   let currentTokenIdx = 0;
 
   if (leftCols > 0) {
-    const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
-    text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
-    currentTokenIdx = fit1;
+    if (photoCols > 0 || rightCols > 0) {
+      const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
+      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
+      currentTokenIdx = fit1;
+    } else {
+      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+      currentTokenIdx = tokens.length;
+    }
   }
 
   if (vertAlign === 'middle') {
@@ -478,21 +495,32 @@ function computeSlotSections(s: any) {
     }
 
     if (currentTokenIdx < tokens.length) {
-      const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
-      text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
-      currentTokenIdx = fit2b;
+      if (rightCols > 0) {
+        const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
+        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
+        currentTokenIdx = fit2b;
+      } else {
+        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+        currentTokenIdx = tokens.length;
+      }
     }
   } else {
     if (currentTokenIdx < tokens.length) {
-      const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-      currentTokenIdx = fit2;
+      if (rightCols > 0) {
+        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+        currentTokenIdx = fit2;
+      } else {
+        // If there are no right columns, photo column is the final column! Give it all remaining tokens!
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+        currentTokenIdx = tokens.length;
+      }
     }
   }
 
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
-    const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
-    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
+    // Right section is the final section of the article! Give it ALL remaining text so nothing is ever dropped!
+    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
   }
 
   return {
@@ -554,13 +582,22 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
   // Date state & Archive Dates List
   const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const todayStr = getTodayDateString();
     if (typeof window !== 'undefined') {
-      const urlDate = new URLSearchParams(window.location.search).get('date');
-      if (urlDate) return urlDate;
-      const savedDate = localStorage.getItem('epaper_selected_date');
-      if (savedDate) return savedDate;
+      try {
+        localStorage.removeItem('epaper_selected_date');
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlDate = urlParams.get('date');
+        const userPicked = sessionStorage.getItem('epaper_user_picked_date');
+        // Only accept a past date if it was intentionally chosen by user in this active session
+        if (urlDate && urlDate === userPicked) {
+          return urlDate;
+        }
+      } catch {
+        // ignore storage access errors
+      }
     }
-    return new Date().toISOString().split('T')[0];
+    return todayStr;
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
   const [archiveDatesList, setArchiveDatesList] = useState<ArchiveDateItem[]>([]);
@@ -574,7 +611,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
     const d = new Date();
     return d.getMonth();
   });
-  const [tempSelectedDate, setTempSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [tempSelectedDate, setTempSelectedDate] = useState<string>(() => getTodayDateString());
 
   // Data state
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -618,6 +655,32 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
     setImageLoadError(false);
     setHasImageLoaded(false);
   }, [currentPageIndex, activeEdition.slug, selectedDate]);
+
+  // Listen for browser navigation / popstate
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlDate = urlParams.get('date');
+      const userPicked = sessionStorage.getItem('epaper_user_picked_date');
+      if (urlDate && urlDate === userPicked) {
+        setSelectedDate(urlDate);
+      } else {
+        setSelectedDate(getTodayDateString());
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Re-measure after initial DOM paint so live headers are 100% pixel-perfect immediately on load
+  const [, setHeaderMeasureTick] = useState<number>(0);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHeaderMeasureTick(t => t + 1);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [currentPageIndex, selectedDate, pages.length]);
 
   // Helper to split text into natural punctuation chunks (<160 chars) for smooth streaming audio
   const splitIntoTtsChunks = (text: string, maxLength = 160): string[] => {
@@ -1062,9 +1125,8 @@ ${rawBody}
     if (activeEdition?.slug) {
       localStorage.setItem('epaper_active_edition', activeEdition.slug);
     }
-    if (selectedDate) {
-      localStorage.setItem('epaper_selected_date', selectedDate);
-    }
+    // Never persist selectedDate across days in localStorage
+    localStorage.removeItem('epaper_selected_date');
     localStorage.setItem('epaper_page', String(currentPageIndex + 1));
 
     if (window.location.pathname === '/epaper') {
@@ -1075,10 +1137,21 @@ ${rawBody}
         currentParams.set('edition', activeEdition.slug);
         changed = true;
       }
-      if (selectedDate && currentParams.get('date') !== selectedDate) {
-        currentParams.set('date', selectedDate);
-        changed = true;
+
+      const todayStr = getTodayDateString();
+      if (selectedDate && selectedDate !== todayStr) {
+        if (currentParams.get('date') !== selectedDate) {
+          currentParams.set('date', selectedDate);
+          changed = true;
+        }
+      } else {
+        // Today's date: remove date param so refresh and new visits cleanly load today
+        if (currentParams.has('date')) {
+          currentParams.delete('date');
+          changed = true;
+        }
       }
+
       const pageStr = String(currentPageIndex + 1);
       if (currentParams.get('page') !== pageStr) {
         currentParams.set('page', pageStr);
@@ -1086,7 +1159,8 @@ ${rawBody}
       }
 
       if (changed) {
-        const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+        const query = currentParams.toString();
+        const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
         window.history.replaceState(null, '', newUrl);
       }
     }
@@ -1304,6 +1378,16 @@ ${rawBody}
 
   const handleApplyDate = () => {
     if (tempSelectedDate) {
+      const todayStr = getTodayDateString();
+      if (tempSelectedDate === todayStr) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('epaper_user_picked_date');
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('epaper_user_picked_date', tempSelectedDate);
+        }
+      }
       setSelectedDate(tempSelectedDate);
       setIsDatePickerOpen(false);
     }
@@ -1712,18 +1796,33 @@ ${rawBody}
                 <div className="border-t border-slate-100 flex items-center justify-between pt-3 mt-2">
                   <button
                     type="button"
-                    onClick={() => setIsDatePickerOpen(false)}
-                    className="rounded-xl border border-slate-200 px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      const today = getTodayDateString();
+                      setTempSelectedDate(today);
+                      const now = new Date();
+                      setViewYear(now.getFullYear());
+                      setViewMonth(now.getMonth());
+                    }}
+                    className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
-                    Cancel
+                    आज (Today)
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyDate}
-                    className="rounded-xl bg-[#ba1228] hover:bg-[#9b0f21] px-6 py-2 text-xs font-bold text-white shadow-sm transition-colors cursor-pointer"
-                  >
-                    Apply
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsDatePickerOpen(false)}
+                      className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyDate}
+                      className="rounded-xl bg-[#ba1228] hover:bg-[#9b0f21] px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1834,6 +1933,9 @@ ${rawBody}
                     onClick={() => {
                       const latest = archiveDatesList.find(a => a.status === 'PUBLISHED') || archiveDatesList[0];
                       if (latest) {
+                        if (typeof window !== 'undefined') {
+                          sessionStorage.setItem('epaper_user_picked_date', latest.date);
+                        }
                         setSelectedDate(latest.date);
                         setTempSelectedDate(latest.date);
                       }
@@ -1860,7 +1962,14 @@ ${rawBody}
               <h3 className="text-base font-bold text-red-200 font-serif">{errorMsg}</h3>
               <button
                 type="button"
-                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                onClick={() => {
+                  const today = getTodayDateString();
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('epaper_user_picked_date');
+                  }
+                  setSelectedDate(today);
+                  setTempSelectedDate(today);
+                }}
                 className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
               >
                 आज का अंक लोड करें

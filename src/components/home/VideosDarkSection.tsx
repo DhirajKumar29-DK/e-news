@@ -135,7 +135,7 @@ export const VideosDarkSection: React.FC = () => {
 
                     {/* Content */}
                     <div className="p-2.5 flex-1 flex flex-col justify-between space-y-1">
-                      <h5 className={`text-xs font-bold line-clamp-2 leading-snug ${isSelected ? 'text-amber-300 font-serif' : 'text-slate-200 group-hover:text-white'}`}>
+                      <h5 className={`text-xs font-bold leading-snug ${isSelected ? 'text-amber-300 font-serif' : 'text-slate-200 group-hover:text-white'}`}>
                         {t(vid.title)}
                       </h5>
                     </div>

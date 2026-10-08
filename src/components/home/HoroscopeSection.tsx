@@ -286,7 +286,7 @@ export const HoroscopeSection: React.FC = () => {
 
           {/* Right White Circle Arrow Button */}
           <button
-            onClick={() => router.push('/category/horoscope')}
+            onClick={() => router.push('/horoscope')}
             className="w-11 h-11 rounded-full bg-white text-[#E43854] hover:bg-white/90 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
             title="Explore Daily Horoscope"
           >

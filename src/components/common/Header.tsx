@@ -6,15 +6,12 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
   mockCategoryTabs,
-  mockInFocusPills,
-  mockHeroLeadArticle,
-  mockHeroSubLeads,
-  mockQuickHighlightArticles,
-  mockWorldCards
+  mockInFocusPills
 } from '@/data/mockNewsData';
+import { articleService } from '@/services/articleService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
-import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play } from 'lucide-react';
+import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -35,10 +32,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const [isVisible, setIsVisible] = useState(true);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
 
-  // Inline Search State (No popup modal!)
+  // Inline Search State (Dynamic from real DB)
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // MORE Dropdown State (Hover & Click support)
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreDropdownRef = useRef<HTMLLIElement>(null);
 
   const currentLangObj = supportedLanguages.find(l => l.code === language) || supportedLanguages[0];
 
@@ -47,33 +49,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchFocused(false);
       }
+      if (moreDropdownRef.current && !moreDropdownRef.current.contains(event.target as Node)) {
+        setIsMoreOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const allSearchableArticles = [
-    mockHeroLeadArticle,
-    ...mockHeroSubLeads,
-    ...mockQuickHighlightArticles,
-    ...mockWorldCards.map((w: any) => ({
-      id: w.id,
-      title: typeof w.title === 'string' ? { en: w.title, hi: w.title } : w.title,
-      category: w.category,
-      timeAgo: typeof w.timeAgo === 'string' ? { en: w.timeAgo } : (w.timeAgo || { en: '3h ago' })
-    }))
-  ];
-
   const popularTags = ['ISRO', 'Tech', 'Cricket', 'Economy', 'G20', 'Trump', 'NEET'];
 
-  const filteredSearchResults = searchQuery.trim()
-    ? allSearchableArticles.filter(art => {
-      const q = searchQuery.toLowerCase();
-      const titleStr = (art.title?.en || '').toLowerCase();
-      const catStr = (art.category || '').toLowerCase();
-      return titleStr.includes(q) || catStr.includes(q);
-    })
-    : [];
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      articleService.getArticles({ search: q, limit: 6 })
+        .then(res => {
+          if (res && res.articles) {
+            setSearchResults(res.articles.map(a => ({
+              id: a.slug || a.id,
+              title: { en: a.title, hi: a.title },
+              category: (a.category || 'NEWS').toUpperCase(),
+              timeAgo: { en: 'Updated' }
+            })));
+          }
+        })
+        .catch(() => setSearchResults([]));
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const filteredSearchResults = searchResults;
 
   useEffect(() => {
     const currentDate = new Date();
@@ -83,6 +92,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     // Silently pre-warm backend so ePaper / API is instantly awake
     prewarmBackend();
   }, []);
+
+  const handleOpenEPaper = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('epaper_selected_date');
+        sessionStorage.removeItem('epaper_user_picked_date');
+      } catch {}
+    }
+    router.push('/epaper');
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -127,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               </button>
               <span className="opacity-40">•</span>
               <button
-                onClick={() => router.push('/epaper')}
+                onClick={handleOpenEPaper}
                 onMouseEnter={prewarmBackend}
                 className="text-slate-300 hover:text-amber-400 font-medium"
               >
@@ -265,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                           <span className="text-[10px] font-black uppercase text-jagran-red block">
                             {art.category}
                           </span>
-                          <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                          <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug">
                             {t(art.title)}
                           </h4>
                         </div>
@@ -284,7 +304,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
             {/* ePaper Action Pill Button */}
             <button
-              onClick={() => router.push('/epaper')}
+              onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
               className="hidden sm:flex items-center space-x-2 h-9 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-bold transition-all shadow-xs group cursor-pointer"
               title="Read Today's ePaper"
@@ -308,7 +328,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
             {/* Mobile ePaper Quick Action Button */}
             <button
-              onClick={() => router.push('/epaper')}
+              onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
               className="sm:hidden flex items-center space-x-1.5 h-8 px-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[11px] font-bold transition-all shadow-2xs"
               title="ePaper"
@@ -339,9 +359,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
         </div>
 
         {/* 3. CATEGORIES NAVIGATION STRIP (Soft Pink Tint bg-[#FFF4F4], equal spacing across full width) */}
-        <nav className={`${mobileMenuOpen ? 'block' : 'hidden'} lg:block bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1`}>
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10">
-            <ul className="flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-between overflow-x-auto no-scrollbar text-[12px] lg:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+        <nav className={`${mobileMenuOpen ? 'block' : 'hidden'} lg:block bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1 relative z-50 overflow-visible`}>
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 relative overflow-visible">
+            <ul className="flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-between overflow-x-auto lg:overflow-visible no-scrollbar text-[12px] lg:text-[13px] font-bold text-slate-800 dark:text-slate-200">
               {/* Home Icon (Exact Chimney Solid Home Icon Match) */}
               <li className="hidden lg:block shrink-0">
                 <button
@@ -360,7 +380,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    router.push('/epaper');
+                    handleOpenEPaper();
                   }}
                   className="w-full flex items-center space-x-2 py-2 px-2 text-jagran-red font-black uppercase tracking-tight text-xs"
                 >
@@ -389,12 +409,75 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 );
               })}
 
-              {/* MORE dropdown item */}
-              <li className="hidden lg:block whitespace-nowrap shrink-0">
-                <button className="flex items-center space-x-1 py-2 px-2 hover:text-jagran-red text-slate-800 dark:text-slate-200 font-bold text-xs uppercase transition-colors">
-                  <span>MORE</span>
-                  <ChevronDown className="w-3.5 h-3.5" />
+              {/* Mobile Only: Fashion & Beauty Link */}
+              <li className="lg:hidden whitespace-nowrap shrink-0">
+                <button
+                  onClick={() => {
+                    onSelectCategory('fashion');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
+                    activeCategory === 'fashion'
+                      ? 'text-jagran-red font-black'
+                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>FASHION & BEAUTY</span>
                 </button>
+              </li>
+
+              {/* Desktop: MORE dropdown with Hover & Click (Matching exact portal design) */}
+              <li
+                ref={moreDropdownRef}
+                onMouseEnter={() => setIsMoreOpen(true)}
+                onMouseLeave={() => setIsMoreOpen(false)}
+                className="hidden lg:block relative group whitespace-nowrap shrink-0"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsMoreOpen(prev => !prev);
+                  }}
+                  className={`flex items-center space-x-0.5 py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight cursor-pointer select-none ${
+                    isMoreOpen || activeCategory === 'fashion'
+                      ? 'text-jagran-red font-black'
+                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
+                  }`}
+                  aria-expanded={isMoreOpen}
+                >
+                  <span className="font-bold text-[12px] lg:text-[13px]">MORE</span>
+                  <MoreVertical className="w-3.5 h-3.5 -mr-1 text-slate-900 dark:text-slate-200" />
+                </button>
+
+                {/* Dropdown Menu (Exact match to screenshot with #FFF4F4 background) */}
+                <div
+                  className={`absolute right-0 top-full z-[9999] min-w-[140px] ${
+                    isMoreOpen ? 'block' : 'hidden group-hover:block'
+                  }`}
+                  style={{ marginTop: '0px' }}
+                >
+                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelectCategory('fashion');
+                        setIsMoreOpen(false);
+                      }}
+                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
+                        activeCategory === 'fashion'
+                          ? 'text-jagran-red font-black'
+                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      FASHION
+                    </button>
+                  </div>
+                </div>
               </li>
             </ul>
           </div>

@@ -37,8 +37,8 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
           {title}
         </h2>
         <button
-          onClick={() => router.push(`/category/${categorySlug}`)}
-          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-jagran-red hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors"
+          onClick={() => router.push(`/${categorySlug}`)}
+          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-jagran-red hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
           title={`View all ${title}`}
         >
           <ArrowRight className="w-4 h-4" />
@@ -99,6 +99,11 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
                 <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
                   {t(item.title)}
                 </h4>
+                {item.timeAgo && (
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-1.5 block">
+                    {t(item.timeAgo)}
+                  </span>
+                )}
               </div>
             </article>
           ))}

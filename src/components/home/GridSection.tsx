@@ -35,7 +35,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
           {title}
         </h2>
         <button
-          onClick={() => router.push(`/category/${categorySlug}`)}
+          onClick={() => router.push(`/${categorySlug}`)}
           className="w-8 h-8 rounded-full bg-slate-100 hover:bg-jagran-red hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors"
           title={`View all ${title}`}
         >
@@ -65,7 +65,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
               </span>
             </div>
             <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
                 {t(item.title)}
               </h3>
               {item.timeAgo && (

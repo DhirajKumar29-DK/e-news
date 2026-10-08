@@ -112,7 +112,26 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
       const colRequestedMatch = textToSend.match(/([1-4])\s*(?:कॉलम|column)/i);
       const requestedCols = colRequestedMatch ? parseInt(colRequestedMatch[1], 10) : (activeSlot?.columnsCount && activeSlot.columnsCount > 1 ? activeSlot.columnsCount : 2);
 
+      // Detect specific scope requested by user to prevent overwriting unrelated slot fields
+      const isHeadlineOnly = /(?:heading|title|शीर्षक|हेडिंग)\b/i.test(textToSend) && !/(?:content|body|image|photo|full|puri news|complete|sab|sare|sabkuch)/i.test(textToSend);
+      const isSubHeadlineOnly = /(?:subheading|sub-heading|उपशीर्षक|सबहेडिंग)\b/i.test(textToSend) && !/(?:content|body|image|photo|full|puri news|complete|sab|sare|sabkuch)/i.test(textToSend);
+      const isContentOnly = /(?:content|body|text|vivaran|विवरण|katha)\b/i.test(textToSend) && !/(?:heading|title|image|photo|full|puri news|complete|sab|sare|sabkuch)/i.test(textToSend);
+      const isImageOnly = /(?:image|photo|pic|tasveer|तस्वीर|चित्र)\b/i.test(textToSend) && !/(?:heading|title|content|body|text|news|article)/i.test(textToSend);
+      const isProofreadOnly = /(?:gltiya|mistakes|dikkat|error|galat|galti|check|proofread|review|वर्तनी|व्याकरण)\b/i.test(textToSend) && !/(?:thik|fix|apply|change|rewrite|banao|likho)/i.test(textToSend);
+
       let effectivePrompt = textToSend;
+      if (isProofreadOnly) {
+        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to check/find mistakes. Answer conversationally in chat text detailing the specific errors. Set "hasNewsContent": false in the JSON block so the slot on the canvas is NOT modified!]`;
+      } else if (isHeadlineOnly) {
+        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to write/check the HEADLINE. Return ONLY "headline" in the JSON block with "hasNewsContent": true. Leave subHeadline, content, and imageUrl empty/null so other slot fields are preserved!]`;
+      } else if (isSubHeadlineOnly) {
+        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to write/check the SUBHEADLINE. Return ONLY "subHeadline" in the JSON block with "hasNewsContent": true. Leave headline, content, and imageUrl empty/null so other slot fields are preserved!]`;
+      } else if (isContentOnly) {
+        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to write/check the BODY CONTENT. Return ONLY "content" in the JSON block with "hasNewsContent": true. Leave headline, subHeadline, and imageUrl empty/null so other slot fields are preserved!]`;
+      } else if (isImageOnly) {
+        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked for an IMAGE. Return ONLY "imageUrl" (and image parameters) in the JSON block with "hasNewsContent": true. Leave headline, subHeadline, and content empty/null so text fields are preserved!]`;
+      }
+
       if (isTopSpanRequested) {
         const slotW = activeSlot?.width ? activeSlot.width - 24 : 600;
         effectivePrompt += `\n[LAYOUT DIRECTIVE: The user explicitly requires a Top Banner Photo spanning the FULL WIDTH of the slot (imageWrapMode: 'top-span', imageWidth: ${slotW}, imageAlignment: 'Center', imageVertAlign: 'top'). Below this photo, format the content into ${requestedCols} columns. Set "imageWrapMode": "top-span", "columnsCount": ${requestedCols}, "imageAlignment": "Center", "imageVertAlign": "top", "imageWidth": ${slotW}.]`;

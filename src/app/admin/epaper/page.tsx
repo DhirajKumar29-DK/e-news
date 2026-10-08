@@ -355,12 +355,16 @@ function computeSlotSections(s: EPaperSlotData) {
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
+  // Strip combining marks/matras for accurate visual character length in Hindi:
+  const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+  const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+
   const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
-  const hlLines = s.headline ? Math.max(1, Math.ceil(s.headline.length / hlCharsPerLine)) : 0;
+  const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
   const hlH = hlLines * hlFont * 1.25;
 
   const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
-  const subLines = s.subHeadline ? Math.max(1, Math.ceil(s.subHeadline.length / subCharsPerLine)) : 0;
+  const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
   const subH = subLines * subFont * 1.25;
 
   // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px
@@ -444,9 +448,14 @@ function computeSlotSections(s: EPaperSlotData) {
   let currentTokenIdx = 0;
 
   if (leftCols > 0) {
-    const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
-    text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
-    currentTokenIdx = fit1;
+    if (photoCols > 0 || rightCols > 0) {
+      const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
+      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
+      currentTokenIdx = fit1;
+    } else {
+      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+      currentTokenIdx = tokens.length;
+    }
   }
 
   if (vertAlign === 'middle') {
@@ -460,21 +469,30 @@ function computeSlotSections(s: EPaperSlotData) {
     }
 
     if (currentTokenIdx < tokens.length) {
-      const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
-      text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
-      currentTokenIdx = fit2b;
+      if (rightCols > 0) {
+        const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
+        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
+        currentTokenIdx = fit2b;
+      } else {
+        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+        currentTokenIdx = tokens.length;
+      }
     }
   } else {
     if (currentTokenIdx < tokens.length) {
-      const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-      currentTokenIdx = fit2;
+      if (rightCols > 0) {
+        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+        currentTokenIdx = fit2;
+      } else {
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+        currentTokenIdx = tokens.length;
+      }
     }
   }
 
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
-    const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
-    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
+    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
   }
 
   return {
@@ -1417,14 +1435,14 @@ function FullStudioInner() {
 
     const targetSlot = activeSlot;
     const isTopSpan = news.imageWrapMode === 'top-span' || (news.imageWidth && targetSlot.width && news.imageWidth >= targetSlot.width - 40);
-    const newHl = news.headline || formHeadline || targetSlot.headline || '';
-    const newSub = news.subHeadline !== undefined ? news.subHeadline : (formSubHeadline || targetSlot.subHeadline || '');
-    const newCategory = news.categoryBadge || formCategory || targetSlot.categoryBadge || '';
-    const newSummary = stripHtmlTagsToPlainText(news.content || formSummary || targetSlot.summary || '');
-    const newImg = news.imageUrl !== undefined && news.imageUrl !== '' ? news.imageUrl : (formImageUrl || targetSlot.imageUrl || '');
-    const newAlign = isTopSpan ? 'Center Wrap' : (news.imageAlignment ? (news.imageAlignment === 'Center' ? 'Center Wrap' : news.imageAlignment) : (formImageAlign || targetSlot.imageAlignment || 'Left'));
-    const newVertAlign = isTopSpan ? 'top' : (news.imageVertAlign || formImageVertAlign || targetSlot.imageVertAlign || 'top');
-    const newCols = news.columnsCount || formColumnsCount || targetSlot.columnsCount || (isTopSpan ? 2 : 1);
+    const newHl = (news.headline && news.headline.trim()) ? news.headline : (targetSlot.headline || formHeadline || '');
+    const newSub = (news.subHeadline && news.subHeadline.trim()) ? news.subHeadline : (targetSlot.subHeadline || formSubHeadline || '');
+    const newCategory = (news.categoryBadge && news.categoryBadge.trim()) ? news.categoryBadge : (targetSlot.categoryBadge || formCategory || '');
+    const newSummary = (news.content && news.content.trim()) ? stripHtmlTagsToPlainText(news.content) : (targetSlot.summary || formSummary || '');
+    const newImg = (news.imageUrl && news.imageUrl.trim()) ? news.imageUrl : (targetSlot.imageUrl || formImageUrl || '');
+    const newAlign = isTopSpan ? 'Center Wrap' : (news.imageAlignment ? (news.imageAlignment === 'Center' ? 'Center Wrap' : news.imageAlignment) : (targetSlot.imageAlignment || formImageAlign || 'Left'));
+    const newVertAlign = isTopSpan ? 'top' : (news.imageVertAlign || targetSlot.imageVertAlign || formImageVertAlign || 'top');
+    const newCols = news.columnsCount || targetSlot.columnsCount || formColumnsCount || (isTopSpan ? 2 : 1);
     const newImgW = isTopSpan ? Math.max(100, (targetSlot.width || 400) - 24) : (news.imageWidth || targetSlot.imageWidth || 180);
     const newWrapMode = isTopSpan ? 'top-span' : (targetSlot.imageWrapMode || 'auto');
 

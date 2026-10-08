@@ -61,7 +61,7 @@ export const WebStoriesSection: React.FC = () => {
 
               {/* Title Overlay */}
               <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-3 leading-snug">
+                <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-snug">
                   {t(story.title)}
                 </h3>
               </div>
@@ -82,7 +82,7 @@ export const WebStoriesSection: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
             <div className="absolute inset-0 z-0">
-              <img src={activeStory.imageUrl} className="w-full h-full object-cover opacity-90" />
+              <img src={activeStory.imageUrl} alt={typeof activeStory.title === 'string' ? activeStory.title : t(activeStory.title)} className="w-full h-full object-cover opacity-90" />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/30"></div>
             </div>
             
