@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { mockLatestVideos } from '@/data/mockNewsData';
+import { videoService, VideoData } from '@/services/videoService';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
 import { ArrowLeft, Clock, Share2, Tag, Check, Play, Copy, X } from 'lucide-react';
 import { articleService, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
+import { stripHtml, hasHtmlTags, formatArticleHtml } from '@/utils/textUtils';
 
 export default function ArticlePage() {
   const params = useParams();
@@ -20,6 +21,7 @@ export default function ArticlePage() {
   const [dynamicArticle, setDynamicArticle] = useState<ArticleData | null>(null);
   const [dynamicRelated, setDynamicRelated] = useState<any[]>([]);
   const [sidebarTopNews, setSidebarTopNews] = useState<any[]>([]);
+  const [latestVideos, setLatestVideos] = useState<VideoData[]>([]);
 
   useEffect(() => {
     if (!articleId) {
@@ -35,14 +37,14 @@ export default function ArticlePage() {
         if (data) {
           setDynamicArticle(data);
           if (typeof document !== 'undefined') {
-            document.title = `${data.title} | The Daily Jagran`;
+            document.title = `${stripHtml(data.title)} | The Daily Jagran`;
             let metaDesc = document.querySelector('meta[name="description"]');
             if (!metaDesc) {
               metaDesc = document.createElement('meta');
               metaDesc.setAttribute('name', 'description');
               document.head.appendChild(metaDesc);
             }
-            metaDesc.setAttribute('content', data.subHeadline || data.content.slice(0, 160));
+            metaDesc.setAttribute('content', stripHtml(data.subHeadline) || stripHtml(data.content).slice(0, 160));
           }
           const cat = data.category ? data.category.toLowerCase() : undefined;
           
@@ -97,6 +99,15 @@ export default function ArticlePage() {
               }
             })
             .catch(() => {});
+        }
+      })
+      .catch(() => {});
+
+    // Fetch dynamic latest videos for sidebar
+    videoService.getVideos({ limit: 4, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
+      .then(res => {
+        if (res && res.videos && res.videos.length > 0) {
+          setLatestVideos(res.videos.slice(0, 4));
         }
       })
       .catch(() => {});
@@ -255,16 +266,18 @@ export default function ArticlePage() {
     );
   }
 
-  // Pure Dynamic Article Representation (Zero mock news)
+  // Pure Dynamic Article Representation (Zero mock news, stripped HTML for metadata)
+  const cleanSummary = stripHtml(dynamicArticle.subHeadline) || stripHtml(dynamicArticle.content).slice(0, 180) + '...';
+
   const article = {
     id: dynamicArticle.slug || dynamicArticle.id,
-    title: dynamicArticle.title,
-    summary: dynamicArticle.subHeadline || dynamicArticle.content.slice(0, 160) + '...',
+    title: stripHtml(dynamicArticle.title),
+    summary: cleanSummary,
     category: dynamicArticle.category.toUpperCase(),
     imageUrl: dynamicArticle.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
-    imageCaption: dynamicArticle.imageCaption || '',
+    imageCaption: stripHtml(dynamicArticle.imageCaption || ''),
     author: {
-      name: dynamicArticle.authorName || 'News Bureau',
+      name: stripHtml(dynamicArticle.authorName || 'News Bureau'),
       role: 'Bureau Correspondent',
       avatar: dynamicArticle.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
     },
@@ -272,30 +285,46 @@ export default function ArticlePage() {
     readTime: `${dynamicArticle.readTimeMinutes || 3} min read`,
     viewsCount: dynamicArticle.viewsCount,
     likesCount: dynamicArticle.likesCount || likes,
-    content: dynamicArticle.content.split('\n').map(p => p.trim()).filter(Boolean)
+    rawContent: dynamicArticle.content
   };
 
-  // Highlights list (from DB bulletPoints or dynamic content lines)
+  // Highlights list (from DB bulletPoints or dynamic content lines) - strictly pure plain text without any HTML tags!
   const highlightsList: string[] = (() => {
     if (dynamicArticle?.bulletPoints) {
       try {
         const parsed = JSON.parse(dynamicArticle.bulletPoints);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(p => stripHtml(String(p))).filter(Boolean);
+        }
       } catch {
-        const lines = dynamicArticle.bulletPoints.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+        const lines = dynamicArticle.bulletPoints
+          .split('\n')
+          .map(l => stripHtml(l.replace(/^[•\-\*]\s*/, '')))
+          .filter(Boolean);
         if (lines.length > 0) return lines;
       }
     }
+    const cleanFullContent = stripHtml(dynamicArticle.content);
     const points: string[] = [];
-    if (article.summary) points.push(article.summary);
-    if (article.content[0]) {
-      const sentence = article.content[0].split('. ')[0];
-      if (sentence && sentence !== article.summary) points.push(sentence.endsWith('.') ? sentence : `${sentence}.`);
+    if (cleanSummary && cleanSummary !== '...') {
+      points.push(cleanSummary.replace(/\.\.\.$/, ''));
     }
-    if (article.content[1]) {
-      const sentence = article.content[1].split('. ')[0];
-      if (sentence) points.push(sentence.endsWith('.') ? sentence : `${sentence}.`);
-    } else {
+    
+    // Split clean content into sentences
+    const sentences = cleanFullContent
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 25 && s !== cleanSummary);
+
+    for (const sent of sentences) {
+      if (points.length >= 3) break;
+      const formatted = sent.endsWith('.') ? sent : `${sent}.`;
+      if (!points.includes(formatted)) {
+        points.push(formatted);
+      }
+    }
+
+    if (points.length === 0) {
       points.push('Digital report curated by the editorial bureau covering unfolding updates.');
     }
     return points.slice(0, 3);
@@ -508,11 +537,22 @@ export default function ArticlePage() {
 
                 {/* Article Body Content */}
                 <article className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-200 font-serif">
-                  {article.content.map((paragraph, index) => (
-                    <p key={index} className="leading-relaxed">
-                      {paragraph}
-                    </p>
-                  ))}
+                  {hasHtmlTags(article.rawContent) ? (
+                    <div
+                      className="article-body max-w-none space-y-4 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:font-serif [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:font-serif [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-1.5 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-1.5 [&>blockquote]:border-l-4 [&>blockquote]:border-jagran-red [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-slate-600 dark:[&>blockquote]:text-slate-400 [&>img]:rounded-xl [&>img]:my-4"
+                      dangerouslySetInnerHTML={{ __html: formatArticleHtml(article.rawContent) }}
+                    />
+                  ) : (
+                    article.rawContent.split(/\n\s*\n|\n/).map((paragraph, index) => {
+                      const trimmed = paragraph.trim();
+                      if (!trimmed) return null;
+                      return (
+                        <p key={index} className="leading-relaxed">
+                          {trimmed}
+                        </p>
+                      );
+                    })
+                  )}
                 </article>
 
                 {/* Dynamic Tags Pills */}
@@ -567,39 +607,51 @@ export default function ArticlePage() {
               </div>
             )}
 
-            {/* LATEST VIDEOS: Max 4 Videos in 2x2 Grid */}
+            {/* LATEST VIDEOS: Max 4 Videos in 2x2 Grid (Dynamic from DB) */}
             <div className="space-y-3 pt-1">
-              <div className="flex items-center space-x-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
-                <h3 className="text-xs font-bold text-jagran-red uppercase tracking-wider">
-                  LATEST VIDEOS
-                </h3>
-                <span className="text-sm">📹</span>
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <button
+                  onClick={() => router.push('/videos')}
+                  className="text-xs font-bold text-jagran-red uppercase tracking-wider flex items-center space-x-1.5 hover:underline cursor-pointer"
+                >
+                  <span>LATEST VIDEOS</span>
+                  <span className="text-sm">📹</span>
+                </button>
+                <button
+                  onClick={() => router.push('/videos')}
+                  className="text-[11px] font-bold text-slate-500 hover:text-jagran-red uppercase tracking-tight cursor-pointer"
+                >
+                  View All
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                {mockLatestVideos.slice(0, 4).map((vid) => (
-                  <div
-                    key={vid.id}
-                    onClick={() => router.push('/videos')}
-                    className="group cursor-pointer space-y-1.5"
-                  >
-                    <div className="aspect-[16/10] bg-slate-900 rounded-xl overflow-hidden relative shadow-xs">
-                      <img
-                        src={vid.imageUrl}
-                        alt={t(vid.title)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#d61e24] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                          <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                {latestVideos.map((vid) => {
+                  const thumb = vid.thumbnailUrl || (vid.youtubeId ? `https://img.youtube.com/vi/${vid.youtubeId}/mqdefault.jpg` : 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400');
+                  return (
+                    <div
+                      key={vid.id}
+                      onClick={() => router.push('/videos')}
+                      className="group cursor-pointer space-y-1.5"
+                    >
+                      <div className="aspect-[16/10] bg-slate-900 rounded-xl overflow-hidden relative shadow-xs">
+                        <img
+                          src={thumb}
+                          alt={vid.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#d61e24] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                          </div>
                         </div>
                       </div>
+                      <h5 className="text-xs font-bold font-serif text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug line-clamp-2">
+                        {vid.title}
+                      </h5>
                     </div>
-                    <h5 className="text-xs font-bold font-serif text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug">
-                      {t(vid.title)}
-                    </h5>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

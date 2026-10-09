@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
-import { Clock, TrendingUp, ChevronRight, HelpCircle, ArrowRight, Home } from 'lucide-react';
+import { Clock, TrendingUp, ChevronRight, HelpCircle, ArrowRight, Home, RefreshCw } from 'lucide-react';
 import { articleService, ArticleData } from '@/services/articleService';
 import VideosPage from '@/app/videos/page';
 
 import { formatTimeAgo } from '@/utils/timeAgo';
+import { stripHtml } from '@/utils/textUtils';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -16,7 +17,6 @@ export default function CategoryPage() {
   const { language, t } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL');
-  const [feedVisibleCount, setFeedVisibleCount] = useState(9);
   const [isLoading, setIsLoading] = useState(true);
   const [, setTick] = useState(0);
 
@@ -47,6 +47,7 @@ export default function CategoryPage() {
     entertainment: 'Entertainment',
     lifestyle: 'Lifestyle & Health',
     fashion: 'Fashion & Beauty',
+    brandverse: 'Brandverse',
     education: 'Education & Career',
     auto: 'Auto',
     spiritual: 'Spiritual',
@@ -58,23 +59,93 @@ export default function CategoryPage() {
   const subFilters: Record<string, string[]> = {
     latest: ['ALL', 'WORLD', 'INDIA', 'BUSINESS', 'TECH', 'SPORTS', 'ENTERTAINMENT', 'FASHION'],
     'latest-news': ['ALL', 'WORLD', 'INDIA', 'BUSINESS', 'TECH', 'SPORTS', 'ENTERTAINMENT', 'FASHION'],
+    india: ['ALL', 'NATIONAL', 'SCIENCE', 'RAILWAYS', 'AGRICULTURE', 'ECONOMY'],
+    national: ['ALL', 'JUDICIARY', 'SPACE MISSION', 'INFRASTRUCTURE', 'DEFENCE'],
+    world: ['ALL', 'GEOPOLITICS', 'GLOBAL ECONOMY', 'SCIENCE', 'ENVIRONMENT', 'SPACE'],
     entertainment: ['ALL', 'BOLLYWOOD', 'HOLLYWOOD', 'OTT', 'BOX OFFICE', 'CELEBS'],
     fashion: ['ALL', 'TRENDS', 'CELEBRITY STYLE', 'BEAUTY & SKINCARE', 'FASHION WEEKS', 'ACCESSORIES'],
+    brandverse: ['ALL', 'ASTRO APPS', 'PERSONAL FINANCE', 'CONSTRUCTION EXPO', 'CLEAN MOBILITY'],
     sports: ['ALL', 'CRICKET', 'FOOTBALL', 'BADMINTON', 'TENNIS', 'ISL'],
+    cricket: ['ALL', 'IPL', 'TEST', 'ODI', 'T20', 'DOMESTIC'],
     tech: ['ALL', 'AI TECH', 'SMARTPHONES', 'GADGETS', 'CYBERSECURITY'],
     business: ['ALL', 'STOCK MARKET', 'IPO', 'REAL ESTATE', 'STARTUPS'],
+    lifestyle: ['ALL', 'HEALTH', 'WELLNESS', 'FITNESS', 'FOOD', 'TRAVEL'],
+    auto: ['ALL', 'ELECTRIC VEHICLES', 'CARS', 'BIKES', 'AUTO TECH'],
     explainer: ['ALL', 'GEOPOLITICS', 'HEALTH & MEDICINE', 'ENVIRONMENT', 'PERSONAL FINANCE', 'ECONOMY & TAX', 'ARTIFICIAL INTELLIGENCE'],
     opinion: ['ALL', 'GEOPOLITICS', 'HEALTH & MEDICINE', 'ENVIRONMENT', 'PERSONAL FINANCE', 'ECONOMY & TAX', 'ARTIFICIAL INTELLIGENCE'],
+    spiritual: ['ALL', 'TEMPLES', 'FESTIVALS', 'RITUALS', 'VEDAS & PHILOSOPHY', 'ASTRO & FAITH'],
     horoscope: ['ALL', 'LOVE HOROSCOPE', 'DAILY HOROSCOPE', 'WEEKLY HOROSCOPE', 'ZODIAC SIGNS']
   };
 
   const currentFilters = subFilters[slug] || ['ALL', 'FEATURED', 'TRENDING', 'EXPLAINERS'];
 
-  // Dynamic backend articles
+  // Helper to format date like THU, 08 OCT 2026 06:14 PM (IST) matching screenshot
+  const formatBrandverseDate = (dateStr?: string) => {
+    if (!dateStr) return 'THU, 08 OCT 2026 06:14 PM (IST)';
+    try {
+      const d = new Date(dateStr);
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' }).toUpperCase();
+      const day = String(d.toLocaleDateString('en-US', { day: '2-digit', timeZone: 'Asia/Kolkata' })).padStart(2, '0');
+      const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Kolkata' }).toUpperCase();
+      const year = d.toLocaleDateString('en-US', { year: 'numeric', timeZone: 'Asia/Kolkata' });
+      const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toUpperCase();
+      return `${dayName}, ${day} ${month} ${year} ${time} (IST)`;
+    } catch {
+      return 'THU, 08 OCT 2026 06:14 PM (IST)';
+    }
+  };
+
+  // Helper to map backend ArticleData into UI format
+  const mapArticle = (a: ArticleData) => {
+    const cleanTitle = stripHtml(a.title);
+    const cleanSum = stripHtml(a.subHeadline) || stripHtml(a.content).slice(0, 160) + '...';
+    return {
+      id: a.slug || a.id,
+      title: { en: cleanTitle, hi: cleanTitle },
+      summary: { en: cleanSum, hi: cleanSum },
+      imageUrl: a.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80',
+      category: (a.category || 'LATEST').toUpperCase(),
+      subCategory: a.subCategory || '',
+      publishedAt: a.publishedAt || a.createdAt,
+      timeAgo: formatTimeAgo(a.publishedAt || a.createdAt),
+      readTime: { en: `${a.readTimeMinutes || 3} min read`, hi: `${a.readTimeMinutes || 3} मिनट पढ़ें` },
+      subTags: [
+        ...(a.subCategory ? [a.subCategory.toUpperCase()] : []),
+        ...(a.category ? [a.category.toUpperCase()] : [])
+      ]
+    };
+  };
+
+  // Dynamic backend articles & Pagination states (10 per load from DB)
   const [dynamicArticles, setDynamicArticles] = useState<any[]>([]);
+  const [topNewsArticles, setTopNewsArticles] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Reusable batch fetcher for 10 articles per page from database strictly for current category
+  const fetchCategoryBatch = async (pageNum: number) => {
+    if (isLatest) {
+      return articleService.getArticles({
+        page: pageNum,
+        limit: 10,
+        sortBy: 'publishedAt',
+        sortOrder: 'desc'
+      });
+    } else {
+      return articleService.getArticles({
+        category: slug,
+        page: pageNum,
+        limit: 10,
+        sortBy: 'publishedAt',
+        sortOrder: 'desc'
+      });
+    }
+  };
 
   useEffect(() => {
     setIsLoading(true);
+    setPage(1);
 
     if (typeof document !== 'undefined') {
       const catTitle = categoryNames[slug] || slug.toUpperCase();
@@ -85,68 +156,82 @@ export default function CategoryPage() {
       }
     }
 
-    let fetchPromise: Promise<any>;
-    if (isLatest) {
-      fetchPromise = articleService.getArticles({ limit: 50, sortBy: 'publishedAt', sortOrder: 'desc' as const });
-    } else if (slug === 'india' || slug === 'national') {
-      fetchPromise = Promise.all([
-        articleService.getArticles({ category: 'india', limit: 30 }),
-        articleService.getArticles({ category: 'national', limit: 30 })
-      ]).then(([resIndia, resNat]) => ({
-        articles: [...(resIndia?.articles || []), ...(resNat?.articles || [])]
-      }));
-    } else {
-      fetchPromise = articleService.getArticles({ category: slug, limit: 30 });
-    }
-
-    fetchPromise
-      .then((res: any) => {
-        if (res.articles && res.articles.length > 0) {
-          // Strictly sort by publishedAt / createdAt descending so newest is always #1
-          const sorted = [...res.articles].sort((a: ArticleData, b: ArticleData) => {
-            const timeA = new Date(a.publishedAt || a.createdAt).getTime();
-            const timeB = new Date(b.publishedAt || b.createdAt).getTime();
-            return timeB - timeA;
-          });
-
-          const mapped = sorted.map((a: ArticleData) => ({
-            id: a.slug || a.id,
-            title: { en: a.title, hi: a.title },
-            summary: { en: a.subHeadline || a.content.slice(0, 160) + '...', hi: a.subHeadline || a.content.slice(0, 160) + '...' },
-            imageUrl: a.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80',
-            category: (a.category || 'LATEST').toUpperCase(),
-            timeAgo: formatTimeAgo(a.publishedAt || a.createdAt),
-            readTime: { en: `${a.readTimeMinutes || 3} min read`, hi: `${a.readTimeMinutes || 3} मिनट पढ़ें` },
-            subTags: [
-              ...(a.subCategory ? [a.subCategory.toUpperCase()] : []),
-              ...(a.category ? [a.category.toUpperCase()] : [])
-            ]
-          }));
-          setDynamicArticles(mapped);
-        } else {
-          setDynamicArticles([]);
+    // Also fetch general top news for the sidebar
+    articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
+      .then((topRes: any) => {
+        if (topRes.articles && topRes.articles.length > 0) {
+          setTopNewsArticles(topRes.articles);
         }
       })
-      .catch(() => setDynamicArticles([]))
+      .catch(() => {});
+
+    fetchCategoryBatch(1)
+      .then((res: any) => {
+        if (res.articles && res.articles.length > 0) {
+          // Strict category isolation: Guarantee 0 articles from other categories leak in
+          const isolatedArticles = isLatest
+            ? res.articles
+            : res.articles.filter((a: ArticleData) => (a.category || '').toLowerCase() === slug.toLowerCase());
+
+          setDynamicArticles(isolatedArticles.map(mapArticle));
+          if (res.pagination) {
+            setTotalPages(res.pagination.totalPages || 1);
+          }
+        } else {
+          setDynamicArticles([]);
+          setTotalPages(1);
+        }
+      })
+      .catch(() => {
+        setDynamicArticles([]);
+        setTotalPages(1);
+      })
       .finally(() => setIsLoading(false));
   }, [slug, isLatest]);
 
+  const handleLoadMore = async () => {
+    if (isLoadingMore || page >= totalPages) return;
+    try {
+      setIsLoadingMore(true);
+      const nextPage = page + 1;
+      const res = await fetchCategoryBatch(nextPage);
+      if (res.articles && res.articles.length > 0) {
+        // Strict category isolation for next batch
+        const isolatedArticles = isLatest
+          ? res.articles
+          : res.articles.filter((a: ArticleData) => (a.category || '').toLowerCase() === slug.toLowerCase());
+
+        const newMapped = isolatedArticles.map(mapArticle);
+        setDynamicArticles((prev) => [...prev, ...newMapped]);
+        setPage(nextPage);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages || 1);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading more category articles:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   const rawArticles = dynamicArticles;
 
+  // Sub-filter: strictly match subCategory tag, never bleed across
   const articles = activeFilter === 'ALL'
     ? rawArticles
     : rawArticles.filter(a => {
-      const cat = typeof a.category === 'string' ? a.category.toUpperCase() : '';
-      const tags = (a.subTags || []) as string[];
-      const titleStr = typeof a.title === 'string' ? a.title : (a.title?.en || a.title?.hi || '');
-      return cat.includes(activeFilter) || tags.some(t => t.includes(activeFilter)) || titleStr.toUpperCase().includes(activeFilter);
-    });
+        const subCat = (a.subCategory || '').toUpperCase();
+        const tags = (a.subTags || []) as string[];
+        return subCat === activeFilter || tags.includes(activeFilter);
+      });
 
-  const displayArticles = articles.length > 0 ? articles : rawArticles;
+  const displayArticles = articles;
   const leadArticle = displayArticles[0];
   const feedArticles = displayArticles.slice(1);
 
-  const currentSidebarNews = rawArticles.slice(0, 5).map((art, idx) => ({
+  const sidebarSource = (slug === 'brandverse' && topNewsArticles.length > 0) ? topNewsArticles : (rawArticles.slice(0, 5).length > 0 ? rawArticles : topNewsArticles);
+  const currentSidebarNews = sidebarSource.slice(0, 5).map((art, idx) => ({
     id: art.id,
     trendingRank: idx + 1,
     category: typeof art.category === 'string' ? art.category : 'NEWS',
@@ -294,6 +379,29 @@ export default function CategoryPage() {
               ))}
             </div>
 
+            {/* Load More Button for Explainer/Opinion view */}
+            {page < totalPages && (
+              <div className="pt-6 pb-2 text-center">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-300 dark:border-slate-700 hover:border-jagran-red hover:text-jagran-red dark:hover:text-jagran-red shadow-sm hover:shadow transition-all group inline-flex items-center space-x-2 disabled:opacity-60 cursor-pointer"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-jagran-red" />
+                      <span>Loading Analysis...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Load More Analysis</span>
+                      <ChevronRight className="w-4 h-4 text-jagran-red group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
           </div>
         ) : (
           /* Standard 2-Column Category View (EXACT MATCH TO https://e-news-ebon.vercel.app/category/world) */
@@ -382,7 +490,7 @@ export default function CategoryPage() {
                     </h3>
                   </div>
 
-                  {feedArticles.slice(0, feedVisibleCount).map((art) => (
+                  {feedArticles.map((art) => (
                     <article
                       key={art.id}
                       onClick={() => router.push(`/article/${art.id}`)}
@@ -416,15 +524,25 @@ export default function CategoryPage() {
                     </article>
                   ))}
 
-                  {/* Load More Button for standard category feed */}
-                  {feedVisibleCount < feedArticles.length && (
+                  {/* Load More Button connected to Database Pagination */}
+                  {page < totalPages && (
                     <div className="pt-4 pb-2 text-center">
                       <button
-                        onClick={() => setFeedVisibleCount((prev) => prev + 10)}
-                        className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-300 dark:border-slate-700 hover:border-jagran-red hover:text-jagran-red dark:hover:text-jagran-red shadow-sm hover:shadow transition-all group inline-flex items-center space-x-2"
+                        onClick={handleLoadMore}
+                        disabled={isLoadingMore}
+                        className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-300 dark:border-slate-700 hover:border-jagran-red hover:text-jagran-red dark:hover:text-jagran-red shadow-sm hover:shadow transition-all group inline-flex items-center space-x-2 disabled:opacity-60 cursor-pointer"
                       >
-                        <span>Load More News</span>
-                        <ChevronRight className="w-4 h-4 text-jagran-red group-hover:translate-x-1 transition-transform" />
+                        {isLoadingMore ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin text-jagran-red" />
+                            <span>Loading More News...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Load More News</span>
+                            <ChevronRight className="w-4 h-4 text-jagran-red group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
                       </button>
                     </div>
                   )}

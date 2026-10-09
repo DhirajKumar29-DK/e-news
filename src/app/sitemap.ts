@@ -18,8 +18,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'auto',
     'lifestyle',
     'fashion',
+    'brandverse',
     'explainer',
     'videos',
+    'spiritual',
     'horoscope'
   ];
 

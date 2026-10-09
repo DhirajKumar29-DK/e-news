@@ -10,8 +10,9 @@ import { articleService } from '@/services/articleService';
 import {
   ArrowLeft, Save, Send, Image as ImageIcon, Sparkles, Plus, Trash2,
   Star, TrendingUp, CheckCircle, AlertCircle, FileText, Tag, HelpCircle,
-  UploadCloud, Link as LinkIcon
+  UploadCloud, Link as LinkIcon, Wand2
 } from 'lucide-react';
+import { cleanHtmlToPlainText, stripHtml } from '@/utils/textUtils';
 
 const CATEGORIES = [
   { value: 'india', label: 'India' },
@@ -23,8 +24,11 @@ const CATEGORIES = [
   { value: 'business', label: 'Business & Markets' },
   { value: 'entertainment', label: 'Entertainment & Cinema' },
   { value: 'fashion', label: 'Fashion & Beauty' },
+  { value: 'brandverse', label: 'Brandverse' },
   { value: 'lifestyle', label: 'Lifestyle & Health' },
   { value: 'auto', label: 'Auto' },
+  { value: 'spiritual', label: 'Spiritual & Faith' },
+  { value: 'horoscope', label: 'Horoscope & Astrology' },
   { value: 'education', label: 'Education & Career' },
   { value: 'explainer', label: 'Explainer (Deep Analysis)' },
   { value: 'opinion', label: 'Opinion & Editorial' },
@@ -111,19 +115,24 @@ function CreateArticleContent() {
 
     try {
       setIsSubmitting(true);
-      const activeBullets = bulletPoints.filter(b => b.trim() !== '');
+      const cleanedTitle = stripHtml(title.trim());
+      const cleanedHeadline = subHeadline ? stripHtml(subHeadline.trim()) : null;
+      const cleanedContent = cleanHtmlToPlainText(content.trim());
+      const activeBullets = bulletPoints
+        .map(b => stripHtml(b.trim()))
+        .filter(Boolean);
 
       const newArticle = await articleService.createArticle({
-        title: title.trim(),
+        title: cleanedTitle,
         category,
         subCategory: subCategory.trim() || null,
-        subHeadline: subHeadline.trim() || null,
-        content: content.trim(),
+        subHeadline: cleanedHeadline,
+        content: cleanedContent,
         featuredImage: featuredImage.trim() || null,
-        imageCaption: imageCaption.trim() || null,
+        imageCaption: imageCaption ? stripHtml(imageCaption.trim()) : null,
         authorName: authorName.trim() || 'News Desk',
         bulletPoints: activeBullets,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: tags.split(',').map(t => stripHtml(t.trim())).filter(Boolean),
         isLeadStory,
         isTrending,
         status: publishStatus
@@ -447,23 +456,33 @@ function CreateArticleContent() {
 
               {/* 4. Article Body Content */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
-                  <FileText className="w-4 h-4 text-red-600" />
-                  <span>Story Content / Body <span className="text-red-500">*</span></span>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600">
+                    <FileText className="w-4 h-4 text-red-600" />
+                    <span>Story Content / Body <span className="text-red-500">*</span></span>
+                  </div>
+                  {content.includes('<') && content.includes('>') && (
+                    <button
+                      type="button"
+                      onClick={() => setContent(cleanHtmlToPlainText(content))}
+                      className="inline-flex items-center space-x-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-md border border-amber-200 transition-colors cursor-pointer"
+                      title="Remove raw <p>, <h>, etc. and convert to clean plain paragraphs"
+                    >
+                      <Wand2 className="w-3 h-3 text-amber-600" />
+                      <span>Clean HTML Tags</span>
+                    </button>
+                  )}
                 </div>
 
                 <div>
                   <textarea
                     rows={12}
                     required
-                    placeholder="Write the complete news article here... Separate paragraphs with blank lines."
+                    placeholder="Write the complete news article here..."
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-sans leading-relaxed text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Tip: Paragraphs will be cleanly formatted with responsive newspaper typography.
-                  </p>
                 </div>
               </div>
 

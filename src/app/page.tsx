@@ -13,6 +13,7 @@ import {
 } from '@/components/home';
 import { articleService, HomeArticlesResponse, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
+import { stripHtml } from '@/utils/textUtils';
 
 export default function HomePage() {
   const router = useRouter();
@@ -84,8 +85,8 @@ export default function HomePage() {
       return list.slice(0, 4).map(a => ({
         id: a.slug || a.id,
         category: a.category.toUpperCase(),
-        title: a.title,
-        summary: a.subHeadline || a.content.slice(0, 140) + '...',
+        title: stripHtml(a.title),
+        summary: stripHtml(a.subHeadline) || stripHtml(a.content).slice(0, 140) + '...',
         imageUrl: a.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
         timeAgo: formatTimeAgo(a.publishedAt || a.createdAt),
         readTime: `${a.readTimeMinutes || 3} min read`
@@ -104,14 +105,14 @@ export default function HomePage() {
         lead: {
           id: lead.slug || lead.id,
           category: lead.category.toUpperCase(),
-          title: lead.title,
+          title: stripHtml(lead.title),
           imageUrl: lead.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
           timeAgo: formatTimeAgo(lead.publishedAt || lead.createdAt)
         },
         grid: rest.map(r => ({
           id: r.slug || r.id,
           category: r.category.toUpperCase(),
-          title: r.title,
+          title: stripHtml(r.title),
           imageUrl: r.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
           timeAgo: formatTimeAgo(r.publishedAt || r.createdAt)
         }))

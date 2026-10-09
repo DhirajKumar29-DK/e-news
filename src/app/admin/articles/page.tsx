@@ -24,8 +24,11 @@ const CATEGORIES = [
   { value: 'business', label: 'Business' },
   { value: 'entertainment', label: 'Entertainment' },
   { value: 'fashion', label: 'Fashion & Beauty' },
+  { value: 'brandverse', label: 'Brandverse' },
   { value: 'lifestyle', label: 'Lifestyle' },
   { value: 'auto', label: 'Auto' },
+  { value: 'spiritual', label: 'Spiritual' },
+  { value: 'horoscope', label: 'Horoscope & Astrology' },
   { value: 'education', label: 'Education' },
   { value: 'explainer', label: 'Explainer' },
   { value: 'opinion', label: 'Opinion' },
@@ -39,6 +42,7 @@ function AdminArticlesListContent() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
   // Filters
@@ -58,7 +62,7 @@ function AdminArticlesListContent() {
         status: selectedStatus,
         search: searchQuery,
         page,
-        limit: 10
+        limit
       });
       setArticles(res.articles || []);
       setTotalCount(res.pagination.total || 0);
@@ -74,7 +78,7 @@ function AdminArticlesListContent() {
     if (!authLoading) {
       fetchArticles();
     }
-  }, [authLoading, page, selectedCategory, selectedStatus]);
+  }, [authLoading, page, limit, selectedCategory, selectedStatus]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,16 +124,18 @@ function AdminArticlesListContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans select-none">
+    <div className="h-screen bg-slate-50 text-slate-900 flex font-sans select-none overflow-hidden">
       
       {/* 1. SIDEBAR */}
       <AdminSidebar />
 
       {/* 2. MAIN CONTENT */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Pinned Top Bar */}
         <AdminHeader title="Newsroom Articles CMS" />
 
-        <div className="p-6 sm:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
+        {/* Pinned Action Banner & Search Toolbar */}
+        <div className="shrink-0 bg-slate-50 border-b border-slate-200/80 px-6 sm:px-8 pt-5 pb-4 max-w-7xl w-full mx-auto space-y-4">
           
           {/* Top Bar with Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
@@ -206,16 +212,20 @@ function AdminArticlesListContent() {
               </select>
             </div>
           </div>
+        </div>
 
-          {/* Table Container */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* Main Table Area (Fixed card with internal scroll) */}
+        <div className="flex-1 min-h-0 px-6 sm:px-8 py-4 max-w-7xl w-full mx-auto flex flex-col">
+
+          {/* Table Container Card */}
+          <div className="flex-1 min-h-0 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col overflow-hidden">
             {loading ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-semibold flex items-center justify-center space-x-2">
+              <div className="flex-1 flex items-center justify-center p-12 text-center text-slate-400 text-xs font-semibold space-x-2">
                 <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                 <span>Loading Articles from Database...</span>
               </div>
             ) : articles.length === 0 ? (
-              <div className="p-16 text-center space-y-3">
+              <div className="flex-1 flex flex-col items-center justify-center p-16 text-center space-y-3">
                 <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
                   <AlertCircle className="w-6 h-6" />
                 </div>
@@ -232,10 +242,11 @@ function AdminArticlesListContent() {
                 </Link>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              /* Internal Scrollable Table Content */
+              <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
                 <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider shadow-xs">
+                    <tr>
                       <th className="py-3 px-4">Article</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Homepage Badges</th>
@@ -381,28 +392,66 @@ function AdminArticlesListContent() {
               </div>
             )}
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>Page {page} of {totalPages}</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    disabled={page <= 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            {/* Pinned Bottom Pagination & Items Per Page Controls */}
+            <div className="shrink-0 p-3.5 sm:px-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-600 bg-slate-50/80">
+              <div className="flex items-center space-x-3">
+                <span className="text-slate-600">
+                  Page {page} of {Math.max(1, totalPages)} <span className="text-slate-400 font-normal">({totalCount} total)</span>
+                </span>
+
+                {/* 5, 10, 20, 50 Items Per Page Dropdown */}
+                <div className="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
+                  <span className="text-slate-400 font-normal text-[11px]">Show:</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-slate-300 focus:outline-none cursor-pointer"
                   >
-                    Previous
-                  </button>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    Next
-                  </button>
+                    <option value={5}>5 / page</option>
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                  </select>
                 </div>
               </div>
-            )}
+
+              {/* Pagination Page Number Buttons */}
+              <div className="flex items-center space-x-1.5">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+                  Math.max(0, page - 3),
+                  Math.min(totalPages, page + 2)
+                ).map((pNum) => (
+                  <button
+                    key={pNum}
+                    onClick={() => setPage(pNum)}
+                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      page === pNum
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>

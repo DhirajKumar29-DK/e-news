@@ -4,12 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
-import { Play, Eye, Clock, Share2, Sun } from 'lucide-react';
+import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2 } from 'lucide-react';
+import { videoService, VideoData } from '@/services/videoService';
 
 export default function VideosPage() {
   const router = useRouter();
   const { language, t } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Dynamic state
+  const [featuredHero, setFeaturedHero] = useState<VideoData | null>(null);
+  const [trendingList, setTrendingList] = useState<VideoData[]>([]);
+  const [gridVideos, setGridVideos] = useState<VideoData[]>([]);
+  const [activeHero, setActiveHero] = useState<VideoData | null>(null);
+  const [isPlayingHero, setIsPlayingHero] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -21,148 +31,75 @@ export default function VideosPage() {
     }
   }, []);
 
-  // Default Featured Video
-  const defaultHero = {
-    id: 'v-hero-1',
-    title: {
-      en: 'LARGEST Attack On Russia! 1000+ Drones Hit Moscow On Final Day Of Elections | WATCH'
-    },
-    location: 'DATE - 20/09/2026 | MOSCOW, RUSSIA',
-    duration: '04:10',
-    views: '480K',
-    timeAgo: { en: '2 hours ago' },
-    imageUrl: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80',
-    videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1'
+  // Fetch featured and trending videos on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadFeaturedAndTrending = async () => {
+      try {
+        const data = await videoService.getFeaturedAndTrending();
+        if (isMounted) {
+          const hero = data.heroVideo || (data.trendingVideos && data.trendingVideos[0]) || null;
+          setFeaturedHero(hero);
+          setActiveHero(hero);
+          setTrendingList(data.trendingVideos ? data.trendingVideos.slice(0, 5) : []);
+        }
+      } catch (err) {
+        console.error('Error fetching featured videos:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadFeaturedAndTrending();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Fetch all videos
+  useEffect(() => {
+    let isMounted = true;
+    const loadAllVideos = async () => {
+      try {
+        const data = await videoService.getVideos({ limit: 30, status: 'PUBLISHED' });
+        if (isMounted) {
+          setGridVideos(data.videos || []);
+        }
+      } catch (err) {
+        console.error('Error loading videos:', err);
+      }
+    };
+    loadAllVideos();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleSelectVideo = (vid: VideoData) => {
+    setActiveHero(vid);
+    setIsPlayingHero(false);
+    if (vid.id) {
+      videoService.incrementViews(vid.id);
+    }
+    window.scrollTo({ top: 100, behavior: 'smooth' });
   };
 
-  const [activeHero, setActiveHero] = useState(defaultHero);
-  const [isPlayingHero, setIsPlayingHero] = useState(true);
-
-  // 1 to 5 Trending Videos (With giant background numbers 1, 2, 3, 4, 5)
-  const trendingVideos = [
-    {
-      rank: 1,
-      id: 'tr-1',
-      badge: 'BREAKING NEWS',
-      title: {
-        en: "'8 BALLISTIC MISSILES, DIRECT SHOT!': Saudi Capital Breached! | Iran Houthi Claim Attack On Airport"
-      },
-      location: 'DATE - 20/09/2026 | RIYADH, SAUDI ARABIA',
-      timeAgo: { en: '14 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/L_LUpnjgPso?autoplay=1'
-    },
-    {
-      rank: 2,
-      id: 'tr-2',
-      badge: 'IRAN WAR ENDS?',
-      title: {
-        en: "US Iran War Update: Tehran's 7 Conditions To Avoid Escalation and Re-Engage In Talks With US"
-      },
-      location: 'DATE - 20/09/2026 | TEHRAN, IRAN',
-      timeAgo: { en: '14 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1'
-    },
-    {
-      rank: 3,
-      id: 'tr-3',
-      badge: 'AT RUSSIA OIL REFINERY',
-      title: {
-        en: 'Russia Pipeline Choked! Heavy Smoke Plumes Rise Above Damaged Moscow Refinery'
-      },
-      location: 'DATE - 20/09/2026 | MOSCOW, RUSSIA',
-      timeAgo: { en: '14 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/L_LUpnjgPso?autoplay=1'
-    },
-    {
-      rank: 4,
-      id: 'tr-4',
-      badge: 'LIVE UPDATE',
-      title: {
-        en: 'Russia Oil Refinery Explosion Live: Massive Drone Attack Hits Moscow Oil Refinery Site'
-      },
-      location: 'DATE - 20/09/2026 | MOSCOW, RUSSIA',
-      timeAgo: { en: '15 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1'
-    },
-    {
-      rank: 5,
-      id: 'tr-5',
-      badge: 'BREAKING NEWS',
-      title: {
-        en: 'Iran Proxy Army Top Brass Killed! Chief & 6 Aides Wiped Out! | Saudi Revenge On Iran Proxy!'
-      },
-      location: 'DATE - 20/09/2026 | MIDDLE EAST',
-      timeAgo: { en: '15 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/L_LUpnjgPso?autoplay=1'
+  const handleShare = (vid: VideoData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof window !== 'undefined') {
+      const url = `${window.location.origin}/videos?v=${vid.slug || vid.id}`;
+      navigator.clipboard.writeText(url);
+      setCopiedId(vid.id);
+      setTimeout(() => setCopiedId(null), 2000);
     }
-  ];
+  };
 
-  // Grid Video News Gallery (4-Column Grid)
-  const gridVideos = [
-    {
-      id: 'grid-1',
-      badge: 'EXPLOSIVE FOOTAGE!',
-      title: {
-        en: 'Shocking Footage! US Military Says It Killed 4 in Anti-Drug Strike Operation in the Caribbean Sea'
-      },
-      location: 'DATE - 20/09/2026 | CARIBBEAN SEA',
-      timeAgo: { en: '16 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4eff56022?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1'
-    },
-    {
-      id: 'grid-2',
-      badge: 'BOOM! SAUDI UNDER FIRE?',
-      title: {
-        en: 'Will Iran and Its Ally Take Over Saudi Arabia? 2 Military Operations Launch Saudi Vs Houthis'
-      },
-      location: 'DATE - 20/09/2026 | SAUDI ARABIA',
-      timeAgo: { en: '16 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1512719355433-e029c72e2cf5?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/L_LUpnjgPso?autoplay=1'
-    },
-    {
-      id: 'grid-3',
-      badge: 'US MILITARY STRIKES',
-      title: {
-        en: 'US Anti Drug Strike Operation Live: US Releases Video Of Deadly Caribbean Strike'
-      },
-      location: 'DATE - 20/09/2026 | WASHINGTON D.C.',
-      timeAgo: { en: '16 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1545558014-8692077e9b5c?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1'
-    },
-    {
-      id: 'grid-4',
-      badge: 'MASSIVE RALLY',
-      title: {
-        en: 'Pro Palestine protest: Ed Sheeran Concert Rally Follows Controversial Tour Fallout'
-      },
-      location: 'DATE - 20/09/2026 | LONDON, UK',
-      timeAgo: { en: '18 hours ago' },
-      imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://www.youtube-nocookie.com/embed/L_LUpnjgPso?autoplay=1'
+  const getEmbedUrl = (video: VideoData) => {
+    if (video.youtubeId) {
+      return `https://www.youtube-nocookie.com/embed/${video.youtubeId}?rel=0`;
     }
-  ];
+    return video.videoUrl;
+  };
 
-  const handleSelectVideo = (vid: any) => {
-    setActiveHero({
-      id: vid.id,
-      title: vid.title,
-      location: vid.location || 'DATE - 20/09/2026 | WORLD',
-      duration: '04:10',
-      views: '250K',
-      timeAgo: vid.timeAgo,
-      imageUrl: vid.imageUrl,
-      videoUrl: vid.videoUrl
-    });
-    setIsPlayingHero(true);
-    window.scrollTo({ top: 120, behavior: 'smooth' });
+  const getThumbnail = (video: VideoData) => {
+    if (video.thumbnailUrl) return video.thumbnailUrl;
+    if (video.youtubeId) return `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`;
+    return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80';
   };
 
   return (
@@ -175,190 +112,332 @@ export default function VideosPage() {
         onSelectCategory={(slug) => router.push(slug === 'all' ? '/' : (slug === 'videos' ? '/videos' : `/${slug}`))}
       />
 
-      {/* 2. Top Dark Pinstriped Hero Featured Video Banner */}
-      <section className="w-full bg-[#0a0e17] text-white py-8 px-4 sm:px-8 lg:px-12 border-b border-slate-800 relative overflow-hidden">
-        {/* Repeating vertical pinstripes background */}
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      {/* 2. Top Dark Cinema Stage */}
+      <section className="w-full bg-[#070b13] text-white py-10 px-4 sm:px-8 lg:px-12 border-b border-slate-800 relative overflow-hidden">
+        {/* Ambient background grid */}
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-red-600/10 blur-[140px] pointer-events-none rounded-full" />
 
         <div className="max-w-[1440px] mx-auto relative flex flex-col lg:flex-row items-center justify-center gap-8">
           
           {/* Vertical Large Watermark 'VIDEOS' Text on Left */}
           <div className="hidden lg:flex items-center justify-center select-none shrink-0 pr-4">
-            <h1 className="text-8xl font-black tracking-widest text-slate-600/30 uppercase font-serif [writing-mode:vertical-lr] rotate-180 leading-none">
+            <h1 className="text-8xl font-black tracking-widest text-slate-700/25 uppercase font-serif [writing-mode:vertical-lr] rotate-180 leading-none">
               VIDEOS
             </h1>
           </div>
 
           {/* Main Featured Cinema Screen Container */}
-          <div className="w-full max-w-[1020px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl relative group">
-            <div className="aspect-video relative overflow-hidden bg-black">
-              {isPlayingHero ? (
-                <iframe
-                  src={activeHero.videoUrl}
-                  title={t(activeHero.title)}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <>
-                  <img
-                    src={activeHero.imageUrl}
-                    alt={t(activeHero.title)}
-                    className="w-full h-full object-cover opacity-80 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
-                  />
+          <div className="w-full max-w-[1040px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl relative group">
+            {activeHero ? (
+              <>
+                <div className="aspect-video relative overflow-hidden bg-black">
+                  {isPlayingHero ? (
+                    activeHero.videoType === 'FILE' ? (
+                      <video
+                        src={activeHero.videoUrl}
+                        controls
+                        className="w-full h-full object-contain bg-black"
+                      />
+                    ) : (
+                      <iframe
+                        src={getEmbedUrl(activeHero)}
+                        title={activeHero.title}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )
+                  ) : (
+                    <>
+                      <img
+                        src={getThumbnail(activeHero)}
+                        alt={activeHero.title}
+                        className="w-full h-full object-cover opacity-85 group-hover:opacity-95 group-hover:scale-105 transition-all duration-700"
+                      />
 
-                  {/* Top Channel Logo & Text Banner Overlay */}
-                  <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-start justify-between">
-                    <div className="space-y-1 max-w-[85%]">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-full bg-jagran-red flex items-center justify-center text-white">
-                          <Sun className="w-4 h-4" />
+                      {/* Channel Badge Overlay */}
+                      <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-start justify-between">
+                        <div className="space-y-1 max-w-[85%]">
+                          <div className="flex items-center space-x-2">
+                            <span className="bg-red-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded tracking-wider shadow">
+                              {activeHero.badge || 'SPECIAL REPORT'}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-300">
+                              {activeHero.location || 'NEWS BROADCAST'}
+                            </span>
+                          </div>
+                          <h2 className="text-lg sm:text-2xl lg:text-3xl font-black font-serif text-white tracking-tight leading-tight pt-1 drop-shadow-md">
+                            {activeHero.title}
+                          </h2>
+                          {activeHero.location && (
+                            <p className="text-[11px] sm:text-xs font-mono text-amber-400 font-bold tracking-wide pt-0.5">
+                              {activeHero.location}
+                            </p>
+                          )}
                         </div>
-                        <span className="text-xs font-black uppercase text-white tracking-widest">
-                          THE NEWSPAPER
-                        </span>
                       </div>
-                      <h2 className="text-lg sm:text-2xl lg:text-3xl font-black font-serif text-white tracking-tight leading-tight pt-1 drop-shadow-md">
-                        {t(activeHero.title)}
-                      </h2>
-                      <p className="text-[11px] sm:text-xs font-mono text-amber-400 font-bold tracking-wide pt-0.5">
-                        {activeHero.location}
-                      </p>
+
+                      {/* Play Button Center Overlay */}
+                      <div
+                        onClick={() => {
+                          setIsPlayingHero(true);
+                          if (activeHero.id) videoService.incrementViews(activeHero.id);
+                        }}
+                        className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                      >
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 border-4 border-white/20">
+                          <Play className="w-10 h-10 sm:w-12 sm:h-12 fill-white ml-1" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Sub Bar below video with reporter and action controls */}
+                <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-900 flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-base sm:text-lg font-bold text-white line-clamp-1">
+                      {activeHero.title}
+                    </h3>
+                    <div className="flex items-center space-x-4 text-xs text-slate-400 font-mono">
+                      {activeHero.reporterName && <span>Reported by: <strong className="text-slate-200">{activeHero.reporterName}</strong></span>}
+                      {activeHero.duration && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {activeHero.duration}</span>}
+                      <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {activeHero.viewsCount.toLocaleString()} views</span>
                     </div>
                   </div>
 
-                  {/* Play Button Center Overlay */}
-                  <div
-                    onClick={() => setIsPlayingHero(true)}
-                    className="absolute inset-0 flex items-center justify-center cursor-pointer"
-                  >
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-jagran-red/90 hover:bg-jagran-red text-white flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 border-4 border-white/20">
-                      <Play className="w-10 h-10 sm:w-12 sm:h-12 fill-white ml-1" />
-                    </div>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={(e) => handleShare(activeHero, e)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg text-slate-200 transition-colors"
+                    >
+                      {copiedId === activeHero.id ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">Copied Link!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Share</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            ) : (
+              <div className="aspect-video flex items-center justify-center text-slate-500">
+                <p>Loading cinema broadcast...</p>
+              </div>
+            )}
           </div>
 
         </div>
       </section>
 
-      {/* 3. TRENDING Section (With Giant Numbers 1, 2, 3, 4, 5) */}
-      <section className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 py-10 space-y-6">
-        
-        <div className="border-b-4 border-jagran-red pb-2">
-          <h2 className="text-3xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight">
-            TRENDING
-          </h2>
-        </div>
-
-        {/* 5 Horizontal Trending Video Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-start">
-          {trendingVideos.map((vid) => (
-            <div
-              key={vid.id}
-              onClick={() => handleSelectVideo(vid)}
-              className="relative group cursor-pointer space-y-3"
-            >
-              {/* Giant Background Number Behind Card */}
-              <div className="absolute -top-7 -left-4 text-7xl font-serif font-black text-slate-200/90 dark:text-slate-800/90 select-none z-0">
-                {vid.rank}
+      {/* 3. Top 5 Trending Countdown Strip (1 to 5) */}
+      {trendingList.length > 0 && (
+        <section className="w-full bg-[#0c111d] text-white py-12 px-4 sm:px-8 lg:px-12 border-b border-slate-800">
+          <div className="max-w-[1440px] mx-auto space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                <h2 className="text-xl sm:text-2xl font-black font-serif uppercase tracking-tight text-white">
+                  TOP 5 TRENDING BULLETINS
+                </h2>
               </div>
+              <span className="text-xs font-mono text-slate-400 hidden sm:inline-block">
+                UPDATED REAL-TIME
+              </span>
+            </div>
 
-              {/* Card Container (Z-10 relative) */}
-              <div className="relative z-10 space-y-2.5">
-                
-                {/* Thumbnail with Red Badge Embedded */}
-                <div className="aspect-[16/10] bg-slate-900 rounded-xl overflow-hidden relative border border-slate-200 dark:border-slate-800">
-                  <img
-                    src={vid.imageUrl}
-                    alt={t(vid.title)}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  
-                  {/* Red Breaking News Badge Banner Embedded Top Left */}
-                  <div className="absolute top-2 left-2 right-2 flex items-center">
-                    <span className="bg-jagran-red text-white text-[10px] font-black uppercase px-2 py-0.5 rounded shadow tracking-wider line-clamp-1">
-                      {vid.badge}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {trendingList.map((item, idx) => {
+                const rank = idx + 1;
+                const thumb = getThumbnail(item);
+                const isCurrent = activeHero?.id === item.id;
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleSelectVideo(item)}
+                    className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all flex flex-col justify-between group ${
+                      isCurrent
+                        ? 'bg-slate-900 border-2 border-red-500 ring-2 ring-red-500/20'
+                        : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                    }`}
+                  >
+                    {/* Big Watermark Rank Number */}
+                    <span className="absolute top-1 right-2 text-6xl font-black font-serif text-white/5 pointer-events-none group-hover:text-red-500/10 transition-colors">
+                      {rank}
                     </span>
-                  </div>
 
-                  {/* Small Center Play Circle */}
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity">
-                    <div className="w-8 h-8 rounded-full bg-jagran-red text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                      <Play className="w-4 h-4 fill-white ml-0.5" />
+                    <div className="aspect-[16/10] bg-slate-950 relative overflow-hidden">
+                      <img
+                        src={thumb}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
+                          <Play className="w-4 h-4 fill-white ml-0.5" />
+                        </div>
+                      </div>
+
+                      {/* Rank Tag Top Left */}
+                      <span className="absolute top-2 left-2 bg-black/80 backdrop-blur text-white text-[10px] font-black px-2 py-0.5 rounded font-mono">
+                        #{rank}
+                      </span>
+
+                      {/* Duration Bottom Right */}
+                      {item.duration && (
+                        <span className="absolute bottom-2 right-2 bg-black/85 backdrop-blur text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
+                          {item.duration}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between relative z-10">
+                      <div>
+                        {item.badge && (
+                          <span className="text-[10px] font-black uppercase text-red-400 block mb-1">
+                            {item.badge}
+                          </span>
+                        )}
+                        <h4 className="text-xs font-bold leading-snug line-clamp-3 group-hover:text-amber-300 transition-colors">
+                          {item.title}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-800/60">
+                        <span>{item.reporterName || item.location || 'NEWS REPORT'}</span>
+                        <span>{item.viewsCount.toLocaleString()} views</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Title & Time */}
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
-                    {t(vid.title)}
-                  </h3>
-                  <span className="text-xs text-slate-400 block font-medium">
-                    {t(vid.timeAgo)}
-                  </span>
-                </div>
-
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        </section>
+      )}
 
-      </section>
-
-      {/* 4. Bottom 4-Column Video Grid Gallery */}
-      <section className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 pb-16 space-y-6 border-t border-slate-200 dark:border-slate-800 pt-8">
+      {/* 4. Video Gallery */}
+      <section className="max-w-[1440px] mx-auto w-full py-12 px-4 sm:px-8 lg:px-12 space-y-8 flex-1">
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {gridVideos.map((vid) => (
-            <div
-              key={vid.id}
-              onClick={() => handleSelectVideo(vid)}
-              className="bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-3 cursor-pointer group hover:border-jagran-red transition-all"
-            >
-              {/* Thumbnail with Badge */}
-              <div className="aspect-[16/10] bg-slate-900 rounded-lg overflow-hidden relative">
-                <img
-                  src={vid.imageUrl}
-                  alt={t(vid.title)}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-2 left-2">
-                  <span className="bg-jagran-red text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">
-                    {vid.badge}
-                  </span>
-                </div>
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <div className="w-9 h-9 rounded-full bg-jagran-red text-white flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-4 h-4 fill-white ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Title & Time */}
-              <div className="space-y-1">
-                <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
-                  {t(vid.title)}
-                </h4>
-                <span className="text-[11px] text-slate-400 block font-medium">
-                  {t(vid.timeAgo)}
-                </span>
-              </div>
-            </div>
-          ))}
+        {/* Gallery Header */}
+        <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+          <h3 className="text-2xl font-black font-serif uppercase tracking-tight text-slate-900 dark:text-white">
+            ALL VIDEO BULLETINS
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Latest visual reports, ground coverage, and video broadcasts
+          </p>
         </div>
+
+        {/* 4-Column Video Cards Grid */}
+        {gridVideos.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {gridVideos.map((vid) => {
+              const thumb = getThumbnail(vid);
+              const isSelected = activeHero?.id === vid.id;
+
+              return (
+                <article
+                  key={vid.id}
+                  onClick={() => handleSelectVideo(vid)}
+                  className={`group rounded-2xl overflow-hidden border cursor-pointer transition-all duration-300 flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-2 border-red-500 shadow-xl ring-2 ring-red-500/20 bg-slate-50 dark:bg-slate-900'
+                      : 'border-slate-200 dark:border-slate-800/90 bg-white dark:bg-slate-900/60 hover:shadow-xl hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  {/* Thumbnail Stage */}
+                  <div className="aspect-[16/10] bg-slate-950 relative overflow-hidden">
+                    <img
+                      src={thumb}
+                      alt={vid.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+
+                    {/* Centered Play overlay */}
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 flex items-center justify-center transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <Play className="w-5 h-5 fill-white ml-0.5" />
+                      </div>
+                    </div>
+
+                    {/* Badge Pill */}
+                    {vid.badge && (
+                      <span className="absolute top-2.5 left-2.5 bg-red-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shadow">
+                        {vid.badge}
+                      </span>
+                    )}
+
+                    {/* Duration Pill */}
+                    {vid.duration && (
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur text-white text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-white/10">
+                        {vid.duration}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono mb-1.5">
+                        <span className="uppercase font-bold text-red-600 dark:text-red-400">{vid.badge || 'VIDEO'}</span>
+                        {vid.location && <span className="truncate max-w-[140px]">{vid.location}</span>}
+                      </div>
+
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-red-600 dark:group-hover:text-amber-300 transition-colors leading-snug line-clamp-2">
+                        {vid.title}
+                      </h4>
+
+                      {vid.description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                          {vid.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      <span>{vid.reporterName ? `By ${vid.reporterName}` : 'News Desk'}</span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-3.5 h-3.5" />
+                        {vid.viewsCount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-20 text-center space-y-3">
+            <Film className="w-12 h-12 mx-auto text-slate-400 animate-bounce" />
+            <p className="text-base font-bold text-slate-600 dark:text-slate-300">
+              No videos found in this category yet.
+            </p>
+            <p className="text-xs text-slate-400">
+              Check back soon or select another category above.
+            </p>
+          </div>
+        )}
 
       </section>
 
-      {/* Search Modal */}
-      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-
-      {/* Footer */}
+      {/* 5. Footer */}
       <Footer />
+
+      {/* 6. Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+
     </main>
   );
 }

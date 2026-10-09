@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
-import { mockLatestVideos } from '@/data/mockNewsData';
+import { videoService, VideoData } from '@/services/videoService';
 import { Play, TrendingUp, Video } from 'lucide-react';
 
 import { HomeArticlesResponse } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
+import { stripHtml } from '@/utils/textUtils';
 
 interface HeroSectionProps {
   dynamicData?: HomeArticlesResponse | null;
@@ -16,6 +17,19 @@ interface HeroSectionProps {
 export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
   const router = useRouter();
   const { language, t } = useLanguage();
+  const [latestVideos, setLatestVideos] = useState<VideoData[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    videoService.getVideos({ limit: 4, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
+      .then(res => {
+        if (isMounted && res && res.videos && res.videos.length > 0) {
+          setLatestVideos(res.videos.slice(0, 4));
+        }
+      })
+      .catch(err => console.error('Error fetching latest videos for hero section:', err));
+    return () => { isMounted = false; };
+  }, []);
 
   const handleArticleClick = (id: string) => {
     router.push(`/article/${id}`);
@@ -97,8 +111,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
   // 1. Dynamic Center Lead Story (Only from real DB)
   const leadArticle = dynamicData.leadStory ? {
     id: dynamicData.leadStory.slug || dynamicData.leadStory.id,
-    title: dynamicData.leadStory.title,
-    summary: dynamicData.leadStory.subHeadline || dynamicData.leadStory.content.slice(0, 160) + '...',
+    title: stripHtml(dynamicData.leadStory.title),
+    summary: stripHtml(dynamicData.leadStory.subHeadline) || stripHtml(dynamicData.leadStory.content).slice(0, 160) + '...',
     imageUrl: dynamicData.leadStory.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
     category: dynamicData.leadStory.category.toUpperCase(),
     timeAgo: formatTimeAgo(dynamicData.leadStory.publishedAt || dynamicData.leadStory.createdAt)
@@ -107,7 +121,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
   // 2. Dynamic Center 4 Sub-leads (Only from real DB)
   const subLeads = (dynamicData.subLeads || []).map(sub => ({
     id: sub.slug || sub.id,
-    title: sub.title,
+    title: stripHtml(sub.title),
     imageUrl: sub.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
     category: sub.category.toUpperCase(),
     timeAgo: formatTimeAgo(sub.publishedAt || sub.createdAt)
@@ -117,7 +131,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
   const trendingList = (dynamicData.trending || []).map((item, idx) => ({
     id: item.slug || item.id,
     rank: idx + 1,
-    title: item.title,
+    title: stripHtml(item.title),
     category: item.category.toUpperCase(),
     timeAgo: formatTimeAgo(item.publishedAt || item.createdAt)
   }));
@@ -253,35 +267,47 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
         {/* ========================================================= */}
         <div className="lg:col-span-3 lg:sticky lg:top-24 self-start space-y-4">
 
-          {/* LATEST VIDEOS (2x2 Grid) */}
+          {/* LATEST VIDEOS (2x2 Grid) - DYNAMIC FROM DATABASE */}
           <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
             <div className="flex items-center justify-between border-b-2 border-jagran-red pb-1">
-              <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5">
+              <button
+                onClick={() => router.push('/videos')}
+                className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5 hover:text-jagran-red transition-colors cursor-pointer"
+              >
                 <Video className="w-4 h-4 text-jagran-red" />
                 <span>LATEST VIDEOS</span>
-              </h3>
+              </button>
+              <button
+                onClick={() => router.push('/videos')}
+                className="text-[11px] font-bold text-jagran-red hover:underline uppercase tracking-tight cursor-pointer"
+              >
+                View All
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              {mockLatestVideos.slice(0, 4).map((vid) => (
-                <div
-                  key={vid.id}
-                  onClick={() => alert(`Playing video: ${t(vid.title)}`)}
-                  className="group cursor-pointer space-y-1"
-                >
-                  <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden relative">
-                    <img src={vid.imageUrl} alt={t(vid.title)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full bg-jagran-red text-white flex items-center justify-center">
-                        <Play className="w-3 h-3 fill-white ml-0.5" />
+              {latestVideos.map((vid) => {
+                const thumb = vid.thumbnailUrl || (vid.youtubeId ? `https://img.youtube.com/vi/${vid.youtubeId}/mqdefault.jpg` : 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400');
+                return (
+                  <div
+                    key={vid.id}
+                    onClick={() => router.push('/videos')}
+                    className="group cursor-pointer space-y-1"
+                  >
+                    <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden relative shadow-2xs">
+                      <img src={thumb} alt={vid.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-jagran-red text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                          <Play className="w-3 h-3 fill-white ml-0.5" />
+                        </div>
                       </div>
                     </div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-tight line-clamp-2">
+                      {vid.title}
+                    </h4>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-tight">
-                    {t(vid.title)}
-                  </h4>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

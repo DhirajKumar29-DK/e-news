@@ -11,7 +11,7 @@ import {
 import { articleService } from '@/services/articleService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
-import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical } from 'lucide-react';
+import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -427,6 +427,42 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 </button>
               </li>
 
+              {/* Mobile Only: Brandverse Link */}
+              <li className="lg:hidden whitespace-nowrap shrink-0">
+                <button
+                  onClick={() => {
+                    onSelectCategory('brandverse');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
+                    activeCategory === 'brandverse'
+                      ? 'text-jagran-red font-black'
+                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>BRANDVERSE</span>
+                </button>
+              </li>
+
+              {/* Mobile Only: Weather Link */}
+              <li className="lg:hidden whitespace-nowrap shrink-0">
+                <button
+                  onClick={() => {
+                    onSelectCategory('weather');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
+                    activeCategory === 'weather'
+                      ? 'text-jagran-red font-black'
+                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
+                  }`}
+                >
+                  <CloudSun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>WEATHER</span>
+                </button>
+              </li>
+
               {/* Desktop: MORE dropdown with Hover & Click (Matching exact portal design) */}
               <li
                 ref={moreDropdownRef}
@@ -442,7 +478,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                     setIsMoreOpen(prev => !prev);
                   }}
                   className={`flex items-center space-x-0.5 py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight cursor-pointer select-none ${
-                    isMoreOpen || activeCategory === 'fashion'
+                    isMoreOpen || activeCategory === 'fashion' || activeCategory === 'brandverse' || activeCategory === 'weather'
                       ? 'text-jagran-red font-black'
                       : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
                   }`}
@@ -459,7 +495,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                   }`}
                   style={{ marginTop: '0px' }}
                 >
-                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1">
+                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1 divide-y divide-[#ffe2e2]/60 dark:divide-slate-800">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -475,6 +511,38 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                       }`}
                     >
                       FASHION
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelectCategory('brandverse');
+                        setIsMoreOpen(false);
+                      }}
+                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
+                        activeCategory === 'brandverse'
+                          ? 'text-jagran-red font-black'
+                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      BRANDVERSE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelectCategory('weather');
+                        setIsMoreOpen(false);
+                      }}
+                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
+                        activeCategory === 'weather'
+                          ? 'text-jagran-red font-black'
+                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      WEATHER
                     </button>
                   </div>
                 </div>

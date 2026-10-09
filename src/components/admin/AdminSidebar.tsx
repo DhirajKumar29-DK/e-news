@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText
+  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
@@ -14,7 +14,9 @@ export const AdminSidebar: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'Articles CMS', href: '/admin/articles', icon: FileText, badge: 'New' },
+    { label: 'Articles CMS', href: '/admin/articles', icon: FileText },
+    { label: 'Video Studio', href: '/admin/videos', icon: Video, badge: 'New' },
+    { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles, badge: 'Astro' },
     { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper, badge: 'Live' },
   ];
 

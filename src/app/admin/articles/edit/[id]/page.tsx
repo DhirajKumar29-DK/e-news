@@ -9,8 +9,9 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { articleService, ArticleData } from '@/services/articleService';
 import {
   ArrowLeft, Save, Send, Image as ImageIcon, Sparkles, Plus, Trash2,
-  Star, TrendingUp, CheckCircle, AlertCircle, FileText, UploadCloud, Link as LinkIcon
+  Star, TrendingUp, CheckCircle, AlertCircle, FileText, UploadCloud, Link as LinkIcon, Wand2
 } from 'lucide-react';
+import { cleanHtmlToPlainText, stripHtml } from '@/utils/textUtils';
 
 const CATEGORIES = [
   { value: 'india', label: 'India' },
@@ -22,8 +23,11 @@ const CATEGORIES = [
   { value: 'business', label: 'Business & Markets' },
   { value: 'entertainment', label: 'Entertainment & Cinema' },
   { value: 'fashion', label: 'Fashion & Beauty' },
+  { value: 'brandverse', label: 'Brandverse' },
   { value: 'lifestyle', label: 'Lifestyle & Health' },
   { value: 'auto', label: 'Auto' },
+  { value: 'spiritual', label: 'Spiritual & Faith' },
+  { value: 'horoscope', label: 'Horoscope & Astrology' },
   { value: 'education', label: 'Education & Career' },
   { value: 'explainer', label: 'Explainer (Deep Analysis)' },
   { value: 'opinion', label: 'Opinion & Editorial' },
@@ -85,13 +89,13 @@ function EditArticleContent() {
         setIsLoading(true);
         const data = await articleService.getArticleByIdOrSlug(articleId);
         if (data) {
-          setTitle(data.title || '');
+          setTitle(stripHtml(data.title || ''));
           setCategory(data.category || 'national');
           setSubCategory(data.subCategory || '');
-          setSubHeadline(data.subHeadline || '');
-          setContent(data.content || '');
+          setSubHeadline(stripHtml(data.subHeadline || ''));
+          setContent(cleanHtmlToPlainText(data.content || ''));
           setFeaturedImage(data.featuredImage || '');
-          setImageCaption(data.imageCaption || '');
+          setImageCaption(data.imageCaption ? stripHtml(data.imageCaption) : '');
           setAuthorName(data.authorName || 'News Desk');
           setIsLeadStory(Boolean(data.isLeadStory));
           setIsTrending(Boolean(data.isTrending));
@@ -102,10 +106,10 @@ function EditArticleContent() {
             try {
               const parsed = JSON.parse(data.bulletPoints);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setBulletPoints(parsed);
+                setBulletPoints(parsed.map(b => stripHtml(String(b))));
               }
             } catch {
-              setBulletPoints([data.bulletPoints]);
+              setBulletPoints([stripHtml(data.bulletPoints)]);
             }
           }
 
@@ -155,19 +159,24 @@ function EditArticleContent() {
 
     try {
       setIsSubmitting(true);
-      const activeBullets = bulletPoints.filter(b => b.trim() !== '');
+      const cleanedTitle = stripHtml(title.trim());
+      const cleanedHeadline = subHeadline ? stripHtml(subHeadline.trim()) : null;
+      const cleanedContent = cleanHtmlToPlainText(content.trim());
+      const activeBullets = bulletPoints
+        .map(b => stripHtml(b.trim()))
+        .filter(Boolean);
 
       await articleService.updateArticle(articleId, {
-        title: title.trim(),
+        title: cleanedTitle,
         category,
         subCategory: subCategory.trim() || null,
-        subHeadline: subHeadline.trim() || null,
-        content: content.trim(),
+        subHeadline: cleanedHeadline,
+        content: cleanedContent,
         featuredImage: featuredImage.trim() || null,
-        imageCaption: imageCaption.trim() || null,
+        imageCaption: imageCaption ? stripHtml(imageCaption.trim()) : null,
         authorName: authorName.trim() || 'News Desk',
         bulletPoints: activeBullets,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: tags.split(',').map(t => stripHtml(t.trim())).filter(Boolean),
         isLeadStory,
         isTrending,
         status: publishStatus
@@ -488,9 +497,22 @@ function EditArticleContent() {
               </div>
 
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
-                  <FileText className="w-4 h-4 text-red-600" />
-                  <span>Story Content / Body <span className="text-red-500">*</span></span>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600">
+                    <FileText className="w-4 h-4 text-red-600" />
+                    <span>Story Content / Body <span className="text-red-500">*</span></span>
+                  </div>
+                  {content.includes('<') && content.includes('>') && (
+                    <button
+                      type="button"
+                      onClick={() => setContent(cleanHtmlToPlainText(content))}
+                      className="inline-flex items-center space-x-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-md border border-amber-200 transition-colors cursor-pointer"
+                      title="Remove raw <p>, <h>, etc. and convert to clean plain paragraphs"
+                    >
+                      <Wand2 className="w-3 h-3 text-amber-600" />
+                      <span>Clean HTML Tags</span>
+                    </button>
+                  )}
                 </div>
 
                 <div>
