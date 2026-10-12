@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/common/Header';
 import { Footer } from '@/components/common/Footer';
 import { SearchModal } from '@/components/common/SearchModal';
@@ -10,7 +10,8 @@ import { horoscopeService, HoroscopeData } from '@/services/horoscopeService';
 import { articleService, ArticleData } from '@/services/articleService';
 import {
   Sparkles, Heart, Star, ChevronRight, Home, Calendar, Clock, Eye,
-  Compass, RefreshCw, ArrowRight, ShieldCheck, TrendingUp
+  Compass, RefreshCw, ArrowRight, ShieldCheck, TrendingUp,
+  Palette, Gem, Zap, Activity, Check, Copy
 } from 'lucide-react';
 import { stripHtml } from '@/utils/textUtils';
 
@@ -29,6 +30,34 @@ const ZODIAC_SIGNS = [
   { id: 'aquarius', name: 'Aquarius', hindi: 'कुंभ', dates: 'JAN 20 - FEB 18' },
   { id: 'pisces', name: 'Pisces', hindi: 'मीन', dates: 'FEB 19 - MAR 20' },
 ];
+
+const DEFAULT_ZODIAC_IMAGES: Record<string, string> = {
+  aries: '/images/zodiac/aries.jpg',
+  taurus: '/images/zodiac/taurus.jpg',
+  gemini: '/images/zodiac/gemini.jpg',
+  cancer: '/images/zodiac/cancer.jpg',
+  leo: '/images/zodiac/leo.jpg',
+  virgo: '/images/zodiac/virgo.jpg',
+  libra: '/images/zodiac/libra.jpg',
+  scorpio: '/images/zodiac/scorpio.jpg',
+  sagittarius: '/images/zodiac/sagittarius.jpg',
+  capricorn: '/images/zodiac/capricorn.jpg',
+  aquarius: '/images/zodiac/aquarius.jpg',
+  pisces: '/images/zodiac/pisces.jpg',
+};
+
+const isValidImageUrl = (url?: string | null) => {
+  if (!url) return false;
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:');
+};
+
+const getSignImage = (signId: string, dynamicUrl?: string | null) => {
+  const s = signId.toLowerCase();
+  if (dynamicUrl && isValidImageUrl(dynamicUrl)) {
+    return dynamicUrl;
+  }
+  return DEFAULT_ZODIAC_IMAGES[s] || `/images/zodiac/${s}.jpg`;
+};
 
 // Default Astrological Traits for all 12 Zodiac signs (Astrology Reference)
 const DEFAULT_SIGN_TRAITS: Record<string, {
@@ -145,14 +174,46 @@ const PERIOD_TABS: Array<{ id: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'LOVE
   { id: 'LOVE', label: 'LOVE' },
 ];
 
-export default function HoroscopePage() {
+function HoroscopeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const signParam = searchParams.get('sign');
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeSign, setActiveSign] = useState('aries');
+  const [activeSign, setActiveSign] = useState(() => {
+    if (signParam && ZODIAC_SIGNS.some(s => s.id === signParam.toLowerCase())) {
+      return signParam.toLowerCase();
+    }
+    return 'aries';
+  });
   const [activePeriod, setActivePeriod] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'LOVE'>('DAILY');
 
   const [horoscopeData, setHoroscopeData] = useState<HoroscopeData | null>(null);
+  const [allSignsMap, setAllSignsMap] = useState<Record<string, HoroscopeData>>({});
   const [loading, setLoading] = useState(true);
+
+  // Fetch all 12 signs to get dynamic images and icons from MySQL database
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAllSigns() {
+      try {
+        const data = await horoscopeService.getAllHoroscopes('DAILY');
+        if (isMounted && Array.isArray(data)) {
+          const map: Record<string, HoroscopeData> = {};
+          data.forEach((item) => {
+            if (item.sign) {
+              map[item.sign.toLowerCase()] = item;
+            }
+          });
+          setAllSignsMap(map);
+        }
+      } catch (err) {
+        console.error('Error fetching all horoscopes:', err);
+      }
+    }
+    loadAllSigns();
+    return () => { isMounted = false; };
+  }, []);
 
   // Horoscope News Articles & Top News from database (10 per page)
   const [newsArticles, setNewsArticles] = useState<ArticleData[]>([]);
@@ -162,10 +223,16 @@ export default function HoroscopePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  useEffect(() => {
+    if (signParam && ZODIAC_SIGNS.some(s => s.id === signParam.toLowerCase())) {
+      setActiveSign(signParam.toLowerCase());
+    }
+  }, [signParam]);
+
   const selectedSignMeta = ZODIAC_SIGNS.find(s => s.id === activeSign) || ZODIAC_SIGNS[0];
   const defaultTraits = DEFAULT_SIGN_TRAITS[activeSign] || DEFAULT_SIGN_TRAITS.aries;
 
-  // Fetch Horoscope Data from Express Backend API
+  // Fetch Active Horoscope Data from Express Backend API
   useEffect(() => {
     let isMounted = true;
     async function loadHoroscope() {
@@ -233,278 +300,32 @@ export default function HoroscopePage() {
     }
   };
 
-  // High Quality Mascot SVG illustrations for all 12 signs matching reference aesthetic
-  const renderZodiacVector = (signId: string, sizeClass = 'w-12 h-12') => {
-    const s = signId.toUpperCase();
-    switch (s) {
-      case 'ARIES':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Horn inner collar / loops */}
-            <ellipse cx="23" cy="38" rx="7" ry="10" fill="#142848" />
-            <ellipse cx="77" cy="38" rx="7" ry="10" fill="#142848" />
+  const getSignImage = (signId: string) => {
+    const s = signId.toLowerCase();
+    if (s === activeSign && horoscopeData) {
+      const activeUrl = horoscopeData.iconUrl || (horoscopeData as any)?.image || (isValidImageUrl(horoscopeData.hindiName) ? horoscopeData.hindiName : null);
+      if (activeUrl && isValidImageUrl(activeUrl)) return activeUrl;
+    }
+    const signData = allSignsMap[s];
+    if (signData) {
+      const dynamicUrl = signData.iconUrl || (signData as any)?.image || (isValidImageUrl(signData.hindiName) ? signData.hindiName : null);
+      if (dynamicUrl && isValidImageUrl(dynamicUrl)) return dynamicUrl;
+    }
+    return DEFAULT_ZODIAC_IMAGES[s] || `/images/zodiac/${s}.jpg`;
+  };
 
-            {/* Ram Head in warm terracotta red */}
-            <path
-              d="M38 34C38 27 62 27 62 34C64 50 62 70 50 77C38 70 36 50 38 34Z"
-              fill="#BF5147"
-              stroke="#142848"
-              strokeWidth="3.5"
-              strokeLinejoin="round"
-            />
+  const [copied, setCopied] = useState(false);
 
-            {/* Left curled golden horn wrapping around */}
-            <path
-              d="M37 32C26 18 10 23 8 37C6 52 18 60 26 53C29 49 28 43 24 44C19 45 17 52 14 46C11 40 14 29 24 27C32 25 36 30 38 35Z"
-              fill="#F5CD82"
-              stroke="#142848"
-              strokeWidth="3.5"
-              strokeLinejoin="round"
-            />
-
-            {/* Right curled golden horn wrapping around */}
-            <path
-              d="M63 32C74 18 90 23 92 37C94 52 82 60 74 53C71 49 72 43 76 44C81 45 83 52 86 46C89 40 86 29 76 27C68 25 64 30 62 35Z"
-              fill="#F5CD82"
-              stroke="#142848"
-              strokeWidth="3.5"
-              strokeLinejoin="round"
-            />
-
-            {/* Ram Muzzle / Snout in golden cream */}
-            <path
-              d="M44 68C44 63 47 61 50 61C53 61 56 63 56 68C56 74 53 76 50 76C47 76 44 74 44 68Z"
-              fill="#F5CD82"
-              stroke="#142848"
-              strokeWidth="2.5"
-            />
-            {/* Cute nostril dots */}
-            <ellipse cx="48" cy="69" rx="1.2" ry="1" fill="#BF5147" />
-            <ellipse cx="52" cy="69" rx="1.2" ry="1" fill="#BF5147" />
-
-            {/* Ram Eyes */}
-            <ellipse cx="43" cy="48" rx="2.5" ry="3.5" fill="#142848" />
-            <ellipse cx="57" cy="48" rx="2.5" ry="3.5" fill="#142848" />
-          </svg>
-        );
-      case 'TAURUS':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Golden horns curving up */}
-            <path
-              d="M28 36C22 20 25 10 33 13C40 16 34 26 30 30"
-              fill="#F5CD82"
-              stroke="#142848"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-            />
-            <path
-              d="M72 36C78 20 75 10 67 13C60 16 66 26 70 30"
-              fill="#F5CD82"
-              stroke="#142848"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-            />
-            {/* Bull Head */}
-            <path
-              d="M50 76C62 76 70 64 70 48C70 36 62 32 50 32C38 32 30 36 30 48C30 64 38 76 50 76Z"
-              fill="#748DC7"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            {/* Ears */}
-            <ellipse cx="23" cy="48" rx="7" ry="4" fill="#F472B6" stroke="#142848" strokeWidth="2.5" transform="rotate(-15 23 48)" />
-            <ellipse cx="77" cy="48" rx="7" ry="4" fill="#F472B6" stroke="#142848" strokeWidth="2.5" transform="rotate(15 77 48)" />
-            {/* Eyes */}
-            <ellipse cx="42" cy="46" rx="2.8" ry="3.8" fill="#142848" />
-            <ellipse cx="58" cy="46" rx="2.8" ry="3.8" fill="#142848" />
-            {/* Muzzle */}
-            <ellipse cx="50" cy="62" rx="10" ry="7" fill="#F5CD82" stroke="#142848" strokeWidth="2.5" />
-            <ellipse cx="46" cy="62" rx="1.5" ry="1.2" fill="#142848" />
-            <ellipse cx="54" cy="62" rx="1.5" ry="1.2" fill="#142848" />
-          </svg>
-        );
-      case 'GEMINI':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Left twin */}
-            <path
-              d="M34 26C24 26 18 36 20 50C22 62 32 68 42 66C42 54 40 44 34 36C38 34 37 26 34 26Z"
-              fill="#2DD4BF"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            <ellipse cx="28" cy="45" rx="2.4" ry="3.2" fill="#142848" />
-            {/* Right twin */}
-            <path
-              d="M66 26C76 26 82 36 80 50C78 62 68 68 58 66C58 54 60 44 66 36C62 34 63 26 66 26Z"
-              fill="#F472B6"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            <ellipse cx="72" cy="45" rx="2.4" ry="3.2" fill="#142848" />
-            {/* Celestial star */}
-            <circle cx="50" cy="38" r="4" fill="#F5CD82" stroke="#142848" strokeWidth="2" />
-          </svg>
-        );
-      case 'CANCER':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Crab Body */}
-            <ellipse cx="50" cy="54" rx="22" ry="16" fill="#F87171" stroke="#142848" strokeWidth="3.5" />
-            {/* Left Pincer */}
-            <path
-              d="M34 46C24 36 20 22 36 26C42 32 36 42 34 46Z"
-              fill="#EF4444"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            {/* Right Pincer */}
-            <path
-              d="M66 46C76 36 80 22 64 26C58 32 64 42 66 46Z"
-              fill="#EF4444"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            {/* Eyes */}
-            <circle cx="43" cy="48" r="3.2" fill="#142848" />
-            <circle cx="57" cy="48" r="3.2" fill="#142848" />
-            {/* Mouth */}
-            <path d="M46 58C48 61 52 61 54 58" stroke="#142848" strokeWidth="2.5" strokeLinecap="round" />
-            {/* Legs */}
-            <path d="M28 58L18 61M30 65L20 70M72 58L82 61M70 65L80 70" stroke="#142848" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        );
-      case 'LEO':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Fluffy Golden Mane */}
-            <circle cx="50" cy="50" r="30" fill="#F59E0B" stroke="#142848" strokeWidth="3.5" />
-            {/* Warm Face */}
-            <circle cx="50" cy="52" r="19" fill="#FDE047" stroke="#142848" strokeWidth="2.5" />
-            {/* Ears */}
-            <circle cx="34" cy="30" r="5" fill="#F59E0B" stroke="#142848" strokeWidth="2.5" />
-            <circle cx="66" cy="30" r="5" fill="#F59E0B" stroke="#142848" strokeWidth="2.5" />
-            {/* Eyes */}
-            <ellipse cx="43" cy="48" rx="2.5" ry="3.5" fill="#142848" />
-            <ellipse cx="57" cy="48" rx="2.5" ry="3.5" fill="#142848" />
-            {/* Nose & Mouth */}
-            <path d="M46 55L54 55L50 60Z" fill="#D97706" stroke="#142848" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M47 62C49 64 51 64 53 62" stroke="#142848" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        );
-      case 'VIRGO':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Maiden Silhouette with floral halo */}
-            <path
-              d="M30 50C30 30 40 22 50 22C60 22 70 30 70 50C70 64 62 76 50 76C38 76 30 64 30 50Z"
-              fill="#38BDF8"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            {/* Face */}
-            <circle cx="50" cy="46" r="13" fill="#FED7AA" stroke="#142848" strokeWidth="2.5" />
-            {/* Gentle Eyes */}
-            <path d="M43 45C44 47 47 47 48 45M52 45C53 47 56 47 57 45" stroke="#142848" strokeWidth="2.5" strokeLinecap="round" />
-            {/* Smile */}
-            <path d="M47 53C49 55 51 55 53 53" stroke="#E11D48" strokeWidth="2.5" strokeLinecap="round" />
-            {/* Flower in hair */}
-            <circle cx="60" cy="36" r="4" fill="#F472B6" stroke="#142848" strokeWidth="2" />
-          </svg>
-        );
-      case 'LIBRA':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Balance Beam */}
-            <path d="M24 74H76" stroke="#142848" strokeWidth="4" strokeLinecap="round" />
-            <path d="M50 28V74" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
-            <path d="M28 38L50 28L72 38" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
-            {/* Pans */}
-            <path d="M28 38L20 54H36L28 38Z" fill="#F5CD82" stroke="#142848" strokeWidth="3" strokeLinejoin="round" />
-            <path d="M72 38L64 54H80L72 38Z" fill="#F5CD82" stroke="#142848" strokeWidth="3" strokeLinejoin="round" />
-            {/* Crown Apex */}
-            <circle cx="50" cy="24" r="4.5" fill="#F5CD82" stroke="#142848" strokeWidth="2.5" />
-          </svg>
-        );
-      case 'SCORPIO':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Curled Stinger Tail */}
-            <path
-              d="M45 70C45 78 55 78 60 72C65 67 65 57 55 52L50 48"
-              stroke="#EF4444"
-              strokeWidth="5"
-              strokeLinecap="round"
-            />
-            <path d="M60 72L68 76L65 68Z" fill="#B91C1C" stroke="#142848" strokeWidth="2" strokeLinejoin="round" />
-            {/* Body */}
-            <ellipse cx="42" cy="46" rx="14" ry="11" fill="#DC2626" stroke="#142848" strokeWidth="3.5" />
-            {/* Pincers */}
-            <path d="M32 38C22 30 26 18 38 24C40 30 34 38 32 38Z" fill="#F87171" stroke="#142848" strokeWidth="2.5" />
-            <path d="M52 38C62 30 58 18 46 24C44 30 50 38 52 38Z" fill="#F87171" stroke="#142848" strokeWidth="2.5" />
-            {/* Eyes */}
-            <circle cx="38" cy="43" r="2.5" fill="#142848" />
-            <circle cx="46" cy="43" r="2.5" fill="#142848" />
-          </svg>
-        );
-      case 'SAGITTARIUS':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Bow */}
-            <path d="M30 42C44 42 56 54 56 68" stroke="#8B5CF6" strokeWidth="4.5" strokeLinecap="round" fill="none" />
-            {/* Arrow */}
-            <path d="M26 74L74 26" stroke="#F97316" strokeWidth="5" strokeLinecap="round" />
-            <path d="M54 26H74V46" stroke="#F97316" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="74" cy="26" r="4" fill="#F5CD82" />
-          </svg>
-        );
-      case 'CAPRICORN':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Horns */}
-            <path d="M38 34C32 16 42 14 44 28" stroke="#1D4ED8" strokeWidth="5" strokeLinecap="round" />
-            <path d="M62 34C68 16 58 14 56 28" stroke="#1D4ED8" strokeWidth="5" strokeLinecap="round" />
-            {/* Head */}
-            <path
-              d="M50 74C60 74 68 62 68 48C68 36 60 32 50 32C40 32 32 36 32 48C32 62 40 74 50 74Z"
-              fill="#60A5FA"
-              stroke="#142848"
-              strokeWidth="3.5"
-            />
-            {/* Eyes */}
-            <ellipse cx="43" cy="46" rx="2.8" ry="3.8" fill="#142848" />
-            <ellipse cx="57" cy="46" rx="2.8" ry="3.8" fill="#142848" />
-            {/* Beard */}
-            <path d="M47 74L50 82L53 74Z" fill="#F5CD82" stroke="#142848" strokeWidth="2" />
-          </svg>
-        );
-      case 'AQUARIUS':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Urn */}
-            <path d="M55 24L40 36V48" stroke="#F59E0B" strokeWidth="5" strokeLinecap="round" />
-            <path d="M34 32C26 24 48 20 53 34L46 46" fill="#FBBF24" stroke="#142848" strokeWidth="3" strokeLinejoin="round" />
-            {/* Water Waves */}
-            <path d="M24 58C34 52 40 64 50 58C60 52 66 64 76 58" stroke="#0EA5E9" strokeWidth="4.5" strokeLinecap="round" />
-            <path d="M24 68C34 62 40 74 50 68C60 62 66 74 76 68" stroke="#0EA5E9" strokeWidth="4.5" strokeLinecap="round" />
-          </svg>
-        );
-      case 'PISCES':
-        return (
-          <svg className={sizeClass} viewBox="0 0 100 100" fill="none">
-            {/* Two Koi Fish */}
-            <path d="M28 34C42 34 44 52 28 66C48 62 48 40 28 34Z" fill="#3B82F6" stroke="#142848" strokeWidth="3" />
-            <path d="M72 34C58 34 56 52 72 66C52 62 52 40 72 34Z" fill="#60A5FA" stroke="#142848" strokeWidth="3" />
-            <path d="M22 50H78" stroke="#142848" strokeWidth="3.5" strokeLinecap="round" />
-            <circle cx="36" cy="46" r="2.5" fill="#142848" />
-            <circle cx="64" cy="54" r="2.5" fill="#142848" />
-          </svg>
-        );
-      default:
-        return null;
+  const handleCopyReading = () => {
+    const textToCopy = `${selectedSignMeta.name} (${activePeriod}) Horoscope:\n${horoscopeData?.prediction || ''}\n\nLucky Colour: ${horoscopeData?.luckyColour || defaultTraits.luckyColour}\nLucky Number: ${horoscopeData?.luckyNumber || defaultTraits.luckyNumber}\nRemedy: ${horoscopeData?.remedy || ''}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const activeImage = getSignImage(activeSign);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
@@ -524,33 +345,47 @@ export default function HoroscopePage() {
         }}
       />
 
-      {/* 1. TOP MAROON-RED WAVY CAROUSEL (Dainik Jagran Signature 12 Zodiac Strip) */}
-      <section className="bg-gradient-to-r from-[#6B111E] via-[#8E192B] to-[#5C0E1A] text-white pt-6 pb-7 px-4 shadow-md relative overflow-hidden">
-        {/* Subtle wavy pattern background */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      {/* 1. TOP MAROON 12 ZODIAC CAROUSEL STRIP (Unique Luxury 3D Medallions - Screenshot 1 & 3) */}
+      <section className="bg-gradient-to-r from-[#5C0E1A] via-[#6B111E] to-[#4A0A12] text-white pt-6 pb-7 px-4 shadow-lg relative overflow-hidden">
+        {/* Subtle Constellation Dot Grid Pattern */}
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
 
         <div className="max-w-[1440px] mx-auto relative z-10">
-          <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 sm:gap-3 py-1">
+          <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 sm:gap-3 py-3">
             {ZODIAC_SIGNS.map((sign) => {
               const isSelected = sign.id === activeSign;
               return (
                 <button
                   key={sign.id}
-                  onClick={() => setActiveSign(sign.id)}
-                  className={`flex flex-col items-center shrink-0 p-2 sm:p-2.5 rounded-2xl transition-all cursor-pointer group ${isSelected
-                      ? 'bg-black/25 backdrop-blur-xs ring-2 ring-white/90 scale-105'
-                      : 'hover:bg-white/10 opacity-90 hover:opacity-100'
-                    }`}
+                  onClick={() => {
+                    setActiveSign(sign.id);
+                    if (typeof window !== 'undefined') {
+                      window.history.replaceState(null, '', `/horoscope?sign=${sign.id}`);
+                    }
+                  }}
+                  className={`flex flex-col items-center shrink-0 px-3 py-2.5 rounded-2xl transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#35070E] border-2 border-amber-400 shadow-lg shadow-black/40'
+                      : 'border-2 border-transparent hover:bg-white/10 opacity-90 hover:opacity-100 group'
+                  }`}
                 >
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center p-2.5 shadow-sm transition-transform ${isSelected ? 'bg-white shadow-md scale-105' : 'bg-white/95 group-hover:scale-105'
-                    }`}>
-                    {renderZodiacVector(sign.id, 'w-10 h-10 sm:w-11 sm:h-11')}
+                  <div
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden flex items-center justify-center transition-transform ${
+                      isSelected
+                        ? 'border-2 border-amber-400 ring-2 ring-amber-400/40 shadow-md'
+                        : 'border-2 border-white/80 shadow-xs group-hover:scale-105'
+                    }`}
+                  >
+                    <img
+                      src={getSignImage(sign.id)}
+                      alt={sign.name}
+                      className="w-full h-full object-cover rounded-full"
+                    />
                   </div>
-                  <span className="text-xs sm:text-sm font-bold mt-1.5 text-white tracking-tight">
+                  <span className={`text-xs sm:text-sm font-black mt-2 tracking-tight ${
+                    isSelected ? 'text-amber-300' : 'text-white'
+                  }`}>
                     {sign.name}
-                  </span>
-                  <span className="text-[10px] text-white/80 font-mono tracking-tighter">
-                    {sign.dates}
                   </span>
                 </button>
               );
@@ -577,84 +412,125 @@ export default function HoroscopePage() {
           </span>
         </nav>
 
-        {/* 3. SHOWCASE SPOTLIGHT: Mascot (Left) + Title & 6 Soft-Pink Cards (Right) */}
-        <section className="bg-gradient-to-br from-[#FFF5F7] via-[#FFF9FA] to-[#FFF3F6] rounded-3xl p-6 sm:p-10 lg:p-12 border border-pink-100/90 shadow-2xs relative overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
-            {/* Left: Big Zodiac Mascot Illustration (Clean, sitting naturally on soft blush canvas) */}
-            <div className="lg:col-span-4 flex flex-col items-center justify-center">
-              <div className="w-48 h-48 sm:w-60 sm:h-60 lg:w-72 lg:h-72 flex items-center justify-center filter drop-shadow-md transition-transform hover:scale-105 duration-300">
-                {renderZodiacVector(activeSign, 'w-44 h-44 sm:w-56 sm:h-56 lg:w-64 lg:h-64')}
+        {/* 3. SHOWCASE SPOTLIGHT: Celestial Luxury Cosmic Card (Unique & Luxury - Screenshot 2) */}
+        <section className="relative rounded-3xl overflow-hidden shadow-2xl border border-amber-400/25 bg-gradient-to-br from-[#0B0F19] via-[#12192E] to-[#1E1238] text-white p-6 sm:p-10 lg:p-12">
+          {/* Subtle Celestial Constellation Grid & Ambient Astral Glow */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#F59E0B_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left: 3D Zodiac Medallion Relic with Glowing Cosmic Halo (Centered) */}
+            <div className="lg:col-span-5 flex flex-col items-center justify-center text-center self-center my-auto">
+              <div className="relative group">
+                {/* Glowing Outer Astral Aura */}
+                <div className="absolute -inset-3 bg-gradient-to-r from-amber-500/30 via-yellow-400/20 to-purple-600/30 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition duration-500" />
+
+                {/* Framed Circular Medallion (Centered) */}
+                <div className="relative w-56 h-56 sm:w-64 sm:h-64 lg:w-80 lg:h-80 rounded-full p-2.5 bg-gradient-to-b from-amber-400/40 via-white/5 to-amber-600/40 border border-amber-400/50 shadow-2xl backdrop-blur-md flex items-center justify-center">
+                  <img
+                    src={activeImage}
+                    alt={selectedSignMeta.name}
+                    className="w-full h-full object-cover rounded-full shadow-inner transform group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Right: Title Header + 6 Soft-Pink Astrological Attributes Cards */}
-            <div className="lg:col-span-8 space-y-6">
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-serif text-slate-900 tracking-tight leading-tight">
-                  {selectedSignMeta.name} {activePeriod === 'DAILY' ? 'Daily' : activePeriod.charAt(0) + activePeriod.slice(1).toLowerCase()} Horoscope
+            {/* Right: Heading + 6 Glassmorphic Power Attribute Tiles (2 columns, 3 rows = 6 tiles total) */}
+            <div className="lg:col-span-7 space-y-6 my-auto">
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-serif tracking-tight leading-tight text-white">
+                  <span className="bg-gradient-to-r from-amber-100 via-amber-200 to-yellow-400 bg-clip-text text-transparent">
+                    {selectedSignMeta.name}
+                  </span>{' '}
+                  <span>
+                    {activePeriod === 'DAILY' ? 'Daily' : activePeriod.charAt(0) + activePeriod.slice(1).toLowerCase()} Horoscope
+                  </span>
                 </h1>
-                <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {selectedSignMeta.dates} • {selectedSignMeta.hindi} राशिफल
+
+                <p className="text-xs sm:text-sm text-slate-400 font-medium tracking-wide flex items-center space-x-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Planetary Alignment Active Today</span>
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
-                {/* Card 1: Lucky Colour */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Lucky Colour
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+              {/* 6 Glassmorphic Power Attribute Tiles (1 line 2 box, total 3 lines of 2 = 6 tiles) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-6">
+                {/* 1. Lucky Colour */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-emerald-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">LUCKY COLOUR</span>
+                    <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                      <Palette className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-emerald-300">
                     {loading ? '...' : (horoscopeData?.luckyColour || defaultTraits.luckyColour)}
                   </p>
                 </div>
 
-                {/* Card 2: Lucky Gemstone */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Lucky Gemstone
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                {/* 2. Lucky Gemstone */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-cyan-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">LUCKY GEMSTONE</span>
+                    <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
+                      <Gem className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
                     {loading ? '...' : (horoscopeData?.luckyGemstone || defaultTraits.luckyGemstone)}
                   </p>
                 </div>
 
-                {/* Card 3: Lucky Day */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Lucky Day
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                {/* 3. Lucky Day */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-amber-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">LUCKY DAY</span>
+                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
                     {loading ? '...' : (horoscopeData?.luckyDay || defaultTraits.luckyDay)}
                   </p>
                 </div>
 
-                {/* Card 4: Lucky Number */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Lucky Number
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                {/* 4. Lucky Number */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-purple-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">LUCKY NUMBER</span>
+                    <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-amber-300">
                     {loading ? '...' : (horoscopeData?.luckyNumber || defaultTraits.luckyNumber)}
                   </p>
                 </div>
 
-                {/* Card 5: Ruling Planet */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Ruling Planet
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                {/* 5. Ruling Planet */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-rose-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">RULING PLANET</span>
+                    <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400">
+                      <Compass className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
                     {loading ? '...' : (horoscopeData?.rulingPlanet || defaultTraits.rulingPlanet)}
                   </p>
                 </div>
 
-                {/* Card 6: Compatible Zodiac Sign */}
-                <div className="bg-[#FDEEF3] hover:bg-[#FCDFE8] border border-pink-100/70 rounded-2xl p-4 sm:p-4.5 space-y-1 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                  <span className="text-xs sm:text-[13px] font-medium text-slate-600 block">
-                    Compatible Zodiac Sign
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                {/* 6. Compatible Zodiac Sign */}
+                <div className="group bg-white/[0.05] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 hover:border-pink-400/50 rounded-2xl p-4 transition-all duration-300 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-300">COMPATIBLE SIGN</span>
+                    <div className="p-1.5 rounded-lg bg-pink-500/20 text-pink-400">
+                      <Heart className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
                     {loading ? '...' : (horoscopeData?.compatibleSign || defaultTraits.compatibleSign)}
                   </p>
                 </div>
@@ -663,66 +539,106 @@ export default function HoroscopePage() {
           </div>
         </section>
 
-        {/* 4. TIMEFRAME TABS & DETAILED PREDICTION + REMEDY */}
+        {/* 4. TIMEFRAME TABS & ELEVATED PREDICTION READING DESK (Saturday Luxury Design) */}
         <section className="space-y-6">
-          {/* Tabs: DAILY | WEEKLY | MONTHLY | YEARLY | LOVE */}
-          <div className="border-b border-slate-200 flex items-center space-x-6 sm:space-x-10 text-xs sm:text-sm font-bold tracking-wider">
-            {PERIOD_TABS.map((tab) => {
-              const isActive = tab.id === activePeriod;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActivePeriod(tab.id)}
-                  className={`pb-3 relative transition-colors cursor-pointer ${isActive
-                      ? 'text-[#8E192B] font-black'
-                      : 'text-slate-500 hover:text-slate-900'
+          {/* Modern Floating Capsule Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="bg-slate-100 p-1.5 rounded-2xl inline-flex items-center gap-1.5 border border-slate-200 shadow-2xs overflow-x-auto max-w-full">
+              {PERIOD_TABS.map((tab) => {
+                const isActive = tab.id === activePeriod;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActivePeriod(tab.id)}
+                    className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white shadow-md shadow-red-600/25 scale-102'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                     }`}
-                >
-                  <span>{tab.label}</span>
-                  {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#8E192B] rounded-full" />
-                  )}
-                </button>
-              );
-            })}
+                  >
+                    <span>
+                      {tab.id === 'DAILY' && '☀️'}
+                      {tab.id === 'WEEKLY' && '🗓️'}
+                      {tab.id === 'MONTHLY' && '🌙'}
+                      {tab.id === 'YEARLY' && '🪐'}
+                      {tab.id === 'LOVE' && '💖'}
+                    </span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Share / Copy Reading Actions */}
+            <div className="flex items-center space-x-2 self-end sm:self-auto">
+              <button
+                onClick={handleCopyReading}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                title="Copy horoscope text to clipboard"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-black">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Copy Forecast</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Prediction Reading Container */}
-          <div className="bg-slate-50/50 rounded-3xl p-6 sm:p-8 border border-slate-100 space-y-5">
+          {/* Elevated Reading Deck Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-md relative overflow-hidden space-y-7">
+            {/* Ambient Card Background Glow */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-rose-50/50 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Card Header Row: Transit Indicator */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-5 border-b border-slate-100 relative z-10">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-slate-700">Celestial Transit Forecast</span>
+                  <span>•</span>
+                  <span>{selectedSignMeta.name}</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black font-serif text-slate-900">
+                  {selectedSignMeta.name} {activePeriod.charAt(0) + activePeriod.slice(1).toLowerCase()} Cosmic Guidance
+                </h3>
+              </div>
+            </div>
+
             {loading ? (
-              <div className="p-8 text-center text-slate-400 text-xs font-semibold flex items-center justify-center space-x-2">
-                <RefreshCw className="w-4 h-4 animate-spin text-pink-600" />
-                <span>Reading Stars & Transits...</span>
+              <div className="py-16 text-center text-slate-400 text-xs font-semibold flex flex-col items-center justify-center space-y-3">
+                <RefreshCw className="w-6 h-6 animate-spin text-red-600" />
+                <span>Aligning planetary transits & constellations...</span>
               </div>
             ) : (
-              <>
-                {/* Main Prediction Paragraph */}
-                <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-sans font-normal">
-                  {horoscopeData?.prediction}
-                </p>
-
-                {/* Highlights Bottom Section */}
-                <div className="pt-4 border-t border-slate-200/80 space-y-1.5 text-xs sm:text-sm">
-                  {horoscopeData?.luckyColour && (
-                    <p className="text-slate-800">
-                      <span className="font-bold text-slate-900">Lucky Colour: </span>
-                      <span className="text-slate-700">{horoscopeData.luckyColour}</span>
-                    </p>
-                  )}
-                  {horoscopeData?.luckyNumber && (
-                    <p className="text-slate-800">
-                      <span className="font-bold text-slate-900">Lucky Number: </span>
-                      <span className="text-slate-700">{horoscopeData.luckyNumber}</span>
-                    </p>
-                  )}
-                  {horoscopeData?.remedy && (
-                    <p className="text-slate-800 pt-1">
-                      <span className="font-bold text-slate-900">Remedy: </span>
-                      <span className="text-slate-700">{horoscopeData.remedy}</span>
-                    </p>
-                  )}
+              <div className="space-y-6 relative z-10">
+                {/* Main Prediction Paragraph in High-End Editorial Style */}
+                <div className="relative pl-6 sm:pl-8 border-l-4 border-red-500/40">
+                  <span className="absolute -top-3 -left-3 text-4xl font-serif text-red-300/40 select-none">&ldquo;</span>
+                  <p className="text-base sm:text-lg text-slate-800 leading-relaxed font-sans font-normal antialiased">
+                    {horoscopeData?.prediction || `${selectedSignMeta.name} daily transit indicates positive energy, focus on consistency, and clear communication.`}
+                  </p>
                 </div>
-              </>
+
+                {/* Highlighted Sacred Vedic Remedy Card */}
+                {horoscopeData?.remedy && (
+                  <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-rose-500/10 border-l-4 border-amber-500 border-y border-r border-amber-200/70 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-2">
+                    <div className="flex items-center space-x-2 text-amber-800 font-extrabold text-xs sm:text-sm uppercase tracking-wide">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      <span>Sacred Vedic Remedy & Alignment</span>
+                    </div>
+                    <p className="text-sm sm:text-base font-semibold text-slate-800 leading-relaxed pl-6">
+                      {horoscopeData.remedy}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </section>
@@ -820,8 +736,8 @@ export default function HoroscopePage() {
               )}
             </div>
 
-            {/* Right 4 Cols: TOP NEWS Sticky Sidebar (1, 2, 3...) */}
-            <aside className="lg:col-span-4 lg:sticky lg:top-28 self-start space-y-5 border-l border-slate-100 lg:pl-8">
+            {/* Right 4 Cols: TOP NEWS Sticky Sidebar (Hidden on Mobile, Visible on Desktop) */}
+            <aside className="hidden lg:block lg:col-span-4 lg:sticky lg:top-28 self-start space-y-5 border-l border-slate-100 lg:pl-8">
               <div className="border-b border-red-600 pb-2 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-red-600 flex items-center space-x-1.5">
                   <TrendingUp className="w-3.5 h-3.5" />
@@ -853,5 +769,13 @@ export default function HoroscopePage() {
       <Footer />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
+  );
+}
+
+export default function HoroscopePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <HoroscopeContent />
+    </Suspense>
   );
 }

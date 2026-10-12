@@ -10,7 +10,7 @@ import { videoService } from '@/services/videoService';
 import {
   ArrowLeft, Upload, Link2, Youtube, Sparkles, Check,
   AlertCircle, Film, Image as ImageIcon, Eye, Play,
-  Globe, Tag
+  Globe, Tag, Search
 } from 'lucide-react';
 
 const BADGE_PRESETS = [
@@ -43,6 +43,8 @@ function AdminVideoCreateContent() {
   const [reporterName, setReporterName] = useState('News Desk');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+  const [metaKeywords, setMetaKeywords] = useState('');
+  const [canonicalUrl, setCanonicalUrl] = useState('');
   const [tags, setTags] = useState('');
 
   // Toggles
@@ -166,6 +168,8 @@ function AdminVideoCreateContent() {
         reporterName: reporterName.trim() || undefined,
         metaTitle: metaTitle.trim() || undefined,
         metaDescription: metaDescription.trim() || undefined,
+        metaKeywords: metaKeywords.trim() || undefined,
+        canonicalUrl: canonicalUrl.trim() || undefined,
         tags: tags.trim() || undefined,
         isFeaturedHero: false,
         isTrending: false,
@@ -461,46 +465,101 @@ function AdminVideoCreateContent() {
               </div>
 
               {/* 3. SEO Metadata */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xs">
+              <div className="bg-white border border-emerald-200 rounded-2xl p-6 space-y-4 shadow-xs">
                 <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-                  <Globe className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    SEO & Social Sharing
-                  </h3>
+                  <Search className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">SEO &amp; Social Sharing</h3>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Google</span>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">SEO Meta Title</label>
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  Khali chhodne par video title/description auto-use hoga. Fill karo to Google pe custom result dikhega.
+                </p>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Meta Title <span className="font-normal normal-case text-slate-400">(Max 60 chars)</span>
+                  </label>
                   <input
                     type="text"
+                    maxLength={60}
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
-                    placeholder="Search engine optimized headline..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500 focus:bg-white"
+                    placeholder="SEO title — appears in Google search results"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
                   />
+                  <div className="text-right text-[10px] text-slate-400">{metaTitle.length}/60</div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">SEO Meta Description</label>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Meta Description <span className="font-normal normal-case text-slate-400">(Max 160 chars)</span>
+                  </label>
                   <textarea
-                    rows={2}
+                    rows={3}
+                    maxLength={160}
                     value={metaDescription}
                     onChange={(e) => setMetaDescription(e.target.value)}
-                    placeholder="Brief 150-160 char summary for Google search snippets..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500 focus:bg-white resize-none"
+                    placeholder="Short description shown under title in Google — write compelling 1-2 sentences"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white resize-none"
+                  />
+                  <div className="text-right text-[10px] text-slate-400">{metaDescription.length}/160</div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Meta Keywords <span className="font-normal normal-case text-slate-400">(comma separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={metaKeywords}
+                    onChange={(e) => setMetaKeywords(e.target.value)}
+                    placeholder="e.g. ISRO, Chandrayaan4, Moon, Space"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">Tags (comma-separated)</label>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Tags <span className="font-normal normal-case text-slate-400">(comma separated)</span>
+                  </label>
                   <input
                     type="text"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
                     placeholder="ISRO, Chandrayaan4, Moon, Space"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500 focus:bg-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white font-mono"
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Canonical URL <span className="font-normal normal-case text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={canonicalUrl}
+                    onChange={(e) => setCanonicalUrl(e.target.value)}
+                    placeholder="https://yourdomain.com/videos/slug (leave blank for default)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
+                  />
+                </div>
+
+                {/* Live Google Preview */}
+                {(metaTitle || title) && (
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Google Preview</div>
+                    <div className="text-[13px] font-semibold text-blue-600 truncate">
+                      {metaTitle || title || 'Video Title'}
+                    </div>
+                    <div className="text-[11px] text-emerald-700 truncate">
+                      yourdomain.com › videos › {title.toLowerCase().replace(/\s+/g, '-').slice(0, 30) || 'slug'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 line-clamp-2">
+                      {metaDescription || description || 'Meta description will appear here...'}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

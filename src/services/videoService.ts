@@ -18,6 +18,8 @@ export interface VideoData {
   reporterName?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  metaKeywords?: string | null;
+  canonicalUrl?: string | null;
   tags?: string | null; // JSON string or comma-separated
   isFeaturedHero: boolean;
   isTrending: boolean;

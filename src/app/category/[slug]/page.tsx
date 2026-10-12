@@ -156,14 +156,30 @@ export default function CategoryPage() {
       }
     }
 
-    // Also fetch general top news for the sidebar
-    articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
-      .then((topRes: any) => {
-        if (topRes.articles && topRes.articles.length > 0) {
-          setTopNewsArticles(topRes.articles);
+    // Fetch exact same homepage TOP NEWS for the sidebar
+    articleService.getHomeArticles()
+      .then((homeRes) => {
+        if (homeRes && homeRes.trending && homeRes.trending.length > 0) {
+          setTopNewsArticles(homeRes.trending.slice(0, 5));
+        } else {
+          articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
+            .then((topRes: any) => {
+              if (topRes.articles && topRes.articles.length > 0) {
+                setTopNewsArticles(topRes.articles);
+              }
+            })
+            .catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
+          .then((topRes: any) => {
+            if (topRes.articles && topRes.articles.length > 0) {
+              setTopNewsArticles(topRes.articles);
+            }
+          })
+          .catch(() => {});
+      });
 
     fetchCategoryBatch(1)
       .then((res: any) => {
@@ -230,12 +246,12 @@ export default function CategoryPage() {
   const leadArticle = displayArticles[0];
   const feedArticles = displayArticles.slice(1);
 
-  const sidebarSource = (slug === 'brandverse' && topNewsArticles.length > 0) ? topNewsArticles : (rawArticles.slice(0, 5).length > 0 ? rawArticles : topNewsArticles);
+  const sidebarSource = topNewsArticles.length > 0 ? topNewsArticles : rawArticles.slice(0, 5);
   const currentSidebarNews = sidebarSource.slice(0, 5).map((art, idx) => ({
-    id: art.id,
+    id: art.slug || art.id,
     trendingRank: idx + 1,
-    category: typeof art.category === 'string' ? art.category : 'NEWS',
-    title: typeof art.title === 'string' ? { en: art.title } : art.title
+    category: typeof art.category === 'string' ? art.category.toUpperCase() : 'NEWS',
+    title: typeof art.title === 'string' ? art.title : ((art.title as any)?.en || '')
   }));
 
   return (
@@ -550,33 +566,33 @@ export default function CategoryPage() {
 
               </div>
 
-              {/* Right Top News Sidebar (4 Cols) - STICKY */}
-              <div className="lg:col-span-4 space-y-6 sticky top-32 self-start z-10">
+              {/* Right Top News Sidebar (4 Cols) - HIDDEN ON MOBILE, STICKY ON DESKTOP */}
+              <aside className="hidden lg:block w-full min-w-0 lg:col-span-4 space-y-6 lg:sticky lg:top-24 self-start">
 
-                {/* Top Category News Box */}
-                <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-extrabold flex items-center space-x-2 text-slate-900 dark:text-white">
+                {/* TOP NEWS 1 to 5 Numbered Sidebar (Exact Same as Homepage) */}
+                <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between border-b-2 border-jagran-red pb-1">
+                    <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5">
                       <TrendingUp className="w-4 h-4 text-jagran-red" />
-                      <span>Top {categoryNames[slug] || slug.toUpperCase()} News</span>
+                      <span>TOP NEWS</span>
                     </h3>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {currentSidebarNews.map((item) => (
                       <article
                         key={item.id}
                         onClick={() => router.push(`/article/${item.id}`)}
-                        className="flex space-x-3 items-start group cursor-pointer border-b border-slate-100 dark:border-slate-800/60 pb-3 last:border-0 last:pb-0"
+                        className="py-2.5 first:pt-0 last:pb-0 flex space-x-2.5 items-start group cursor-pointer"
                       >
-                        <span className="font-serif font-black text-2xl text-jagran-red/40 group-hover:text-jagran-red transition-colors w-6 shrink-0">
+                        <span className="font-serif font-black text-xl text-jagran-red/60 group-hover:text-jagran-red transition-colors w-5 shrink-0 leading-none">
                           0{item.trendingRank}
                         </span>
-                        <div className="flex-1">
-                          <span className="text-[10px] font-bold uppercase text-jagran-red block mb-0.5">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] sm:text-xs font-black uppercase text-jagran-red block mb-0.5">
                             {item.category}
                           </span>
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+                          <h4 className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug line-clamp-2">
                             {t(item.title)}
                           </h4>
                         </div>
@@ -585,7 +601,7 @@ export default function CategoryPage() {
                   </div>
                 </div>
 
-              </div>
+              </aside>
 
             </div>
           </div>

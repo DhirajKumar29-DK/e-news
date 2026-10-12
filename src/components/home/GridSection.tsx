@@ -43,8 +43,80 @@ export const GridSection: React.FC<GridSectionProps> = ({
         </button>
       </div>
 
-      {/* 4-Column Horizontal Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+      {/* Mobile Layout (< sm): 1 Big Lead Card + Remaining Horizontal Row Cards */}
+      <div className="block sm:hidden space-y-3">
+        {/* 1st Card: Lead Card on Mobile */}
+        {items[0] && (
+          <article
+            onClick={() => router.push(`/article/${items[0].id}`)}
+            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
+          >
+            <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
+              <img
+                src={items[0].imageUrl}
+                alt={t(items[0].title)}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
+                }}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <span className="absolute top-2.5 left-2.5 bg-slate-950/85 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-wider">
+                {items[0].category}
+              </span>
+            </div>
+            <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5">
+              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+                {t(items[0].title)}
+              </h3>
+              {items[0].timeAgo && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[11px] text-slate-500 font-medium">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
+                  <span>{t(items[0].timeAgo)}</span>
+                </div>
+              )}
+            </div>
+          </article>
+        )}
+
+        {/* 2nd, 3rd, 4th Cards: Horizontal Row (Left Image, Right Text) */}
+        {items.slice(1).map((item) => (
+          <article
+            key={item.id}
+            onClick={() => router.push(`/article/${item.id}`)}
+            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row items-center p-2.5 gap-3"
+          >
+            <div className="w-28 h-20 rounded-lg overflow-hidden relative shrink-0 bg-slate-100 dark:bg-slate-800">
+              <img
+                src={item.imageUrl}
+                alt={t(item.title)}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
+                }}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase text-jagran-red block mb-1">
+                  {item.category}
+                </span>
+                <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                  {t(item.title)}
+                </h4>
+              </div>
+              {item.timeAgo && (
+                <div className="pt-1 flex items-center text-[10px] text-slate-400 font-medium">
+                  <Clock className="w-3 h-3 text-slate-400 mr-1 shrink-0" />
+                  <span>{t(item.timeAgo)}</span>
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Desktop / Tablet Grid (sm:grid) - 100% UNCHANGED */}
+      <div className="hidden sm:grid w-full min-w-0 max-w-full sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {items.map((item) => (
           <article
             key={item.id}

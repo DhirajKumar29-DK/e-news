@@ -118,6 +118,25 @@ async function fetchWithCache<T>(url: string): Promise<T> {
   throw new Error(json.message || 'Failed to fetch weather data');
 }
 
+// Top 15 State & UT Capitals of India with New Delhi & Patna as top priority
+export const STATE_CAPITALS_ORDER: string[] = [
+  'new-delhi',           // Delhi (National Capital) - #1 Priority
+  'patna',               // Bihar - #2 Priority
+  'lucknow',             // Uttar Pradesh
+  'mumbai',              // Maharashtra
+  'jaipur',              // Rajasthan
+  'kolkata',             // West Bengal
+  'bengaluru',           // Karnataka
+  'chennai',             // Tamil Nadu
+  'hyderabad',           // Telangana
+  'ranchi',              // Jharkhand
+  'raipur',              // Chhattisgarh
+  'chandigarh',          // Punjab & Haryana
+  'bhubaneswar',         // Odisha
+  'dehradun',            // Uttarakhand
+  'shimla'               // Himachal Pradesh
+];
+
 export const weatherService = {
   // 1. Get all states with nested cities
   async getStates(): Promise<WeatherState[]> {
@@ -142,10 +161,22 @@ export const weatherService = {
     }
   },
 
-  // 3. Get Main Cities grid with live weather + AQI
+  // 3. Get Main Cities grid with live weather + AQI (Strictly 15 State Capitals, New Delhi & Patna first)
   async getMainCitiesWeather(): Promise<MainCityWeather[]> {
     try {
-      return await fetchWithCache<MainCityWeather[]>(`${API_BASE_URL}/weather/main-cities`);
+      const rawCities = await fetchWithCache<MainCityWeather[]>(`${API_BASE_URL}/weather/main-cities`);
+      const bySlug = new Map(rawCities.map((c) => [c.slug.toLowerCase(), c]));
+
+      // Filter and order strictly the 15 state capitals
+      const orderedList: MainCityWeather[] = [];
+      for (const slug of STATE_CAPITALS_ORDER) {
+        const found = bySlug.get(slug);
+        if (found) {
+          orderedList.push(found);
+        }
+      }
+
+      return orderedList.slice(0, 15);
     } catch (err) {
       console.warn('Failed to fetch main cities weather from backend:', err);
       return [];

@@ -9,6 +9,7 @@ import {
   mockInFocusPills
 } from '@/data/mockNewsData';
 import { articleService } from '@/services/articleService';
+import { categoryService, CategoryData } from '@/services/categoryService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
 import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
@@ -41,6 +42,43 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   // MORE Dropdown State (Hover & Click support)
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreDropdownRef = useRef<HTMLLIElement>(null);
+
+  // Dynamic Navigation Categories
+  const [navCategories, setNavCategories] = useState<CategoryData[]>([]);
+
+  useEffect(() => {
+    const syncCategories = () => {
+      const cached = categoryService.getCachedCategories();
+      if (cached && cached.length > 0) {
+        setNavCategories(cached);
+      }
+    };
+
+    // 1. Initial cached + fresh network sync
+    syncCategories();
+    categoryService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setNavCategories(cats);
+      }
+    }).catch(() => {});
+
+    // 2. Real-time sync when admin updates/reorders categories
+    const handleCategoryUpdate = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setNavCategories(e.detail);
+      } else {
+        syncCategories();
+      }
+    };
+
+    window.addEventListener('categories_changed', handleCategoryUpdate);
+    window.addEventListener('storage', syncCategories);
+
+    return () => {
+      window.removeEventListener('categories_changed', handleCategoryUpdate);
+      window.removeEventListener('storage', syncCategories);
+    };
+  }, []);
 
   const currentLangObj = supportedLanguages.find(l => l.code === language) || supportedLanguages[0];
 
@@ -162,26 +200,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
           {/* Left Column: Brand Logo with Sun Emblem */}
           <div className="flex items-center space-x-3 shrink-0">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 rounded text-slate-800 dark:text-white"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {/* Hamburger hidden on mobile per user request */}
 
             <div
               onClick={() => onSelectCategory('all')}
-              className="flex items-center space-x-2.5 cursor-pointer group"
+              className="flex items-center space-x-2 cursor-pointer group shrink-0"
             >
-              {/* The Daily Jagran Sun Icon */}
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform shrink-0">
-                <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5]" />
+              {/* Sun Emblem (compact on mobile) */}
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform shrink-0">
+                <Sun className="w-4 h-4 sm:w-6 sm:h-6 text-white stroke-[2.5]" />
               </div>
               <div>
                 <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#E43854] block leading-none pb-0.5">
                   THE
                 </span>
-                <span className="text-2xl sm:text-3xl font-black font-serif tracking-tight text-slate-900 dark:text-white group-hover:text-[#E43854] transition-colors leading-none">
+                <span className="text-xl sm:text-3xl font-black font-serif tracking-tight text-slate-900 dark:text-white group-hover:text-[#E43854] transition-colors leading-none">
                   NEWSPAPER
                 </span>
               </div>
@@ -306,8 +339,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             <button
               onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
-              className="hidden sm:flex items-center space-x-2 h-9 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-bold transition-all shadow-xs group cursor-pointer"
-              title="Read Today's ePaper"
+              className="hidden sm:flex items-center space-x-2 h-9 px-4 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-lg text-xs font-bold transition-all shadow-xs"
+              title="Read Today's ePaper Edition"
             >
               <FileText className="w-4 h-4 text-jagran-red group-hover:scale-110 transition-transform" />
               <span className="tracking-wide">ePaper</span>
@@ -326,30 +359,35 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping ml-0.5" />
             </button>
 
-            {/* Mobile ePaper Quick Action Button */}
+            {/* Mobile ePaper Quick Action Button (compact & small) */}
             <button
               onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
-              className="sm:hidden flex items-center space-x-1.5 h-8 px-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[11px] font-bold transition-all shadow-2xs"
+              className="sm:hidden flex items-center space-x-1 h-7 px-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[10px] font-extrabold transition-all shadow-2xs shrink-0 cursor-pointer"
               title="ePaper"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>ePaper</span>
+              <FileText className="w-3 h-3 text-jagran-red" />
+              <span className="tracking-tight">ePaper</span>
             </button>
 
-            {/* Mobile Search Button (Visible on smallest screens) */}
+            {/* Mobile Day/Night Theme Toggle Icon Button */}
             <button
-              onClick={onOpenSearch}
-              className="sm:hidden w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300"
-              title="Search"
+              onClick={toggleTheme}
+              className="sm:hidden flex items-center justify-center w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs shrink-0 cursor-pointer"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle Theme"
             >
-              <Search className="w-4 h-4" />
+              {theme === 'dark' ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
+              )}
             </button>
 
             {/* User Profile Avatar */}
             <button
               onClick={() => alert('User login profile')}
-              className="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors"
+              className="hidden sm:flex w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 items-center justify-center transition-colors"
               title="User Account"
             >
               <User className="w-4 h-4" />
@@ -358,12 +396,55 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
         </div>
 
-        {/* 3. CATEGORIES NAVIGATION STRIP (Soft Pink Tint bg-[#FFF4F4], equal spacing across full width) */}
-        <nav className={`${mobileMenuOpen ? 'block' : 'hidden'} lg:block bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1 relative z-50 overflow-visible`}>
+        {/* 3. MOBILE ALWAYS-VISIBLE SWIPEABLE CATEGORY PILL BAR (App-like UX like LiveHindustan / Jagran) */}
+        <div className="xl:hidden w-full max-w-full overflow-hidden bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1.5 px-3">
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+            {/* Home Pill */}
+            <button
+              onClick={() => onSelectCategory('all')}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 ${
+                activeCategory === 'all'
+                  ? 'bg-jagran-red text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Home className="w-3 h-3" />
+              <span>HOME</span>
+            </button>
+
+            {/* Dynamic Category Pills */}
+            {(navCategories.length > 0
+              ? navCategories.filter(c => c.slug !== 'all' && c.isActive)
+              : mockCategoryTabs.filter((t: any) => t.slug !== 'all').map((t: any) => ({
+                  id: t.id,
+                  name: t.label.en,
+                  slug: t.slug
+                }))
+            ).map((tab: any) => {
+              const isActive = activeCategory === tab.slug;
+              return (
+                <button
+                  key={`mobile-pill-${tab.id || tab.slug}`}
+                  onClick={() => onSelectCategory(tab.slug)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-jagran-red text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-jagran-red'
+                  }`}
+                >
+                  {String(tab.name || tab.label?.en || tab.slug || '').toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. DESKTOP CATEGORIES NAVIGATION STRIP (Soft Pink Tint bg-[#FFF4F4]) */}
+        <nav className="hidden xl:block bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1 relative z-30 overflow-visible">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 relative overflow-visible">
-            <ul className="flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-between overflow-x-auto lg:overflow-visible no-scrollbar text-[12px] lg:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-              {/* Home Icon (Exact Chimney Solid Home Icon Match) */}
-              <li className="hidden lg:block shrink-0">
+            <ul className="flex items-center justify-between text-[12px] lg:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+              {/* Home Icon */}
+              <li className="shrink-0">
                 <button
                   onClick={() => onSelectCategory('all')}
                   className="py-2 px-2 flex items-center hover:opacity-80 transition-opacity"
@@ -375,100 +456,38 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 </button>
               </li>
 
-              {/* Mobile Drawer E-Paper Link */}
-              <li className="lg:hidden border-b border-red-100 dark:border-slate-800 pb-1 mb-1">
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleOpenEPaper();
-                  }}
-                  className="w-full flex items-center space-x-2 py-2 px-2 text-jagran-red font-black uppercase tracking-tight text-xs"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>डिजिटल ई-पेपर (ePaper)</span>
-                </button>
-              </li>
-
-              {mockCategoryTabs.filter((t: any) => t.slug !== 'all').map((tab: any) => {
+              {/* Dynamic Categories: First 11 in Main Strip */}
+              {(navCategories.length > 0
+                ? navCategories.filter(c => c.slug !== 'all' && c.isActive).slice(0, 11)
+                : mockCategoryTabs.filter((t: any) => t.slug !== 'all').slice(0, 11).map((t: any) => ({
+                    id: t.id,
+                    name: t.label.en,
+                    slug: t.slug
+                  }))
+              ).map((tab: any) => {
                 const isActive = activeCategory === tab.slug;
                 return (
-                  <li key={tab.id} className="whitespace-nowrap shrink-0">
+                  <li key={tab.id || tab.slug} className="whitespace-nowrap shrink-0">
                     <button
-                      onClick={() => {
-                        onSelectCategory(tab.slug);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`block w-full text-left py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight ${isActive
-                        ? 'text-jagran-red font-black'
-                        : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
-                        }`}
+                      onClick={() => onSelectCategory(tab.slug)}
+                      className={`block w-full text-left py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight ${
+                        isActive
+                          ? 'text-jagran-red font-black'
+                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
+                      }`}
                     >
-                      {tab.label.en}
+                      {String(tab.name || tab.label?.en || tab.slug || '').toUpperCase()}
                     </button>
                   </li>
                 );
               })}
 
-              {/* Mobile Only: Fashion & Beauty Link */}
-              <li className="lg:hidden whitespace-nowrap shrink-0">
-                <button
-                  onClick={() => {
-                    onSelectCategory('fashion');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
-                    activeCategory === 'fashion'
-                      ? 'text-jagran-red font-black'
-                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>FASHION & BEAUTY</span>
-                </button>
-              </li>
-
-              {/* Mobile Only: Brandverse Link */}
-              <li className="lg:hidden whitespace-nowrap shrink-0">
-                <button
-                  onClick={() => {
-                    onSelectCategory('brandverse');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
-                    activeCategory === 'brandverse'
-                      ? 'text-jagran-red font-black'
-                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                  <span>BRANDVERSE</span>
-                </button>
-              </li>
-
-              {/* Mobile Only: Weather Link */}
-              <li className="lg:hidden whitespace-nowrap shrink-0">
-                <button
-                  onClick={() => {
-                    onSelectCategory('weather');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center space-x-1.5 w-full text-left py-2 px-2 transition-colors uppercase tracking-tight ${
-                    activeCategory === 'weather'
-                      ? 'text-jagran-red font-black'
-                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
-                  }`}
-                >
-                  <CloudSun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>WEATHER</span>
-                </button>
-              </li>
-
-              {/* Desktop: MORE dropdown with Hover & Click (Matching exact portal design) */}
+              {/* Desktop: MORE dropdown */}
               <li
                 ref={moreDropdownRef}
                 onMouseEnter={() => setIsMoreOpen(true)}
                 onMouseLeave={() => setIsMoreOpen(false)}
-                className="hidden lg:block relative group whitespace-nowrap shrink-0"
+                className="relative group whitespace-nowrap shrink-0"
               >
                 <button
                   type="button"
@@ -488,62 +507,39 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                   <MoreVertical className="w-3.5 h-3.5 -mr-1 text-slate-900 dark:text-slate-200" />
                 </button>
 
-                {/* Dropdown Menu (Exact match to screenshot with #FFF4F4 background) */}
+                {/* Dropdown Menu */}
                 <div
-                  className={`absolute right-0 top-full z-[9999] min-w-[140px] ${
+                  className={`absolute right-0 top-full z-[9999] min-w-[150px] ${
                     isMoreOpen ? 'block' : 'hidden group-hover:block'
                   }`}
                   style={{ marginTop: '0px' }}
                 >
-                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1 divide-y divide-[#ffe2e2]/60 dark:divide-slate-800">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSelectCategory('fashion');
-                        setIsMoreOpen(false);
-                      }}
-                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
-                        activeCategory === 'fashion'
-                          ? 'text-jagran-red font-black'
-                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      FASHION
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSelectCategory('brandverse');
-                        setIsMoreOpen(false);
-                      }}
-                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
-                        activeCategory === 'brandverse'
-                          ? 'text-jagran-red font-black'
-                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      BRANDVERSE
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSelectCategory('weather');
-                        setIsMoreOpen(false);
-                      }}
-                      className={`block w-full text-left py-2 px-3 text-[12px] lg:text-[13px] uppercase tracking-tight font-bold transition-colors cursor-pointer ${
-                        activeCategory === 'weather'
-                          ? 'text-jagran-red font-black'
-                          : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red hover:bg-[#ffe8e8] dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      WEATHER
-                    </button>
+                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1 divide-y divide-[#ffe2e2]/60 dark:divide-slate-800 max-h-72 overflow-y-auto">
+                    {(navCategories.length > 0
+                      ? navCategories.filter(c => c.slug !== 'all' && c.isActive).slice(11)
+                      : mockCategoryTabs.filter((t: any) => t.slug !== 'all').slice(11).map((t: any) => ({
+                          id: t.id,
+                          name: t.label.en,
+                          slug: t.slug
+                        }))
+                    ).map((cat: any) => (
+                      <button
+                        key={cat.id || cat.slug}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onSelectCategory(cat.slug);
+                          setIsMoreOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors uppercase whitespace-nowrap block ${
+                          activeCategory === cat.slug
+                            ? 'text-jagran-red bg-red-50 dark:bg-red-950/40'
+                            : 'text-slate-700 dark:text-slate-300 hover:text-jagran-red hover:bg-white/60 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {String(cat.name || cat.label?.en || cat.slug || '').toUpperCase()}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </li>
@@ -551,6 +547,123 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
           </div>
         </nav>
 
+        {/* 5. NATIVE MOBILE APP DRAWER MODAL OVERLAY */}
+        {mobileMenuOpen && (
+          <div className="xl:hidden fixed inset-0 z-50 flex">
+            {/* Dark Backdrop */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fade-in"
+            />
+
+            {/* Drawer Content */}
+            <div className="relative w-[85vw] max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col shadow-2xl z-10 overflow-hidden">
+              {/* Drawer Header */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-xs">
+                    <Sun className="w-4 h-4 text-white stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-[#E43854] block leading-none">THE</span>
+                    <span className="text-base font-black font-serif text-slate-900 dark:text-white leading-none">NEWSPAPER</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Drawer Quick Actions */}
+              <div className="p-3 border-b border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-2 bg-slate-50/50 dark:bg-slate-900">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleOpenEPaper();
+                  }}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 text-xs font-bold"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>ePaper</span>
+                </button>
+                <button
+                  onClick={() => {
+                    toggleTheme();
+                  }}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
+                >
+                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+                  <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+              </div>
+
+              {/* Drawer Categories Scroll List */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  All Sections
+                </div>
+                <button
+                  onClick={() => {
+                    onSelectCategory('all');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors ${
+                    activeCategory === 'all'
+                      ? 'bg-red-50 dark:bg-red-950/40 text-jagran-red font-black'
+                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center space-x-2">
+                    <Home className="w-4 h-4 text-slate-400" />
+                    <span>Home</span>
+                  </span>
+                </button>
+
+                {(navCategories.length > 0
+                  ? navCategories.filter(c => c.slug !== 'all' && c.isActive)
+                  : mockCategoryTabs.filter((t: any) => t.slug !== 'all').map((t: any) => ({
+                      id: t.id,
+                      name: t.label.en,
+                      slug: t.slug
+                    }))
+                ).map((cat: any) => {
+                  const isActive = activeCategory === cat.slug;
+                  return (
+                    <button
+                      key={`drawer-${cat.id || cat.slug}`}
+                      onClick={() => {
+                        onSelectCategory(cat.slug);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold uppercase transition-colors ${
+                        isActive
+                          ? 'bg-red-50 dark:bg-red-950/40 text-jagran-red font-black'
+                          : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{String(cat.name || cat.label?.en || cat.slug || '').toUpperCase()}</span>
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-jagran-red" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+                <span>The Daily Jagran • 2026</span>
+                <button
+                  onClick={() => router.push('/videos')}
+                  className="text-jagran-red font-bold hover:underline"
+                >
+                  Live TV
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 4. "IN FOCUS" TOPIC PILLS BAR (Temporarily commented out for preview) */}

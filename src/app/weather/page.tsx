@@ -102,7 +102,7 @@ export default function WeatherHubPage() {
           {/* City Cards Grid with Warm Ambient Glow Background */}
           <div className="relative p-2 sm:p-4 rounded-3xl bg-gradient-to-b from-[#FFF8F5]/80 via-[#FFF4EE]/40 to-transparent dark:from-slate-900/40 dark:via-slate-900/20 dark:to-transparent">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-4.5">
                 {Array.from({ length: 15 }).map((_, i) => (
                   <div
                     key={i}
@@ -125,7 +125,7 @@ export default function WeatherHubPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-4.5">
-                {cities.map((city) => (
+                {cities.slice(0, 15).map((city) => (
                   <MainCityCard key={city.id} city={city} />
                 ))}
               </div>

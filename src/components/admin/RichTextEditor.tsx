@@ -502,12 +502,12 @@ export default function RichTextEditor({ value, onChange, label = 'Rich Text Edi
           defaultValue=""
         >
           <option value="" disabled>Highlight</option>
-          <option value="#fef08a">🟡 Yellow (पीला)</option>
-          <option value="#bbf7d0">🟢 Green (हरा)</option>
-          <option value="#a5f3fc">🔵 Cyan (नीला)</option>
-          <option value="#fed7aa">🟠 Orange (नारंगी)</option>
-          <option value="#fecdd3">🔴 Rose (गुलाबी)</option>
-          <option value="none">✕ Remove (हटाएं)</option>
+          <option value="#fef08a">🟡 Yellow</option>
+          <option value="#bbf7d0">🟢 Green</option>
+          <option value="#a5f3fc">🔵 Cyan</option>
+          <option value="#fed7aa">🟠 Orange</option>
+          <option value="#fecdd3">🔴 Rose</option>
+          <option value="none">✕ Remove Highlight</option>
         </select>
       </div>
 

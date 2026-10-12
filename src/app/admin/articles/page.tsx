@@ -10,29 +10,12 @@ import { articleService, ArticleData } from '@/services/articleService';
 import {
   Plus, Search, Filter, Trash2, Edit, ExternalLink, Star,
   TrendingUp, RefreshCw, Eye, Calendar, User, CheckCircle,
-  AlertCircle, Sparkles
+  AlertCircle, Sparkles, Tag, Zap
 } from 'lucide-react';
+import { CategoryManagerModal } from '@/components/admin/CategoryManagerModal';
+import { categoryService, CategoryData } from '@/services/categoryService';
 
-const CATEGORIES = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'india', label: 'India' },
-  { value: 'national', label: 'National' },
-  { value: 'cricket', label: 'Cricket' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'world', label: 'World News' },
-  { value: 'tech', label: 'Tech & Science' },
-  { value: 'business', label: 'Business' },
-  { value: 'entertainment', label: 'Entertainment' },
-  { value: 'fashion', label: 'Fashion & Beauty' },
-  { value: 'brandverse', label: 'Brandverse' },
-  { value: 'lifestyle', label: 'Lifestyle' },
-  { value: 'auto', label: 'Auto' },
-  { value: 'spiritual', label: 'Spiritual' },
-  { value: 'horoscope', label: 'Horoscope & Astrology' },
-  { value: 'education', label: 'Education' },
-  { value: 'explainer', label: 'Explainer' },
-  { value: 'opinion', label: 'Opinion' },
-];
+
 
 function AdminArticlesListContent() {
   const router = useRouter();
@@ -45,6 +28,10 @@ function AdminArticlesListContent() {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Dynamic Categories state
+  const [dynamicCategories, setDynamicCategories] = useState<CategoryData[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -53,6 +40,19 @@ function AdminArticlesListContent() {
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const fetchDynamicCategories = async () => {
+    try {
+      const cats = await categoryService.getCategories(true);
+      setDynamicCategories(cats);
+    } catch (err) {
+      console.warn('Failed to load categories', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDynamicCategories();
+  }, []);
 
   const fetchArticles = async () => {
     try {
@@ -104,7 +104,24 @@ function AdminArticlesListContent() {
       });
       setArticles(prev => prev.map(a => a.id === article.id ? { ...a, isTrending: updated.isTrending } : a));
     } catch (err) {
-      alert('Failed to update Trending status');
+      alert('Failed to update Top News status');
+    }
+  };
+
+  const handleToggleQuickHighlight = async (article: ArticleData) => {
+    try {
+      const currentTags = article.tags ? article.tags.split(',').map(t => t.trim()) : [];
+      const hasHighlight = currentTags.includes('quick_highlight');
+      const newTags = hasHighlight
+        ? currentTags.filter(t => t !== 'quick_highlight')
+        : [...currentTags, 'quick_highlight'];
+
+      const updated = await articleService.updateArticle(article.id, {
+        tags: newTags
+      });
+      setArticles(prev => prev.map(a => a.id === article.id ? { ...a, tags: updated.tags } : a));
+    } catch (err) {
+      alert('Failed to update Quick Highlight status');
     }
   };
 
@@ -161,6 +178,15 @@ function AdminArticlesListContent() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
+              <button
+                id="manage-categories-btn"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <Tag className="w-3.5 h-3.5 text-red-600" />
+                <span>Manage Categories</span>
+              </button>
+
               <Link
                 href="/admin/articles/create"
                 className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all cursor-pointer"
@@ -193,8 +219,11 @@ function AdminArticlesListContent() {
                 }}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
               >
-                {CATEGORIES.map(c => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                <option value="all">All Categories</option>
+                {dynamicCategories.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
 
@@ -294,17 +323,17 @@ function AdminArticlesListContent() {
                           </span>
                         </td>
 
-                        {/* Homepage Badges (Lead Story / Trending Toggles) */}
+                        {/* Homepage Badges (Lead Story / Top News / Quick Highlights Toggles) */}
                         <td className="py-3.5 px-4">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1.5">
                             <button
                               onClick={() => handleToggleLead(item)}
                               className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
                                 item.isLeadStory
-                                  ? 'bg-amber-50 border-amber-300 text-amber-700'
+                                  ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-2xs'
                                   : 'bg-white border-slate-200 text-slate-400 hover:text-amber-600 hover:border-amber-200'
                               }`}
-                              title={item.isLeadStory ? 'Lead Story Active' : 'Make Lead Story'}
+                              title={item.isLeadStory ? 'Lead Story Active (Main Hero)' : 'Make Lead Story'}
                             >
                               <Star className={`w-3.5 h-3.5 ${item.isLeadStory ? 'fill-amber-500 text-amber-500' : ''}`} />
                               <span>Hero</span>
@@ -314,14 +343,32 @@ function AdminArticlesListContent() {
                               onClick={() => handleToggleTrending(item)}
                               className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
                                 item.isTrending
-                                  ? 'bg-rose-50 border-rose-300 text-rose-700'
+                                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
                                   : 'bg-white border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200'
                               }`}
-                              title={item.isTrending ? 'Trending Active (01-05)' : 'Mark Trending'}
+                              title={item.isTrending ? 'Top News Active (01-05 Sidebar)' : 'Mark Top News'}
                             >
                               <TrendingUp className={`w-3.5 h-3.5 ${item.isTrending ? 'text-rose-600' : ''}`} />
-                              <span>Top 5</span>
+                              <span>Top News</span>
                             </button>
+
+                            {(() => {
+                              const isHighlight = Boolean(item.tags && item.tags.includes('quick_highlight'));
+                              return (
+                                <button
+                                  onClick={() => handleToggleQuickHighlight(item)}
+                                  className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+                                    isHighlight
+                                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs'
+                                      : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200'
+                                  }`}
+                                  title={isHighlight ? 'Quick Highlight Active (Left Column)' : 'Mark Quick Highlight'}
+                                >
+                                  <Zap className={`w-3.5 h-3.5 ${isHighlight ? 'fill-indigo-500 text-indigo-600' : ''}`} />
+                                  <span>Highlight</span>
+                                </button>
+                              );
+                            })()}
                           </div>
                         </td>
 
@@ -489,6 +536,12 @@ function AdminArticlesListContent() {
         </div>
       )}
 
+      {/* Category Manager Modal */}
+      <CategoryManagerModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onUpdated={fetchDynamicCategories}
+      />
     </div>
   );
 }

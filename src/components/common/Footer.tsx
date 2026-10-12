@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-jagran-dark text-slate-300 border-t border-slate-800 transition-colors">
+    <footer className="w-full max-w-full overflow-hidden bg-jagran-dark text-slate-300 border-t border-slate-800 transition-colors">
       
       {/* 1. TOP NEWSLETTER & GRIEVANCE STRIP */}
       <div className="bg-slate-950 border-b border-slate-800 py-8 px-4 sm:px-8 lg:px-10">
@@ -32,11 +32,11 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Grievance Email Box */}
-          <div className="flex items-center space-x-3 bg-slate-900 border border-slate-800 px-4 py-3 rounded-xl text-xs text-slate-300">
+          <div className="flex items-center space-x-3 bg-slate-900 border border-slate-800 px-4 py-3 rounded-xl text-xs text-slate-300 max-w-full min-w-0 overflow-hidden w-full sm:w-auto">
             <Mail className="w-5 h-5 text-jagran-red shrink-0" />
             <div>
               <p className="font-bold text-white">Grievances & Feedback:</p>
-              <a href="mailto:grievance@dailyjagran.com" className="text-amber-400 hover:underline">
+              <a href="mailto:grievance@dailyjagran.com" className="text-amber-400 hover:underline break-all">
                 grievance@dailyjagran.com
               </a>
             </div>
@@ -140,7 +140,7 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* 3. BOTTOM COPYRIGHT STRIP */}
-      <div className="bg-slate-950 border-t border-slate-900 py-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-400">
+      <div className="w-full bg-slate-950 border-t border-slate-900 pt-4 pb-20 md:pb-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-400">
         <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© {new Date().getFullYear()} Jagran Media Network. All rights reserved.</p>
           

@@ -504,11 +504,11 @@ export default function CityWeatherDetailPage({ params }: PageProps) {
 
               {/* Lower Section: 7-Day Forecast Cards Strip */}
               <div className="mt-6 pt-5 border-t border-white/50 relative z-10">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="flex overflow-x-auto no-scrollbar gap-2.5 pb-2 snap-x lg:grid lg:grid-cols-6">
                   {weeklyForecast.slice(1, 7).map((day) => (
                     <div
                       key={day.date}
-                      className="bg-white/90 backdrop-blur-sm rounded-xl p-3 text-center border border-white/70 shadow-sm hover:shadow-md transition-all"
+                      className="shrink-0 w-28 sm:w-32 lg:w-auto snap-start bg-white/90 backdrop-blur-sm rounded-xl p-3 text-center border border-white/70 shadow-sm hover:shadow-md transition-all"
                     >
                       <div className="text-xs font-bold text-gray-900 leading-tight">
                         {day.dayName}

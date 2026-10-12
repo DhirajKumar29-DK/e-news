@@ -41,7 +41,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
       <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto animate-pulse">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column Skeleton */}
-          <div className="lg:col-span-3 space-y-4 bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+          <div className="hidden lg:block lg:col-span-3 space-y-4 bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4">
             <div className="h-5 w-36 bg-slate-200 dark:bg-slate-700 rounded"></div>
             <div className="space-y-4 divide-y divide-slate-100 dark:divide-slate-800">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -166,7 +166,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
         {/* ========================================================= */}
         {/* 1. LEFT COLUMN: 5 TEXT-ONLY HEADLINES WITH CATEGORY TAGS (3 Cols) */}
         {/* ========================================================= */}
-        <div className="lg:col-span-3 lg:sticky lg:top-24 self-start space-y-3 bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+        <div className="hidden lg:block lg:col-span-3 lg:sticky lg:top-24 self-start space-y-3 bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4">
           <div className="border-b-2 border-jagran-red pb-1.5 mb-1">
             <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">
               QUICK HIGHLIGHTS
@@ -311,8 +311,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
             </div>
           </div>
 
-          {/* TOP NEWS 1 to 5 Numbered Sidebar */}
-          <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
+          {/* TOP NEWS 1 to 5 Numbered Sidebar (Hidden on Mobile, Visible on Desktop) */}
+          <div className="hidden lg:block bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
             <div className="flex items-center justify-between border-b-2 border-jagran-red pb-1">
               <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5">
                 <TrendingUp className="w-4 h-4 text-jagran-red" />

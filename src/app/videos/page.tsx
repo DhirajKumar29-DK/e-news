@@ -7,7 +7,70 @@ import { Header, Footer, SearchModal } from '@/components/common';
 import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2 } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
 
-export default function VideosPage() {
+function updateVideoSEO(video: VideoData) {
+  if (typeof document === 'undefined') return;
+  const siteTitle = 'The Daily Jagran';
+  const pageTitle = video.metaTitle || video.title || 'Latest News Video';
+  const pageDesc = video.metaDescription || video.description || 'Watch latest news videos, breaking bulletins, field reports, and expert analysis on The Daily Jagran.';
+  const pageImage = video.thumbnailUrl || (video.youtubeId ? `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg` : '');
+  const pageUrl = video.canonicalUrl || (typeof window !== 'undefined' ? `${window.location.origin}/videos?v=${encodeURIComponent(video.slug || video.id || '')}` : '');
+  const pageKeywords = video.metaKeywords || video.tags || '';
+
+  // Title
+  document.title = `${pageTitle} | ${siteTitle}`;
+
+  // Helper to upsert meta tag
+  const setMeta = (selector: string, attr: string, value: string) => {
+    let el = document.querySelector(selector) as HTMLMetaElement | null;
+    if (!el) {
+      el = document.createElement('meta');
+      const parts = selector.replace('meta[', '').replace(']', '').split('=');
+      if (parts.length === 2) {
+        el.setAttribute(parts[0], parts[1].replace(/"/g, ''));
+      }
+      document.head.appendChild(el);
+    }
+    el.setAttribute(attr, value);
+  };
+
+  const setLink = (rel: string, href: string) => {
+    let el = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+    if (!el) {
+      el = document.createElement('link');
+      el.setAttribute('rel', rel);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('href', href);
+  };
+
+  // Standard SEO
+  setMeta('meta[name="description"]', 'content', pageDesc);
+  if (pageKeywords) setMeta('meta[name="keywords"]', 'content', pageKeywords);
+  setMeta('meta[name="robots"]', 'content', 'index, follow');
+
+  // Canonical URL
+  if (pageUrl) setLink('canonical', pageUrl);
+
+  // Open Graph
+  setMeta('meta[property="og:title"]', 'content', pageTitle);
+  setMeta('meta[property="og:description"]', 'content', pageDesc);
+  setMeta('meta[property="og:type"]', 'content', 'video.other');
+  if (pageUrl) setMeta('meta[property="og:url"]', 'content', pageUrl);
+  setMeta('meta[property="og:site_name"]', 'content', siteTitle);
+  if (pageImage) setMeta('meta[property="og:image"]', 'content', pageImage);
+
+  // Twitter Card
+  setMeta('meta[name="twitter:card"]', 'content', 'summary_large_image');
+  setMeta('meta[name="twitter:title"]', 'content', pageTitle);
+  setMeta('meta[name="twitter:description"]', 'content', pageDesc);
+  if (pageImage) setMeta('meta[name="twitter:image"]', 'content', pageImage);
+}
+
+interface VideosPageProps {
+  initialVideoId?: string;
+}
+
+export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   const router = useRouter();
   const { language, t } = useLanguage();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -31,16 +94,34 @@ export default function VideosPage() {
     }
   }, []);
 
-  // Fetch featured and trending videos on mount
+  // Fetch featured and trending videos on mount (or specific video if initialVideoId / ?v= provided)
   useEffect(() => {
     let isMounted = true;
     const loadFeaturedAndTrending = async () => {
       try {
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const targetIdOrSlug = initialVideoId || urlParams?.get('v');
+        let hero: VideoData | null = null;
+
+        if (targetIdOrSlug) {
+          try {
+            const specificVideo = await videoService.getVideoByIdOrSlug(targetIdOrSlug);
+            if (specificVideo) {
+              hero = specificVideo;
+            }
+          } catch (err) {
+            console.warn('Could not load target video:', err);
+          }
+        }
+
         const data = await videoService.getFeaturedAndTrending();
         if (isMounted) {
-          const hero = data.heroVideo || (data.trendingVideos && data.trendingVideos[0]) || null;
+          if (!hero) {
+            hero = data.heroVideo || (data.trendingVideos && data.trendingVideos[0]) || null;
+          }
           setFeaturedHero(hero);
           setActiveHero(hero);
+          if (hero) updateVideoSEO(hero);
           setTrendingList(data.trendingVideos ? data.trendingVideos.slice(0, 5) : []);
         }
       } catch (err) {
@@ -51,7 +132,7 @@ export default function VideosPage() {
     };
     loadFeaturedAndTrending();
     return () => { isMounted = false; };
-  }, []);
+  }, [initialVideoId]);
 
   // Fetch all videos
   useEffect(() => {
@@ -73,8 +154,13 @@ export default function VideosPage() {
   const handleSelectVideo = (vid: VideoData) => {
     setActiveHero(vid);
     setIsPlayingHero(false);
+    updateVideoSEO(vid);
     if (vid.id) {
       videoService.incrementViews(vid.id);
+    }
+    if (typeof window !== 'undefined') {
+      const newUrl = `${window.location.pathname}?v=${encodeURIComponent(vid.slug || vid.id || '')}`;
+      window.history.replaceState({}, '', newUrl);
     }
     window.scrollTo({ top: 100, behavior: 'smooth' });
   };
@@ -82,7 +168,7 @@ export default function VideosPage() {
   const handleShare = (vid: VideoData, e: React.MouseEvent) => {
     e.stopPropagation();
     if (typeof window !== 'undefined') {
-      const url = `${window.location.origin}/videos?v=${vid.slug || vid.id}`;
+      const url = `${window.location.origin}/videos?v=${encodeURIComponent(vid.slug || vid.id || '')}`;
       navigator.clipboard.writeText(url);
       setCopiedId(vid.id);
       setTimeout(() => setCopiedId(null), 2000);

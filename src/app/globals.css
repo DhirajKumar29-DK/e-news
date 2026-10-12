@@ -3,8 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    overflow-x: clip !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background-color: #020617; /* Dark slate-950 so no white line can ever peek through at edges or bottom */
+  }
   body {
-    @apply bg-jagran-bg text-slate-900 dark:bg-brand-dark-bg dark:text-slate-100 transition-colors duration-200 antialiased pb-16 md:pb-0;
+    overflow-x: clip !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh;
+    @apply bg-jagran-bg text-slate-900 dark:bg-brand-dark-bg dark:text-slate-100 transition-colors duration-200 antialiased;
   }
 }
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
-import { Header, Footer, SearchModal } from '@/components/common';
+import { Header, Footer, SearchModal, MobileBottomNav } from '@/components/common';
 import { Clock, TrendingUp, ChevronRight, HelpCircle, ArrowRight, Home, RefreshCw } from 'lucide-react';
 import { articleService, ArticleData } from '@/services/articleService';
 import VideosPage from '@/app/videos/page';
@@ -156,14 +156,30 @@ export default function CategoryPage() {
       }
     }
 
-    // Also fetch general top news for the sidebar
-    articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
-      .then((topRes: any) => {
-        if (topRes.articles && topRes.articles.length > 0) {
-          setTopNewsArticles(topRes.articles);
+    // Fetch exact same homepage TOP NEWS for the sidebar
+    articleService.getHomeArticles()
+      .then((homeRes) => {
+        if (homeRes && homeRes.trending && homeRes.trending.length > 0) {
+          setTopNewsArticles(homeRes.trending.slice(0, 5));
+        } else {
+          articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
+            .then((topRes: any) => {
+              if (topRes.articles && topRes.articles.length > 0) {
+                setTopNewsArticles(topRes.articles);
+              }
+            })
+            .catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        articleService.getArticles({ limit: 5, sortBy: 'publishedAt', sortOrder: 'desc' })
+          .then((topRes: any) => {
+            if (topRes.articles && topRes.articles.length > 0) {
+              setTopNewsArticles(topRes.articles);
+            }
+          })
+          .catch(() => {});
+      });
 
     fetchCategoryBatch(1)
       .then((res: any) => {
@@ -230,12 +246,12 @@ export default function CategoryPage() {
   const leadArticle = displayArticles[0];
   const feedArticles = displayArticles.slice(1);
 
-  const sidebarSource = (slug === 'brandverse' && topNewsArticles.length > 0) ? topNewsArticles : (rawArticles.slice(0, 5).length > 0 ? rawArticles : topNewsArticles);
+  const sidebarSource = topNewsArticles.length > 0 ? topNewsArticles : rawArticles.slice(0, 5);
   const currentSidebarNews = sidebarSource.slice(0, 5).map((art, idx) => ({
-    id: art.id,
+    id: art.slug || art.id,
     trendingRank: idx + 1,
-    category: typeof art.category === 'string' ? art.category : 'NEWS',
-    title: typeof art.title === 'string' ? { en: art.title } : art.title
+    category: typeof art.category === 'string' ? art.category.toUpperCase() : 'NEWS',
+    title: typeof art.title === 'string' ? art.title : ((art.title as any)?.en || '')
   }));
 
   return (
@@ -273,7 +289,7 @@ export default function CategoryPage() {
         onSelectCategory={(catSlug) => router.push(catSlug === 'all' ? '/' : (catSlug === 'videos' ? '/videos' : `/${catSlug}`))}
       />
 
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 py-6 flex-1 space-y-6">
+      <div className="w-full max-w-[1440px] mx-auto px-3 sm:px-8 lg:px-10 py-4 sm:py-6 flex-1 space-y-6 min-w-0">
 
         {isLoading ? (
           <div className="space-y-6 animate-pulse py-4">
@@ -342,7 +358,7 @@ export default function CategoryPage() {
                     <img
                       src={card.imageUrl}
                       alt={t(card.title)}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=1200&q=80"; }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <span className="absolute top-3 left-3 bg-red-700 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest shadow">
                       EXPLAINED
@@ -423,7 +439,8 @@ export default function CategoryPage() {
               </div>
 
               {/* Sub-category Filter Chips */}
-              <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1">
+              <div className="w-full max-w-full min-w-0 overflow-hidden pt-1 pb-1">
+                <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
                 {currentFilters.map((filter) => (
                   <button
                     key={filter}
@@ -436,36 +453,40 @@ export default function CategoryPage() {
                     {filter}
                   </button>
                 ))}
+                </div>
               </div>
             </div>
 
             {/* 2-Column Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="w-full min-w-0 max-w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
 
               {/* Main Feed Column (8 Cols) */}
-              <div className="lg:col-span-8 space-y-8">
+              <div className="w-full min-w-0 lg:col-span-8 space-y-6 sm:space-y-8">
 
                 {/* Primary Category Lead Article */}
                 {leadArticle && (
                   <article
                     onClick={() => router.push(`/article/${leadArticle.id}`)}
-                    className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all group"
+                    className="w-full min-w-0 max-w-full bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all group"
                   >
                     <div className="aspect-[16/9] bg-slate-900 overflow-hidden relative">
                       <img
                         src={leadArticle.imageUrl}
                         alt={t(leadArticle.title)}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=1200&q=80';
+                        }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <span className="absolute top-3 left-3 bg-jagran-red text-white text-xs font-bold px-3 py-1 rounded shadow uppercase tracking-wide">
                         {leadArticle.category}
                       </span>
                     </div>
-                    <div className="p-6 space-y-3">
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight font-serif">
+                    <div className="p-4 sm:p-6 space-y-2.5 sm:space-y-3">
+                      <h2 className="text-base sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug sm:leading-tight font-serif break-words">
                         {t(leadArticle.title)}
                       </h2>
-                      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3 break-words">
                         {t(leadArticle.summary)}
                       </p>
                       <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
@@ -494,32 +515,30 @@ export default function CategoryPage() {
                     <article
                       key={art.id}
                       onClick={() => router.push(`/article/${art.id}`)}
-                      className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:shadow-md cursor-pointer transition-all group flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-start"
+                      className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 shadow-xs hover:shadow-md cursor-pointer transition-all group flex flex-row items-center justify-between gap-3 sm:gap-4"
                     >
-                      <div className="w-full sm:w-48 aspect-[16/10] rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                      <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
+                        <span className="text-[10px] sm:text-xs font-black uppercase text-jagran-red tracking-wider block">
+                          {art.category}
+                        </span>
+                        <h4 className="text-xs sm:text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+                          {t(art.title)}
+                        </h4>
+                        <div className="flex items-center space-x-2 text-[10px] sm:text-xs text-slate-400 font-medium">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{t(art.timeAgo)}</span>
+                        </div>
+                      </div>
+
+                      <div className="w-24 h-20 sm:w-44 sm:h-28 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80">
                         <img
                           src={art.imageUrl}
                           alt={t(art.title)}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80';
+                          }}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <span className="text-[10px] font-bold uppercase text-jagran-red block">
-                          {art.category}
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
-                          {t(art.title)}
-                        </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
-                          {t(art.summary)}
-                        </p>
-                        <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1">
-                          <div className="flex items-center space-x-2">
-                            <span>{t(art.timeAgo)}</span>
-                            <span>•</span>
-                            <span>{t(art.readTime)}</span>
-                          </div>
-                        </div>
                       </div>
                     </article>
                   ))}
@@ -550,33 +569,33 @@ export default function CategoryPage() {
 
               </div>
 
-              {/* Right Top News Sidebar (4 Cols) - STICKY */}
-              <div className="lg:col-span-4 space-y-6 sticky top-32 self-start z-10">
+              {/* Right Top News Sidebar (4 Cols) - HIDDEN ON MOBILE, STICKY ON DESKTOP */}
+              <aside className="hidden lg:block w-full min-w-0 lg:col-span-4 space-y-6 lg:sticky lg:top-24 self-start">
 
-                {/* Top Category News Box */}
-                <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-extrabold flex items-center space-x-2 text-slate-900 dark:text-white">
+                {/* TOP NEWS 1 to 5 Numbered Sidebar (Exact Same as Homepage) */}
+                <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between border-b-2 border-jagran-red pb-1">
+                    <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-1.5">
                       <TrendingUp className="w-4 h-4 text-jagran-red" />
-                      <span>Top {categoryNames[slug] || slug.toUpperCase()} News</span>
+                      <span>TOP NEWS</span>
                     </h3>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {currentSidebarNews.map((item) => (
                       <article
                         key={item.id}
                         onClick={() => router.push(`/article/${item.id}`)}
-                        className="flex space-x-3 items-start group cursor-pointer border-b border-slate-100 dark:border-slate-800/60 pb-3 last:border-0 last:pb-0"
+                        className="py-2.5 first:pt-0 last:pb-0 flex space-x-2.5 items-start group cursor-pointer"
                       >
-                        <span className="font-serif font-black text-2xl text-jagran-red/40 group-hover:text-jagran-red transition-colors w-6 shrink-0">
+                        <span className="font-serif font-black text-xl text-jagran-red/60 group-hover:text-jagran-red transition-colors w-5 shrink-0 leading-none">
                           0{item.trendingRank}
                         </span>
-                        <div className="flex-1">
-                          <span className="text-[10px] font-bold uppercase text-jagran-red block mb-0.5">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] sm:text-xs font-black uppercase text-jagran-red block mb-0.5">
                             {item.category}
                           </span>
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+                          <h4 className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug line-clamp-2">
                             {t(item.title)}
                           </h4>
                         </div>
@@ -585,7 +604,7 @@ export default function CategoryPage() {
                   </div>
                 </div>
 
-              </div>
+              </aside>
 
             </div>
           </div>

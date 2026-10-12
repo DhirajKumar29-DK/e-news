@@ -14,15 +14,13 @@ export const WeatherNewsSection: React.FC = () => {
     let mounted = true;
     async function loadNews() {
       try {
-        // Try to fetch weather articles first
-        let res = await articleService.getArticles({ search: 'weather', limit: 8, status: 'PUBLISHED' });
-        let news = res?.articles || [];
-
-        // If less than 4 articles found, fallback to latest articles
-        if (news.length < 4) {
-          const fallbackRes = await articleService.getArticles({ limit: 8, status: 'PUBLISHED' });
-          news = fallbackRes?.articles || [];
-        }
+        // Strictly fetch weather category articles
+        const res = await articleService.getArticles({
+          category: 'weather',
+          limit: 8,
+          status: 'PUBLISHED'
+        });
+        const news = res?.articles || [];
 
         if (mounted) {
           setArticles(news);

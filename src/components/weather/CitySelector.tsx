@@ -23,27 +23,53 @@ export const CitySelector: React.FC<CitySelectorProps> = ({
   const [selectedCitySlug, setSelectedCitySlug] = useState<string>(initialCitySlug || '');
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Load states on mount
+  // Load states on mount and auto-resolve state
   useEffect(() => {
     let mounted = true;
     weatherService.getStates().then((data) => {
-      if (mounted) {
-        setStates(data);
-        if (initialStateId) {
-          const matched = data.find((s) => s.id === initialStateId || s.slug === initialStateId);
-          if (matched) {
-            setSelectedStateId(matched.id);
-            if (matched.cities && matched.cities.length > 0) {
-              setCities(matched.cities);
-            }
-          }
+      if (!mounted) return;
+      setStates(data);
+
+      let matchedState: WeatherState | undefined;
+
+      // 1. Try to find state that owns initialCitySlug
+      if (initialCitySlug) {
+        const cleanSlug = initialCitySlug.replace('-weather-forecast-today', '').toLowerCase();
+        matchedState = data.find((s) =>
+          s.cities?.some((c) => c.slug.toLowerCase() === cleanSlug)
+        );
+      }
+
+      // 2. Try to match by initialStateId
+      if (!matchedState && initialStateId) {
+        matchedState = data.find((s) =>
+          s.id === initialStateId ||
+          s.slug.toLowerCase() === initialStateId.toLowerCase() ||
+          s.name.toLowerCase() === initialStateId.toLowerCase()
+        );
+      }
+
+      // 3. Fallback to localStorage saved state
+      if (!matchedState && typeof window !== 'undefined') {
+        const savedId = localStorage.getItem('weather_selected_state_id');
+        if (savedId) {
+          matchedState = data.find((s) => s.id === savedId || s.slug === savedId);
+        }
+      }
+
+      // 4. Apply matched state & its cities
+      if (matchedState) {
+        setSelectedStateId(matchedState.id);
+        if (matchedState.cities && matchedState.cities.length > 0) {
+          setCities(matchedState.cities);
         }
       }
     });
+
     return () => {
       mounted = false;
     };
-  }, [initialStateId]);
+  }, [initialStateId, initialCitySlug]);
 
   // Load cities when state changes
   useEffect(() => {
@@ -78,12 +104,22 @@ export const CitySelector: React.FC<CitySelectorProps> = ({
     const stateId = e.target.value;
     setSelectedStateId(stateId);
     setSelectedCitySlug('');
+    if (typeof window !== 'undefined') {
+      if (stateId) {
+        localStorage.setItem('weather_selected_state_id', stateId);
+      } else {
+        localStorage.removeItem('weather_selected_state_id');
+      }
+    }
   };
 
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const slug = e.target.value;
     setSelectedCitySlug(slug);
     if (slug) {
+      if (selectedStateId && typeof window !== 'undefined') {
+        localStorage.setItem('weather_selected_state_id', selectedStateId);
+      }
       router.push(`/weather/${slug}-weather-forecast-today`);
     }
   };

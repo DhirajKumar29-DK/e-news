@@ -9,6 +9,7 @@ interface SplitItem {
   id: string;
   category: string;
   title: any;
+  summary?: any;
   imageUrl: string;
   timeAgo?: any;
 }
@@ -46,10 +47,10 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
       </div>
 
       {/* 50/50 Split Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="w-full min-w-0 max-w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Left Half: Big Lead Feature Card (6 Cols) */}
-        <div className="lg:col-span-6">
+        <div className="w-full min-w-0 lg:col-span-6">
           <article
             onClick={() => router.push(`/article/${leadItem.id}`)}
             className="h-full bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
@@ -58,18 +59,28 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
               <img
                 src={leadItem.imageUrl}
                 alt={t(leadItem.title)}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
+                }}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <span className="absolute top-3.5 left-3.5 bg-jagran-red text-white text-xs font-black px-3 py-1 rounded uppercase tracking-wider">
                 {leadItem.category}
               </span>
             </div>
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-              <h3 className="text-xl sm:text-2xl font-extrabold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
-                {t(leadItem.title)}
-              </h3>
+            <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
+              <div className="space-y-2.5">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                  {t(leadItem.title)}
+                </h3>
+                {leadItem.summary && (
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-3 sm:line-clamp-4 leading-relaxed font-normal">
+                    {t(leadItem.summary)}
+                  </p>
+                )}
+              </div>
               {leadItem.timeAgo && (
-                <span className="text-xs text-slate-500 font-semibold pt-2 block border-t border-slate-100 dark:border-slate-800">
+                <span className="text-xs text-slate-500 font-semibold pt-2.5 block border-t border-slate-100 dark:border-slate-800">
                   {t(leadItem.timeAgo)}
                 </span>
               )}
@@ -78,29 +89,37 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
         </div>
 
         {/* Right Half: 2x2 Grid of 4 Cards (6 Cols) */}
-        <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="w-full min-w-0 lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {gridItems.map((item) => (
             <article
               key={item.id}
               onClick={() => router.push(`/article/${item.id}`)}
-              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
+              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row sm:flex-col items-center sm:items-stretch justify-between p-2.5 sm:p-0 gap-3 sm:gap-0"
             >
-              <div className="aspect-[16/10] bg-slate-100 overflow-hidden relative">
+              <div className="w-28 h-20 sm:w-full sm:h-auto sm:aspect-[16/10] bg-slate-100 dark:bg-slate-800 rounded-lg sm:rounded-none overflow-hidden relative shrink-0">
                 <img
                   src={item.imageUrl}
                   alt={t(item.title)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-2.5 py-0.5 rounded uppercase">
+                <span className="hidden sm:inline-block absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-2.5 py-0.5 rounded uppercase">
                   {item.category}
                 </span>
               </div>
-              <div className="p-3.5 flex-1 flex flex-col justify-between">
-                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
-                  {t(item.title)}
-                </h4>
+              <div className="flex-1 min-w-0 p-0 sm:p-3.5 flex flex-col justify-between">
+                <div>
+                  <span className="sm:hidden text-[10px] font-black uppercase text-jagran-red block mb-1">
+                    {item.category}
+                  </span>
+                  <h4 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                    {t(item.title)}
+                  </h4>
+                </div>
                 {item.timeAgo && (
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-1.5 block">
+                  <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-1 sm:pt-1.5 block">
                     {t(item.timeAgo)}
                   </span>
                 )}

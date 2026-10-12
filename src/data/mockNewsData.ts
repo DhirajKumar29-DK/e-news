@@ -8,22 +8,24 @@ export const mockWeather: WeatherInfo = {
   iconName: 'SunCloud'
 };
 
-// 2. Navigation Category Tabs
+// 2. Navigation Category Tabs (Default order matching Admin Database)
 export const mockCategoryTabs: CategoryTab[] = [
   { id: 'cat-all', label: { en: 'HOME' }, slug: 'all' },
   { id: 'cat-latest', label: { en: 'LATEST NEWS' }, slug: 'latest' },
-  { id: 'cat-india', label: { en: 'INDIA' }, slug: 'india' },
   { id: 'cat-world', label: { en: 'WORLD' }, slug: 'world' },
+  { id: 'cat-crime', label: { en: 'CRIME' }, slug: 'crime' },
+  { id: 'cat-india', label: { en: 'INDIA' }, slug: 'india' },
   { id: 'cat-ent', label: { en: 'ENTERTAINMENT' }, slug: 'entertainment' },
   { id: 'cat-life', label: { en: 'LIFESTYLE' }, slug: 'lifestyle' },
   { id: 'cat-biz', label: { en: 'BUSINESS' }, slug: 'business' },
   { id: 'cat-edu', label: { en: 'EDUCATION' }, slug: 'education' },
   { id: 'cat-cric', label: { en: 'CRICKET' }, slug: 'cricket' },
+  { id: 'cat-auto', label: { en: 'AUTO' }, slug: 'auto' },
   { id: 'cat-tech', label: { en: 'TECH' }, slug: 'tech' },
   { id: 'cat-sports', label: { en: 'SPORTS' }, slug: 'sports' },
-  { id: 'cat-auto', label: { en: 'AUTO' }, slug: 'auto' },
   { id: 'cat-spiritual', label: { en: 'SPIRITUAL' }, slug: 'spiritual' },
-  { id: 'cat-horoscope', label: { en: 'HOROSCOPE' }, slug: 'horoscope' }
+  { id: 'cat-horoscope', label: { en: 'HOROSCOPE' }, slug: 'horoscope' },
+  { id: 'cat-weather', label: { en: 'WEATHER' }, slug: 'weather' }
 ];
 
 // 3. Topic Pills (empty - can be populated dynamically if needed)

@@ -17,6 +17,8 @@ export interface HoroscopeData {
   remedy?: string | null;
   date?: string | null;
   updatedAt?: string;
+  iconUrl?: string | null;
+  [key: string]: any;
 }
 
 export const horoscopeService = {

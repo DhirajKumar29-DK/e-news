@@ -24,6 +24,11 @@ export interface ArticleData {
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  // SEO Metadata Fields
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaKeywords?: string | null;
+  canonicalUrl?: string | null;
 }
 
 export interface ArticlesQuery {

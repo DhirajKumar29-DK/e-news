@@ -9,39 +9,33 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { articleService, ArticleData } from '@/services/articleService';
 import {
   ArrowLeft, Save, Send, Image as ImageIcon, Sparkles, Plus, Trash2,
-  Star, TrendingUp, CheckCircle, AlertCircle, FileText, UploadCloud, Link as LinkIcon, Wand2
+  Star, TrendingUp, CheckCircle, AlertCircle, FileText, UploadCloud, Link as LinkIcon, Wand2, Zap, Search
 } from 'lucide-react';
 import { cleanHtmlToPlainText, stripHtml } from '@/utils/textUtils';
+import { categoryService, CategoryData } from '@/services/categoryService';
+import { CategoryManagerModal } from '@/components/admin/CategoryManagerModal';
 
-const CATEGORIES = [
-  { value: 'india', label: 'India' },
-  { value: 'national', label: 'National' },
-  { value: 'cricket', label: 'Cricket' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'world', label: 'World News' },
-  { value: 'tech', label: 'Tech & Science' },
-  { value: 'business', label: 'Business & Markets' },
-  { value: 'entertainment', label: 'Entertainment & Cinema' },
-  { value: 'fashion', label: 'Fashion & Beauty' },
-  { value: 'brandverse', label: 'Brandverse' },
-  { value: 'lifestyle', label: 'Lifestyle & Health' },
-  { value: 'auto', label: 'Auto' },
-  { value: 'spiritual', label: 'Spiritual & Faith' },
-  { value: 'horoscope', label: 'Horoscope & Astrology' },
-  { value: 'education', label: 'Education & Career' },
-  { value: 'explainer', label: 'Explainer (Deep Analysis)' },
-  { value: 'opinion', label: 'Opinion & Editorial' },
-];
+
 
 function EditArticleContent() {
   const router = useRouter();
   const params = useParams();
   const articleId = typeof params?.id === 'string' ? params.id : '';
 
+  const [dynamicCategories, setDynamicCategories] = useState<CategoryData[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    categoryService.getCategories(true).then((cats) => {
+      if (cats && cats.length > 0) {
+        setDynamicCategories(cats);
+      }
+    }).catch((err) => console.warn('Failed to load categories', err));
+  }, []);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -60,7 +54,14 @@ function EditArticleContent() {
   // Toggles
   const [isLeadStory, setIsLeadStory] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
+  const [isQuickHighlight, setIsQuickHighlight] = useState(false);
   const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
+
+  // SEO Metadata Fields
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [metaKeywords, setMetaKeywords] = useState('');
+  const [canonicalUrl, setCanonicalUrl] = useState('');
 
   // Upload state
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -99,6 +100,7 @@ function EditArticleContent() {
           setAuthorName(data.authorName || 'News Desk');
           setIsLeadStory(Boolean(data.isLeadStory));
           setIsTrending(Boolean(data.isTrending));
+          setIsQuickHighlight(Boolean(data.tags && data.tags.includes('quick_highlight')));
           setStatus(data.status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED');
 
           // Parse bullet points
@@ -113,10 +115,17 @@ function EditArticleContent() {
             }
           }
 
-          // Parse tags
+          // Parse tags (stripping internal quick_highlight flag from visible tags input)
           if (data.tags) {
-            setTags(data.tags);
+            const cleanTags = data.tags.split(',').map(t => t.trim()).filter(t => t && t !== 'quick_highlight').join(', ');
+            setTags(cleanTags);
           }
+
+          // Load SEO fields
+          setMetaTitle(data.metaTitle || '');
+          setMetaDescription(data.metaDescription || '');
+          setMetaKeywords(data.metaKeywords || '');
+          setCanonicalUrl(data.canonicalUrl || '');
         }
       } catch (err: any) {
         setErrorMsg('Failed to load article details.');
@@ -166,6 +175,11 @@ function EditArticleContent() {
         .map(b => stripHtml(b.trim()))
         .filter(Boolean);
 
+      const baseTags = tags.split(',').map(t => stripHtml(t.trim())).filter(t => Boolean(t) && t !== 'quick_highlight');
+      if (isQuickHighlight) {
+        baseTags.push('quick_highlight');
+      }
+
       await articleService.updateArticle(articleId, {
         title: cleanedTitle,
         category,
@@ -176,10 +190,15 @@ function EditArticleContent() {
         imageCaption: imageCaption ? stripHtml(imageCaption.trim()) : null,
         authorName: authorName.trim() || 'News Desk',
         bulletPoints: activeBullets,
-        tags: tags.split(',').map(t => stripHtml(t.trim())).filter(Boolean),
+        tags: baseTags,
         isLeadStory,
         isTrending,
-        status: publishStatus
+        status: publishStatus,
+        // SEO Fields
+        metaTitle: metaTitle.trim() || null,
+        metaDescription: metaDescription.trim() || null,
+        metaKeywords: metaKeywords.trim() || null,
+        canonicalUrl: canonicalUrl.trim() || null
       });
 
       setSuccessMsg('Article updated successfully! Redirecting...');
@@ -531,8 +550,18 @@ function EditArticleContent() {
             <div className="lg:col-span-4 space-y-6">
               
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="text-xs font-black uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
-                  Category Assignment
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+                    Category Assignment
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="text-[11px] font-bold text-red-600 hover:text-red-700 flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Manage / Add</span>
+                  </button>
                 </div>
 
                 <div>
@@ -544,8 +573,8 @@ function EditArticleContent() {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer"
                   >
-                    {CATEGORIES.map(c => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
+                    {dynamicCategories.map(c => (
+                      <option key={c.id} value={c.slug}>{c.name}</option>
                     ))}
                   </select>
                 </div>
@@ -586,14 +615,15 @@ function EditArticleContent() {
                   />
                 </div>
 
+                {/* Top News (Sidebar) Toggle */}
                 <div className="flex items-start justify-between p-3 rounded-xl bg-rose-50/60 border border-rose-200/80">
                   <div className="space-y-0.5 pr-2">
                     <div className="flex items-center space-x-1.5 text-xs font-bold text-rose-900">
                       <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Trending News (01-05)</span>
+                      <span>Top News (01-05 Sidebar)</span>
                     </div>
                     <p className="text-[10px] text-rose-700/80 font-medium">
-                      Features article in the top 5 trending list on sidebar.
+                      Pins article in the numbered Top News 1 to 5 list on Homepage & Category pages.
                     </p>
                   </div>
                   <input
@@ -601,6 +631,25 @@ function EditArticleContent() {
                     checked={isTrending}
                     onChange={(e) => setIsTrending(e.target.checked)}
                     className="w-4 h-4 text-rose-600 rounded border-rose-300 focus:ring-rose-500 cursor-pointer mt-0.5"
+                  />
+                </div>
+
+                {/* Quick Highlights Toggle */}
+                <div className="flex items-start justify-between p-3 rounded-xl bg-indigo-50/60 border border-indigo-200/80">
+                  <div className="space-y-0.5 pr-2">
+                    <div className="flex items-center space-x-1.5 text-xs font-bold text-indigo-900">
+                      <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-500" />
+                      <span>Quick Highlights (Left Column)</span>
+                    </div>
+                    <p className="text-[10px] text-indigo-700/80 font-medium">
+                      Pins article in the 5 text-only Quick Highlights on the left strip of Homepage.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isQuickHighlight}
+                    onChange={(e) => setIsQuickHighlight(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500 cursor-pointer mt-0.5"
                   />
                 </div>
               </div>
@@ -635,6 +684,95 @@ function EditArticleContent() {
                 </div>
               </div>
 
+              {/* SEO Metadata */}
+              <div className="bg-white p-6 rounded-2xl border border-emerald-200 shadow-xs space-y-4">
+                <div className="flex items-center space-x-2 border-b border-slate-100 pb-2">
+                  <Search className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-600">SEO Metadata</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Google</span>
+                </div>
+
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  Ye fields Google aur social media ke liye hain. Khali chhodne par article title/content auto-use hoga.
+                </p>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Meta Title
+                    <span className="ml-1 font-normal normal-case text-slate-400">(Max 60 chars)</span>
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={60}
+                    placeholder="SEO title — appears in Google search results"
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                  <div className="text-right text-[10px] text-slate-400 mt-0.5">{metaTitle.length}/60</div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Meta Description
+                    <span className="ml-1 font-normal normal-case text-slate-400">(Max 160 chars)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    maxLength={160}
+                    placeholder="Short description shown under title in Google — write compelling 1-2 sentences"
+                    value={metaDescription}
+                    onChange={(e) => setMetaDescription(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                  <div className="text-right text-[10px] text-slate-400 mt-0.5">{metaDescription.length}/160</div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Meta Keywords
+                    <span className="ml-1 font-normal normal-case text-slate-400">(comma separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Modi, Budget 2025, India Economy"
+                    value={metaKeywords}
+                    onChange={(e) => setMetaKeywords(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Canonical URL
+                    <span className="ml-1 font-normal normal-case text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://yourdomain.com/article/slug (leave blank for default)"
+                    value={canonicalUrl}
+                    onChange={(e) => setCanonicalUrl(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Live Google Preview */}
+                {(metaTitle || title) && (
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Google Preview</div>
+                    <div className="text-[13px] font-semibold text-blue-600 truncate">
+                      {metaTitle || title || 'Article Title'}
+                    </div>
+                    <div className="text-[11px] text-emerald-700 truncate">
+                      yourdomain.com › article › {title.toLowerCase().replace(/\s+/g, '-').slice(0, 30) || 'slug'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 line-clamp-2">
+                      {metaDescription || subHeadline || 'Meta description will appear here...'}
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
 
           </div>
@@ -642,6 +780,16 @@ function EditArticleContent() {
         </div>
       </div>
 
+      {/* Category Manager Modal */}
+      <CategoryManagerModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onUpdated={() => {
+          categoryService.getCategories(true).then((cats) => {
+            if (cats && cats.length > 0) setDynamicCategories(cats);
+          });
+        }}
+      />
     </div>
   );
 }
