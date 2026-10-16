@@ -41,6 +41,23 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     return () => clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const handleBack = (e: Event) => {
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('app_back_pressed', handleBack);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('app_back_pressed', handleBack);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSelectArticle = (art: ArticleData) => {

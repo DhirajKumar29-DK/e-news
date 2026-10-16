@@ -11,6 +11,7 @@ interface GridItem {
   title: any;
   imageUrl: string;
   timeAgo?: any;
+  readTime?: any;
 }
 
 interface GridSectionProps {
@@ -100,14 +101,20 @@ export const GridSection: React.FC<GridSectionProps> = ({
                 <span className="text-[10px] font-black uppercase text-jagran-red block mb-1">
                   {item.category}
                 </span>
-                <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
                   {t(item.title)}
                 </h4>
               </div>
               {item.timeAgo && (
-                <div className="pt-1 flex items-center text-[10px] text-slate-400 font-medium">
+                <div className="pt-1 flex items-center text-[10px] text-slate-400 font-medium space-x-1">
                   <Clock className="w-3 h-3 text-slate-400 mr-1 shrink-0" />
                   <span>{t(item.timeAgo)}</span>
+                  {item.readTime && (
+                    <>
+                      <span>•</span>
+                      <span>{t(item.readTime)}</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -117,7 +124,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
 
       {/* Desktop / Tablet Grid (sm:grid) - 100% UNCHANGED */}
       <div className="hidden sm:grid w-full min-w-0 max-w-full sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {items.map((item) => (
+        {items.slice(0, 4).map((item) => (
           <article
             key={item.id}
             onClick={() => router.push(`/article/${item.id}`)}
@@ -137,13 +144,19 @@ export const GridSection: React.FC<GridSectionProps> = ({
               </span>
             </div>
             <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
                 {t(item.title)}
               </h3>
               {item.timeAgo && (
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[11px] text-slate-500 font-medium">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[11px] text-slate-500 font-medium space-x-1">
                   <Clock className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
                   <span>{t(item.timeAgo)}</span>
+                  {item.readTime && (
+                    <>
+                      <span>•</span>
+                      <span>{t(item.readTime)}</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>

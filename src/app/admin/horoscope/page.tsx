@@ -12,26 +12,26 @@ import {
 } from 'lucide-react';
 
 const ZODIAC_SIGNS = [
-  { id: 'aries', name: 'Aries', hindi: 'मेष', dates: 'MAR 21 - APR 19', icon: '♈' },
-  { id: 'taurus', name: 'Taurus', hindi: 'वृषभ', dates: 'APR 20 - MAY 20', icon: '♉' },
-  { id: 'gemini', name: 'Gemini', hindi: 'मिथुन', dates: 'MAY 21 - JUN 21', icon: '♊' },
-  { id: 'cancer', name: 'Cancer', hindi: 'कर्क', dates: 'JUN 21 - JUL 22', icon: '♋' },
-  { id: 'leo', name: 'Leo', hindi: 'सिंह', dates: 'JUL 23 - AUG 22', icon: '♌' },
-  { id: 'virgo', name: 'Virgo', hindi: 'कन्या', dates: 'AUG 23 - SEP 22', icon: '♍' },
-  { id: 'libra', name: 'Libra', hindi: 'तुला', dates: 'SEP 23 - OCT 22', icon: '♎' },
-  { id: 'scorpio', name: 'Scorpio', hindi: 'वृश्चिक', dates: 'OCT 23 - NOV 21', icon: '♏' },
-  { id: 'sagittarius', name: 'Sagittarius', hindi: 'धनु', dates: 'NOV 22 - DEC 21', icon: '♐' },
-  { id: 'capricorn', name: 'Capricorn', hindi: 'मकर', dates: 'DEC 22 - JAN 19', icon: '♑' },
-  { id: 'aquarius', name: 'Aquarius', hindi: 'कुंभ', dates: 'JAN 20 - FEB 18', icon: '♒' },
-  { id: 'pisces', name: 'Pisces', hindi: 'मीन', dates: 'FEB 19 - MAR 20', icon: '♓' },
+  { id: 'aries', name: 'Aries', dates: 'MAR 21 - APR 19', icon: '♈' },
+  { id: 'taurus', name: 'Taurus', dates: 'APR 20 - MAY 20', icon: '♉' },
+  { id: 'gemini', name: 'Gemini', dates: 'MAY 21 - JUN 21', icon: '♊' },
+  { id: 'cancer', name: 'Cancer', dates: 'JUN 21 - JUL 22', icon: '♋' },
+  { id: 'leo', name: 'Leo', dates: 'JUL 23 - AUG 22', icon: '♌' },
+  { id: 'virgo', name: 'Virgo', dates: 'AUG 23 - SEP 22', icon: '♍' },
+  { id: 'libra', name: 'Libra', dates: 'SEP 23 - OCT 22', icon: '♎' },
+  { id: 'scorpio', name: 'Scorpio', dates: 'OCT 23 - NOV 21', icon: '♏' },
+  { id: 'sagittarius', name: 'Sagittarius', dates: 'NOV 22 - DEC 21', icon: '♐' },
+  { id: 'capricorn', name: 'Capricorn', dates: 'DEC 22 - JAN 19', icon: '♑' },
+  { id: 'aquarius', name: 'Aquarius', dates: 'JAN 20 - FEB 18', icon: '♒' },
+  { id: 'pisces', name: 'Pisces', dates: 'FEB 19 - MAR 20', icon: '♓' },
 ];
 
 const PERIOD_TABS: Array<{ id: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'LOVE'; label: string }> = [
-  { id: 'DAILY', label: 'Daily (दैनिक)' },
-  { id: 'WEEKLY', label: 'Weekly (साप्ताहिक)' },
-  { id: 'MONTHLY', label: 'Monthly (मासिक)' },
-  { id: 'YEARLY', label: 'Yearly (वार्षिक)' },
-  { id: 'LOVE', label: 'Love (प्रेम राशिफल)' },
+  { id: 'DAILY', label: 'Daily' },
+  { id: 'WEEKLY', label: 'Weekly' },
+  { id: 'MONTHLY', label: 'Monthly' },
+  { id: 'YEARLY', label: 'Yearly' },
+  { id: 'LOVE', label: 'Love' },
 ];
 
 function HoroscopeStudioContent() {
@@ -50,7 +50,7 @@ function HoroscopeStudioContent() {
   const [formData, setFormData] = useState<Partial<HoroscopeData>>({
     sign: 'taurus',
     signName: 'Taurus',
-    hindiName: 'वृषभ',
+    hindiName: '',
     dateRange: 'APR 20 - MAY 20',
     period: 'DAILY',
     luckyColour: '',
@@ -103,7 +103,7 @@ function HoroscopeStudioContent() {
         sign: activeSign,
         period: activePeriod,
         signName: selectedSignMeta.name,
-        hindiName: selectedSignMeta.hindi,
+        hindiName: '',
         dateRange: selectedSignMeta.dates
       });
 
@@ -122,7 +122,7 @@ function HoroscopeStudioContent() {
       <AdminSidebar />
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <AdminHeader title="Horoscope & Rashifal Studio" />
+        <AdminHeader title="Horoscope Studio" />
 
         {/* Pinned Action Banner */}
         <div className="shrink-0 bg-slate-50 border-b border-slate-200/80 px-6 sm:px-8 pt-4 pb-3 max-w-7xl w-full mx-auto space-y-3">
@@ -133,13 +133,13 @@ function HoroscopeStudioContent() {
                 <span>Astrology & Vedic CMS</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900 tracking-tight flex items-center space-x-2">
-                <span>{selectedSignMeta.name} ({selectedSignMeta.hindi}) Horoscope</span>
+                <span>{selectedSignMeta.name} Horoscope</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-medium">
                   {selectedSignMeta.dates}
                 </span>
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage 12 Rashi lucky gemstones, numbers, ruling planets, remedies, and 5-timeframe predictions.
+                Manage 12 Zodiac signs lucky gemstones, numbers, ruling planets, remedies, and 5-timeframe predictions.
               </p>
             </div>
 
@@ -183,7 +183,7 @@ function HoroscopeStudioContent() {
                 <button
                   key={sign.id}
                   onClick={() => setActiveSign(sign.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer ${
                     isSelected
                       ? 'bg-red-600 text-white shadow-xs'
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
@@ -191,9 +191,6 @@ function HoroscopeStudioContent() {
                 >
                   <span className="text-sm">{sign.icon}</span>
                   <span>{sign.name}</span>
-                  <span className={`text-[10px] font-normal ${isSelected ? 'text-red-100' : 'text-slate-400'}`}>
-                    ({sign.hindi})
-                  </span>
                 </button>
               );
             })}
@@ -248,7 +245,7 @@ function HoroscopeStudioContent() {
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">
-                      {selectedSignMeta.name} Lucky Attributes (शुभ घटक)
+                      {selectedSignMeta.name} Lucky Attributes
                     </h3>
                     <p className="text-[11px] text-slate-500">
                       These values populate the 6 soft-pink cards on the live horoscope page.
@@ -263,7 +260,7 @@ function HoroscopeStudioContent() {
                   {/* 1. Lucky Colour */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Lucky Colour (शुभ रंग)
+                      Lucky Colour
                     </label>
                     <input
                       type="text"
@@ -277,7 +274,7 @@ function HoroscopeStudioContent() {
                   {/* 2. Lucky Gemstone */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Lucky Gemstone (शुभ रत्न)
+                      Lucky Gemstone
                     </label>
                     <input
                       type="text"
@@ -291,7 +288,7 @@ function HoroscopeStudioContent() {
                   {/* 3. Lucky Day */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Lucky Day (शुभ दिन)
+                      Lucky Day
                     </label>
                     <input
                       type="text"
@@ -305,7 +302,7 @@ function HoroscopeStudioContent() {
                   {/* 4. Lucky Number */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Lucky Number (शुभ अंक)
+                      Lucky Number
                     </label>
                     <input
                       type="text"
@@ -319,13 +316,13 @@ function HoroscopeStudioContent() {
                   {/* 5. Ruling Planet */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Ruling Planet (स्वामी ग्रह)
+                      Ruling Planet
                     </label>
                     <input
                       type="text"
                       value={formData.rulingPlanet || ''}
                       onChange={(e) => setFormData({ ...formData, rulingPlanet: e.target.value })}
-                      placeholder="e.g. Venus (शुक्र)"
+                      placeholder="e.g. Venus"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-red-500 focus:bg-white transition-colors"
                     />
                   </div>
@@ -333,7 +330,7 @@ function HoroscopeStudioContent() {
                   {/* 6. Compatible Zodiac Sign */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Compatible Sign (अनुकूल राशियाँ)
+                      Compatible Sign
                     </label>
                     <input
                       type="text"
@@ -364,7 +361,7 @@ function HoroscopeStudioContent() {
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    Prediction Description (राशिफल विवरण)
+                    Prediction Description
                   </label>
                   <textarea
                     rows={7}
@@ -380,7 +377,7 @@ function HoroscopeStudioContent() {
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    Remedy (आज का उपाय)
+                    Remedy & Astro Guidance
                   </label>
                   <input
                     type="text"

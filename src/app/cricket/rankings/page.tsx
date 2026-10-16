@@ -50,7 +50,6 @@ export default function RankingsPage() {
       </div>
 
       <Footer />
-      <MobileBottomNav />
       {isSearchOpen && <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
     </main>
   );

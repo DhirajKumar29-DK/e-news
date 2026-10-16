@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Header, Footer, SearchModal, MobileBottomNav } from '@/components/common';
 import {
   MatchHeroBanner,
@@ -10,8 +9,7 @@ import {
   MatchScorecard,
   LiveCommentary,
   MatchSquads,
-  MatchInfo,
-  CricketNewsSection
+  MatchInfo
 } from '@/components/cricket';
 import { cricketService } from '@/services/cricketService';
 import {
@@ -21,7 +19,6 @@ import {
   CommentaryItem,
   MatchInfoData
 } from '@/types/cricket';
-import { FileText, Users, Info, ArrowLeft, RefreshCw, Radio } from 'lucide-react';
 
 export default function MatchCenterPage() {
   const params = useParams();
@@ -36,7 +33,6 @@ export default function MatchCenterPage() {
   const [commentary, setCommentary] = useState<CommentaryItem[]>([]);
   const [matchInfo, setMatchInfo] = useState<MatchInfoData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const fetchAllData = useCallback(async () => {
     if (!matchId) return;
@@ -55,7 +51,6 @@ export default function MatchCenterPage() {
       console.error(err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [matchId]);
 
@@ -64,11 +59,6 @@ export default function MatchCenterPage() {
     const interval = setInterval(fetchAllData, 8000);
     return () => clearInterval(interval);
   }, [fetchAllData]);
-
-  const handleManualRefresh = () => {
-    setRefreshing(true);
-    fetchAllData();
-  };
 
   const handleSelectCategory = (slug: string) => {
     if (slug === 'all') router.push('/');
@@ -136,21 +126,27 @@ export default function MatchCenterPage() {
         onSelectCategory={handleSelectCategory}
       />
 
-      <div className="max-w-[1320px] mx-auto px-4 py-5 w-full space-y-6 flex-1">
-        {/* Back Link & Refresh */}
-        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
-          <Link href="/cricket" className="hover:text-red-600 flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Cricket Hub
-          </Link>
-
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-xs px-3 py-1.5 rounded-lg text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-red-600' : ''}`} />
-            <span>{refreshing ? 'Updating...' : 'Live Refresh'}</span>
-          </button>
+      <div className="max-w-[1320px] mx-auto px-3 sm:px-4 py-3 sm:py-5 w-full space-y-3 sm:space-y-5 flex-1">
+        {/* Match Navigation Tabs (Exact Image 1 Style: Clean Red-Underline Tab Bar) */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 sm:px-6 gap-6 sm:gap-8 overflow-x-auto no-scrollbar rounded-xl shadow-xs">
+          {[
+            { id: 'scorecard', label: 'Full Scorecard' },
+            { id: 'commentary', label: 'Commentary' },
+            { id: 'squads', label: 'Playing XI' },
+            { id: 'info', label: 'Match Info' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-3 text-xs sm:text-sm font-bold whitespace-nowrap transition-all border-b-2 cursor-pointer ${
+                activeTab === tab.id
+                  ? 'border-red-600 text-red-600'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Hero Scoreboard Banner */}
@@ -160,32 +156,6 @@ export default function MatchCenterPage() {
         {match.status === 'LIVE' && liveData && liveData.currentBatters && liveData.currentBatters.length > 0 && (
           <CreaseWidget liveData={liveData} />
         )}
-
-        {/* Match Navigation Tabs */}
-        <div className="flex border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 rounded-2xl gap-1.5 overflow-x-auto no-scrollbar shadow-xs">
-          {[
-            { id: 'scorecard', label: 'Scorecard', icon: FileText },
-            { id: 'commentary', label: 'Live Commentary', icon: Radio },
-            { id: 'squads', label: 'Playing XI', icon: Users },
-            { id: 'info', label: 'Match Info', icon: Info }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
 
         {/* Tab Content Rendering */}
         <div>
@@ -202,13 +172,9 @@ export default function MatchCenterPage() {
           {activeTab === 'squads' && matchInfo && <MatchSquads info={matchInfo} />}
           {activeTab === 'info' && matchInfo && <MatchInfo info={matchInfo} />}
         </div>
-
-        {/* Match Related News */}
-        <CricketNewsSection />
       </div>
 
       <Footer />
-      <MobileBottomNav />
       {isSearchOpen && <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
     </main>
   );

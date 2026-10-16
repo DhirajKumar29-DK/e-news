@@ -12,7 +12,7 @@ export const mockWeather: WeatherInfo = {
 export const mockCategoryTabs: CategoryTab[] = [
   { id: 'cat-all', label: { en: 'HOME' }, slug: 'all' },
   { id: 'cat-latest', label: { en: 'LATEST NEWS' }, slug: 'latest' },
-  { id: 'cat-world', label: { en: 'WORLD' }, slug: 'world' },
+  { id: 'cat-global', label: { en: 'GLOBAL' }, slug: 'global' },
   { id: 'cat-crime', label: { en: 'CRIME' }, slug: 'crime' },
   { id: 'cat-india', label: { en: 'INDIA' }, slug: 'india' },
   { id: 'cat-ent', label: { en: 'ENTERTAINMENT' }, slug: 'entertainment' },

@@ -127,13 +127,13 @@ export default function CricketHubPage() {
   const dynamicSubCategories = Array.from(
     new Set(
       articles
-        .map(a => (renderText(a.subCategory) || '').trim())
+        .map(a => (renderText(a.subCategory) || '').trim().toUpperCase())
         .filter(Boolean)
     )
   );
 
   const currentFilters = dynamicSubCategories.length > 0
-    ? ['ALL', ...dynamicSubCategories.map(s => s.toUpperCase())]
+    ? ['ALL', ...dynamicSubCategories]
     : [];
 
   const displayArticles = activeFilter.toUpperCase() === 'ALL'
@@ -185,32 +185,22 @@ export default function CricketHubPage() {
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 py-6 w-full flex-1">
         
         {/* Section Header */}
-        <div className="flex items-center justify-between border-b-2 border-slate-200 dark:border-slate-800 pb-3 mb-6">
-          <div className="flex items-center gap-3">
-            <span className="w-1.5 h-6 bg-red-600 rounded-full inline-block" />
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase font-serif">
-              Cricket News & Updates
-            </h1>
-          </div>
-
-          <Link
-            href="/category/cricket"
-            className="text-xs md:text-sm font-bold text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors"
-          >
-            <span>View All</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
+        <div className="flex items-center gap-3 border-b-2 border-slate-200 dark:border-slate-800 pb-3 mb-6">
+          <span className="w-1.5 h-6 bg-red-600 rounded-full inline-block" />
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase font-serif">
+            Cricket News & Updates
+          </h1>
         </div>
 
         {/* Dynamic Sub-Category Filter Chips */}
         {currentFilters.length > 1 && (
           <div className="w-full max-w-full min-w-0 overflow-hidden pt-1 pb-4 mb-2 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
-              {currentFilters.map((filter) => {
+              {currentFilters.map((filter, idx) => {
                 const isSelected = activeFilter.toUpperCase() === filter.toUpperCase();
                 return (
                   <button
-                    key={filter}
+                    key={`cricket-filter-${filter}-${idx}`}
                     onClick={() => setActiveFilter(filter)}
                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
                       isSelected
@@ -451,7 +441,6 @@ export default function CricketHubPage() {
       </div>
 
       <Footer />
-      <MobileBottomNav />
       {isSearchOpen && <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
     </main>
   );

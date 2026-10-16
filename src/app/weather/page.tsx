@@ -149,8 +149,6 @@ export default function WeatherHubPage() {
         onClose={() => setIsSearchOpen(false)}
       />
 
-      {/* 5. Mobile Bottom Navigation */}
-      <MobileBottomNav onOpenSearch={() => setIsSearchOpen(true)} />
     </main>
   );
 }

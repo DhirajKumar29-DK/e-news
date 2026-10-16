@@ -17,18 +17,18 @@ import { stripHtml } from '@/utils/textUtils';
 
 // 12 Zodiac signs with details
 const ZODIAC_SIGNS = [
-  { id: 'aries', name: 'Aries', hindi: 'मेष', dates: 'MAR 21 - APR 19' },
-  { id: 'taurus', name: 'Taurus', hindi: 'वृषभ', dates: 'APR 20 - MAY 20' },
-  { id: 'gemini', name: 'Gemini', hindi: 'मिथुन', dates: 'MAY 21 - JUN 21' },
-  { id: 'cancer', name: 'Cancer', hindi: 'कर्क', dates: 'JUN 21 - JUL 22' },
-  { id: 'leo', name: 'Leo', hindi: 'सिंह', dates: 'JUL 23 - AUG 22' },
-  { id: 'virgo', name: 'Virgo', hindi: 'कन्या', dates: 'AUG 23 - SEP 22' },
-  { id: 'libra', name: 'Libra', hindi: 'तुला', dates: 'SEP 23 - OCT 22' },
-  { id: 'scorpio', name: 'Scorpio', hindi: 'वृश्चिक', dates: 'OCT 23 - NOV 21' },
-  { id: 'sagittarius', name: 'Sagittarius', hindi: 'धनु', dates: 'NOV 22 - DEC 21' },
-  { id: 'capricorn', name: 'Capricorn', hindi: 'मकर', dates: 'DEC 22 - JAN 19' },
-  { id: 'aquarius', name: 'Aquarius', hindi: 'कुंभ', dates: 'JAN 20 - FEB 18' },
-  { id: 'pisces', name: 'Pisces', hindi: 'मीन', dates: 'FEB 19 - MAR 20' },
+  { id: 'aries', name: 'Aries', dates: 'MAR 21 - APR 19' },
+  { id: 'taurus', name: 'Taurus', dates: 'APR 20 - MAY 20' },
+  { id: 'gemini', name: 'Gemini', dates: 'MAY 21 - JUN 21' },
+  { id: 'cancer', name: 'Cancer', dates: 'JUN 21 - JUL 22' },
+  { id: 'leo', name: 'Leo', dates: 'JUL 23 - AUG 22' },
+  { id: 'virgo', name: 'Virgo', dates: 'AUG 23 - SEP 22' },
+  { id: 'libra', name: 'Libra', dates: 'SEP 23 - OCT 22' },
+  { id: 'scorpio', name: 'Scorpio', dates: 'OCT 23 - NOV 21' },
+  { id: 'sagittarius', name: 'Sagittarius', dates: 'NOV 22 - DEC 21' },
+  { id: 'capricorn', name: 'Capricorn', dates: 'DEC 22 - JAN 19' },
+  { id: 'aquarius', name: 'Aquarius', dates: 'JAN 20 - FEB 18' },
+  { id: 'pisces', name: 'Pisces', dates: 'FEB 19 - MAR 20' },
 ];
 
 const isValidImageUrl = (url?: string | null) => {

@@ -7,14 +7,16 @@
  * 3. Custom Domain (Vercel + Custom Domain)
  */
 
+const isClient = typeof window !== 'undefined';
+
 export const BACKEND_URL: string = (
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  'http://localhost:5000'
+  (isClient ? window.location.origin : 'http://localhost:5000')
 ).replace(/\/$/, '');
 
 export const API_BASE_URL: string = (
   process.env.NEXT_PUBLIC_API_URL ||
-  `${BACKEND_URL}/api/v1`
+  (isClient ? '/api/v1' : 'http://localhost:5000/api/v1')
 ).replace(/\/$/, '');
 
 /**
@@ -28,5 +30,16 @@ export function getFullMediaUrl(path?: string | null): string {
     return path;
   }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${BACKEND_URL}${cleanPath}`;
+
+  // If path is an upload (/uploads/...), route through /backend-uploads/ proxy on client
+  if (cleanPath.startsWith('/uploads/')) {
+    const sub = cleanPath.slice('/uploads/'.length);
+    return `/backend-uploads/${sub}`;
+  }
+
+  let hostUrl = BACKEND_URL;
+  if (isClient && window.location.hostname && window.location.hostname !== 'localhost') {
+    hostUrl = window.location.origin;
+  }
+  return `${hostUrl}${cleanPath}`;
 }

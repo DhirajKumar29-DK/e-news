@@ -126,10 +126,10 @@ export default function CategoryPage() {
 
     if (typeof document !== 'undefined') {
       const catTitle = currentCategoryName;
-      document.title = `${catTitle} News - Latest Breaking Updates | The Daily Jagran`;
+      document.title = `${catTitle} News - Latest Breaking Updates | The News Paper`;
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
-        metaDesc.setAttribute('content', `Read latest ${catTitle} news, analysis, reports, and real-time updates on The Daily Jagran.`);
+        metaDesc.setAttribute('content', `Read latest ${catTitle} news, analysis, reports, and real-time updates on The News Paper.`);
       }
     }
 
@@ -228,16 +228,20 @@ export default function CategoryPage() {
 
   const rawArticles = dynamicArticles;
 
-  // Dynamically extract unique subcategories from articles in this category (NO hardcoded fake tags)
+  // Dynamically extract unique subcategories from articles in this category (case-insensitive deduplication)
   const dynamicSubCategories = Array.from(
-    new Set([
-      ...allCategorySubCats,
-      ...rawArticles.map(a => (a.subCategory || '').trim()).filter(Boolean)
-    ])
+    new Set(
+      [
+        ...allCategorySubCats,
+        ...rawArticles.map(a => (a.subCategory || '').trim())
+      ]
+        .map(s => (s || '').trim().toUpperCase())
+        .filter(Boolean)
+    )
   );
 
   const currentFilters = dynamicSubCategories.length > 0
-    ? ['ALL', ...dynamicSubCategories.map(s => s.toUpperCase())]
+    ? ['ALL', ...dynamicSubCategories]
     : [];
 
   // Sub-filter: strictly match subCategory tag, never bleed across
@@ -300,7 +304,7 @@ export default function CategoryPage() {
 
         {isLoading ? (
           <div className="space-y-6 animate-pulse py-4">
-            <h1 className="sr-only">{currentCategoryName} - The Daily Jagran</h1>
+            <h1 className="sr-only">{currentCategoryName} - The News Paper</h1>
             <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-4">
@@ -336,17 +340,20 @@ export default function CategoryPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-                <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+              <div className="border-b-2 border-slate-200 dark:border-slate-800 pb-2.5 sm:pb-3 mb-2 sm:mb-4">
+                {/* Desktop-only Breadcrumb */}
+                <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-500 font-medium mb-2">
                   <button onClick={() => router.push('/')} className="hover:text-jagran-red flex items-center space-x-1" title="Home">
                     <Home className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                   </button>
                   <span>/</span>
                   <span className="uppercase text-jagran-red font-extrabold tracking-wider">{slug}</span>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <span className="w-3 h-8 bg-jagran-red rounded"></span>
-                  <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight">
+
+                {/* Category Title: Displayed above ALL subcategory chips on both Mobile & Desktop */}
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <span className="w-1.5 h-5 sm:h-6 bg-jagran-red rounded-full inline-block shrink-0" />
+                  <h1 className="text-lg sm:text-2xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight">
                     {currentCategoryName}
                   </h1>
                 </div>
@@ -357,11 +364,11 @@ export default function CategoryPage() {
             {currentFilters.length > 1 && (
               <div className="w-full max-w-full min-w-0 overflow-hidden pt-1 pb-2 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
-                  {currentFilters.map((filter) => {
+                  {currentFilters.map((filter, idx) => {
                     const isSelected = activeFilter.toUpperCase() === filter.toUpperCase();
                     return (
                       <button
-                        key={filter}
+                        key={`cat-filter-${filter}-${idx}`}
                         onClick={() => setActiveFilter(filter)}
                         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
                           isSelected
@@ -427,9 +434,17 @@ export default function CategoryPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                     <h3 className="text-sm font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                      Recent Category Updates
+                      Recent {currentCategoryName} Updates
                     </h3>
                   </div>
+
+                  {displayArticles.length === 0 && (
+                    <div className="py-12 px-4 text-center rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        No articles available in {currentCategoryName} right now. Check back soon!
+                      </p>
+                    </div>
+                  )}
 
                   {feedArticles.map((art) => (
                     <article

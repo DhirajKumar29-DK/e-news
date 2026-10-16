@@ -159,7 +159,6 @@ export default function SchedulePage() {
       </div>
 
       <Footer />
-      <MobileBottomNav />
       {isSearchOpen && <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
     </main>
   );

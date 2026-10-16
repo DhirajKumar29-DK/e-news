@@ -94,7 +94,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
         showOnHome
       });
 
-      setSuccessMsg(`✓ Category "${name}" added & list auto-adjusted!`);
+      setSuccessMsg(`✓ Category "${name}" added successfully!`);
       setName('');
       setSlug('');
       setShowOnHome(true);
@@ -148,7 +148,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
         showOnHome: editShowOnHome
       });
 
-      setSuccessMsg(`✓ Category "${editName}" moved to Position #${editOrder}. Subsequent categories auto-adjusted!`);
+      setSuccessMsg(`✓ Category "${editName}" updated successfully!`);
       setEditingId(null);
       await loadCategories();
       onUpdated?.();
@@ -209,7 +209,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
       setErrorMsg('');
       await categoryService.deleteCategory(categoryToDelete.id);
       setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
-      setSuccessMsg(`✓ Category "${categoryToDelete.name}" deleted & positions auto-adjusted!`);
+      setSuccessMsg(`✓ Category "${categoryToDelete.name}" deleted!`);
       setCategoryToDelete(null);
       await loadCategories();
       onUpdated?.();
@@ -238,7 +238,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                 News Category Manager
               </h2>
               <p className="text-xs text-slate-500">
-                Add, auto-shift positions, rename, and Enable/Disable categories from the live website.
+                Manage, reorder, rename, and organize categories for the website.
               </p>
             </div>
           </div>
@@ -274,9 +274,29 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
               <span>Add New Category</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              <div className="sm:col-span-5">
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">
+            <div className="flex flex-wrap sm:flex-nowrap items-end gap-2.5">
+              {/* Position # */}
+              <div className="w-14 sm:w-16 shrink-0">
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 text-center">
+                  Pos #
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={order || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setOrder(val ? Number(val) : 0);
+                  }}
+                  placeholder="1"
+                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-1.5 text-xs font-black text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-2xs"
+                />
+              </div>
+
+              {/* Category Name */}
+              <div className="flex-1 min-w-[130px]">
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
                   Category Name *
                 </label>
                 <input
@@ -285,12 +305,13 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="e.g. Crime, Elections"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 shadow-2xs"
                 />
               </div>
 
-              <div className="sm:col-span-4">
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">
+              {/* URL Slug */}
+              <div className="flex-1 min-w-[110px]">
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
                   URL Slug
                 </label>
                 <input
@@ -299,48 +320,35 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder="e.g. crime"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium text-slate-700 focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-3 text-xs font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 shadow-2xs"
                 />
               </div>
 
-              <div className="sm:col-span-3 flex items-center gap-2">
-                <div className="w-16">
-                  <label className="block text-[11px] font-bold text-slate-500 mb-1" title="Target Position (e.g. 2, 5). Others will auto-shift!">
-                    Position
-                  </label>
+              {/* Show on Homepage Checkbox */}
+              <div className="h-9 flex items-center px-2 shrink-0">
+                <label className="inline-flex items-center space-x-1.5 cursor-pointer select-none" title="Tick to show this section on Homepage">
                   <input
-                    type="number"
-                    value={order}
-                    onChange={(e) => setOrder(Number(e.target.value))}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-center text-slate-900 focus:outline-none focus:border-red-500 transition-colors"
+                    type="checkbox"
+                    checked={showOnHome}
+                    onChange={(e) => setShowOnHome(e.target.checked)}
+                    className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-slate-300"
                   />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={saving || !name.trim()}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2 px-3 rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center space-x-1"
-                >
-                  {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  <span>Add</span>
-                </button>
+                  <span className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                    <Home className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Homepage</span>
+                  </span>
+                </label>
               </div>
-            </div>
 
-            {/* Show on Homepage Checkbox Option */}
-            <div className="pt-2 border-t border-slate-100 flex items-center">
-              <label className="inline-flex items-center space-x-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showOnHome}
-                  onChange={(e) => setShowOnHome(e.target.checked)}
-                  className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-slate-300"
-                />
-                <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-                  <Home className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Show this Section on Homepage (in exact order sequence)</span>
-                </span>
-              </label>
+              {/* Add Button */}
+              <button
+                type="submit"
+                disabled={saving || !name.trim()}
+                className="h-9 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center space-x-1 shrink-0"
+              >
+                {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <span>Add</span>
+              </button>
             </div>
           </form>
 
@@ -348,7 +356,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Categories List ({categories.length}) — Strictly Sequential #1 to #{categories.length}
+                Categories List ({categories.length})
               </span>
               <button
                 onClick={loadCategories}
@@ -374,55 +382,58 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     return (
                       <div
                         key={cat.id}
-                        className="p-3.5 bg-red-50/60 border-l-4 border-red-500 space-y-2.5 transition-all"
+                        className="p-3 bg-red-50/60 dark:bg-slate-800/60 border-l-4 border-red-500 rounded-r-xl transition-all"
                       >
-                        <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                        <div className="flex flex-wrap sm:flex-nowrap items-end gap-2.5">
                           {/* Order Input */}
-                          <div className="w-full sm:w-24 shrink-0">
-                            <label className="block text-[10px] font-black uppercase text-slate-600 mb-0.5">
-                              Position #
+                          <div className="w-14 sm:w-16 shrink-0">
+                            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 text-center">
+                              Pos #
                             </label>
                             <input
-                              type="number"
-                              min={1}
-                              max={categories.length}
-                              value={editOrder}
-                              onChange={(e) => setEditOrder(Number(e.target.value))}
-                              className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-black text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                              title="Set position number (e.g. 2, 3, 5). Others will auto-shift!"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editOrder || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                setEditOrder(val ? Number(val) : 0);
+                              }}
+                              className="w-full h-9 bg-white border border-slate-300 rounded-lg px-1.5 text-xs font-black text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-2xs"
+                              placeholder="1"
                             />
                           </div>
 
                           {/* Name Input */}
-                          <div className="w-full sm:flex-1">
-                            <label className="block text-[10px] font-black uppercase text-slate-600 mb-0.5">
+                          <div className="flex-1 min-w-[130px]">
+                            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
                               Category Name
                             </label>
                             <input
                               type="text"
                               value={editName}
                               onChange={(e) => handleEditNameChange(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                              className="w-full h-9 bg-white border border-slate-300 rounded-lg px-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 shadow-2xs"
                               placeholder="Category Name"
                             />
                           </div>
 
                           {/* Slug Input */}
-                          <div className="w-full sm:flex-1">
-                            <label className="block text-[10px] font-black uppercase text-slate-600 mb-0.5">
+                          <div className="flex-1 min-w-[110px]">
+                            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
                               URL Slug
                             </label>
                             <input
                               type="text"
                               value={editSlug}
                               onChange={(e) => setEditSlug(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                              className="w-full h-9 bg-white border border-slate-300 rounded-lg px-3 text-xs font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 shadow-2xs"
                               placeholder="url-slug"
                             />
                           </div>
 
                           {/* Show on Homepage checkbox */}
-                          <div className="flex items-center self-end sm:self-center pt-2 sm:pt-4 px-2">
+                          <div className="h-9 flex items-center px-2 shrink-0">
                             <label className="inline-flex items-center space-x-1.5 cursor-pointer select-none" title="Tick to show this section on Homepage">
                               <input
                                 type="checkbox"
@@ -430,34 +441,33 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                                 onChange={(e) => setEditShowOnHome(e.target.checked)}
                                 className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-slate-300"
                               />
-                              <span className="text-[11px] font-bold text-slate-700 flex items-center space-x-0.5">
-                                <Home className="w-3 h-3 text-slate-500" />
+                              <span className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                <Home className="w-3.5 h-3.5 text-slate-500" />
                                 <span>Homepage</span>
                               </span>
                             </label>
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="flex items-center space-x-1.5 self-end sm:self-center pt-2 sm:pt-4 shrink-0">
+                          <div className="flex items-center space-x-1.5 shrink-0">
                             <button
                               type="button"
                               disabled={savingEdit || !editName.trim()}
                               onClick={() => handleSaveEdit(cat.id)}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
-                              title="Save changes and auto-shift positions"
+                              className="h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
+                              title="Save changes"
                             >
                               {savingEdit ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              <span>Save & Auto-Shift</span>
+                              <span>Save</span>
                             </button>
                             <button
                               type="button"
                               disabled={savingEdit}
                               onClick={cancelEdit}
-                              className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
-                              title="Cancel edit"
+                              className="h-9 w-9 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg flex items-center justify-center cursor-pointer transition-colors"
+                              title="Cancel"
                             >
-                              <X className="w-3.5 h-3.5" />
-                              <span>Cancel</span>
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         </div>

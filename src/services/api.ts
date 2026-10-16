@@ -19,8 +19,9 @@ export async function apiRequest<T = any>(
   if (!rawEndpoint.startsWith('/v1/')) {
     rawEndpoint = `/v1${rawEndpoint}`;
   }
-  const baseUrl = API_BASE_URL.replace(/\/v1\/?$/, '');
-  const url = `${baseUrl}${rawEndpoint}`;
+  
+  const cleanBase = API_BASE_URL.replace(/\/v1\/?$/, '');
+  const url = `${cleanBase}${rawEndpoint}`;
 
   try {
     const response = await fetch(url, {

@@ -4,17 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { videoService, VideoData } from '@/services/videoService';
-import { Play, TrendingUp, Video } from 'lucide-react';
+import { Play, TrendingUp, Video, Clock } from 'lucide-react';
 
-import { HomeArticlesResponse } from '@/services/articleService';
+import { HomeArticlesResponse, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml } from '@/utils/textUtils';
 
 interface HeroSectionProps {
   dynamicData?: HomeArticlesResponse | null;
+  allArticles?: ArticleData[];
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticles = [] }) => {
   const router = useRouter();
   const { language, t } = useLanguage();
   const [latestVideos, setLatestVideos] = useState<VideoData[]>([]);
@@ -64,9 +65,24 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
                 <div className="h-4 w-2/3 bg-slate-200 dark:bg-slate-700 rounded"></div>
               </div>
             </div>
-            <div className="space-y-4">
+            {/* Desktop Center Skeleton: 4 Cards */}
+            <div className="hidden lg:block space-y-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex space-x-4">
+                  <div className="w-28 sm:w-36 aspect-[16/10] bg-slate-200 dark:bg-slate-700 rounded-lg shrink-0"></div>
+                  <div className="flex-1 space-y-2 py-1">
+                    <div className="h-3 w-16 bg-red-100 dark:bg-red-950/40 rounded"></div>
+                    <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>
+                    <div className="h-4 w-1/2 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile Center Skeleton: 10 Cards */}
+            <div className="block lg:hidden space-y-3.5">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                <div key={i} className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 flex space-x-3.5 sm:space-x-4">
                   <div className="w-28 sm:w-36 aspect-[16/10] bg-slate-200 dark:bg-slate-700 rounded-lg shrink-0"></div>
                   <div className="flex-1 space-y-2 py-1">
                     <div className="h-3 w-16 bg-red-100 dark:bg-red-950/40 rounded"></div>
@@ -115,7 +131,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
     summary: stripHtml(dynamicData.leadStory.subHeadline) || stripHtml(dynamicData.leadStory.content).slice(0, 160) + '...',
     imageUrl: dynamicData.leadStory.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
     category: dynamicData.leadStory.category.toUpperCase(),
-    timeAgo: formatTimeAgo(dynamicData.leadStory.publishedAt || dynamicData.leadStory.createdAt)
+    timeAgo: formatTimeAgo(dynamicData.leadStory.publishedAt || dynamicData.leadStory.createdAt),
+    readTime: { en: `${dynamicData.leadStory.readTimeMinutes || 3} min read`, hi: `${dynamicData.leadStory.readTimeMinutes || 3} मिनट पढ़ें` }
   } : null;
 
   // 2. Dynamic Center 4 Sub-leads (Only from real DB)
@@ -124,7 +141,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
     title: stripHtml(sub.title),
     imageUrl: sub.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
     category: sub.category.toUpperCase(),
-    timeAgo: formatTimeAgo(sub.publishedAt || sub.createdAt)
+    timeAgo: formatTimeAgo(sub.publishedAt || sub.createdAt),
+    readTime: { en: `${sub.readTimeMinutes || 3} min read`, hi: `${sub.readTimeMinutes || 3} मिनट पढ़ें` }
   }));
 
   // 4. Dynamic Right 1-5 Top Trending (TOP NEWS from real DB)
@@ -157,6 +175,52 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
     category: (item.category || 'NEWS').toUpperCase(),
     timeAgo: formatTimeAgo(item.publishedAt || item.createdAt)
   }));
+
+  // 5. Dynamic Mobile Hero Articles (Exactly 10 articles below main lead)
+  const candidateMobileArticles: any[] = [
+    ...(dynamicData.subLeads || []),
+    ...allArticles,
+    ...(dynamicData.trending || []),
+    ...(dynamicData.quickHighlights || [])
+  ];
+
+  const seenMobileIds = new Set<string>();
+  const seenMobileTitles = new Set<string>();
+  if (leadId) seenMobileIds.add(leadId);
+  if (leadTitle) seenMobileTitles.add(leadTitle);
+
+  const mobileSubLeads: {
+    id: string;
+    title: string | { en?: string; hi?: string };
+    imageUrl: string;
+    category: string;
+    timeAgo: ReturnType<typeof formatTimeAgo>;
+    readTime: { en: string; hi: string };
+  }[] = [];
+
+  for (const art of candidateMobileArticles) {
+    if (!art) continue;
+    const artId = String(art.slug || art.id || '').toLowerCase();
+    const rawTitle = typeof art.title === 'string' ? art.title : (art.title?.en || art.title?.hi || '');
+    const cleanTitle = stripHtml(rawTitle).trim().toLowerCase();
+
+    if (!artId || !cleanTitle) continue;
+    if (seenMobileIds.has(artId) || seenMobileTitles.has(cleanTitle)) continue;
+
+    seenMobileIds.add(artId);
+    seenMobileTitles.add(cleanTitle);
+
+    mobileSubLeads.push({
+      id: art.slug || art.id,
+      title: stripHtml(art.title),
+      imageUrl: art.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
+      category: (art.category || 'NEWS').toUpperCase(),
+      timeAgo: formatTimeAgo(art.publishedAt || art.createdAt),
+      readTime: { en: `${art.readTimeMinutes || 3} min read`, hi: `${art.readTimeMinutes || 3} मिनट पढ़ें` }
+    });
+
+    if (mobileSubLeads.length >= 10) break;
+  }
 
   return (
     <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto">
@@ -223,15 +287,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
                 <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                   {typeof leadArticle.summary === 'string' ? leadArticle.summary : t(leadArticle.summary)}
                 </p>
-                <div className="text-xs text-slate-500 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-semibold">
+                <div className="text-xs text-slate-500 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-semibold flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span>{typeof leadArticle.timeAgo === 'string' ? leadArticle.timeAgo : t(leadArticle.timeAgo)}</span>
+                  <span>•</span>
+                  <span>{t(leadArticle.readTime)}</span>
                 </div>
               </div>
             </article>
           )}
 
-          {/* Stack of 4 Horizontal Sub-Lead Cards */}
-          <div className="space-y-4">
+          {/* Desktop: Stack of 4 Horizontal Sub-Lead Cards (Strictly 4 on Desktop) */}
+          <div className="hidden lg:block space-y-4">
             {subLeads.map((sub) => (
               <article
                 key={sub.id}
@@ -249,12 +316,49 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
                   <span className="text-xs font-black uppercase text-jagran-red block">
                     {sub.category}
                   </span>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
                     {t(sub.title)}
                   </h3>
-                  <span className="text-xs text-slate-400 block font-medium">
-                    {t(sub.timeAgo)}
+                  <div className="flex items-center text-xs text-slate-400 font-medium space-x-1.5 pt-0.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{typeof sub.timeAgo === 'string' ? sub.timeAgo : t(sub.timeAgo)}</span>
+                    <span>•</span>
+                    <span>{t(sub.readTime)}</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {/* Mobile: Exactly 10 Articles below Main Lead Story */}
+          <div className="block lg:hidden space-y-3.5">
+            {mobileSubLeads.map((sub) => (
+              <article
+                key={`mob-${sub.id}`}
+                onClick={() => handleArticleClick(sub.id)}
+                className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 cursor-pointer transition-all group flex space-x-3.5 sm:space-x-4 items-center shadow-xs"
+              >
+                <div className="w-28 sm:w-36 aspect-[16/10] rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                  <img
+                    src={sub.imageUrl}
+                    alt={t(sub.title)}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <span className="text-[11px] sm:text-xs font-black uppercase text-jagran-red block">
+                    {sub.category}
                   </span>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+                    {t(sub.title)}
+                  </h3>
+                  <div className="flex items-center text-[11px] sm:text-xs text-slate-400 font-medium space-x-1.5 pt-0.5">
+                    <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span>{typeof sub.timeAgo === 'string' ? sub.timeAgo : t(sub.timeAgo)}</span>
+                    <span>•</span>
+                    <span>{t(sub.readTime)}</span>
+                  </div>
                 </div>
               </article>
             ))}
@@ -291,7 +395,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData }) => {
                 return (
                   <div
                     key={vid.id}
-                    onClick={() => router.push('/videos')}
+                    onClick={() => router.push(`/videos?v=${encodeURIComponent(vid.slug || vid.id)}&play=1`)}
                     className="group cursor-pointer space-y-1"
                   >
                     <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden relative shadow-2xs">

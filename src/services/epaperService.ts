@@ -18,33 +18,54 @@ import {
 const responseCache = new Map<string, { data: any; expiry: number }>();
 const inFlightRequests = new Map<string, Promise<any>>();
 
+function getCleanUrl(url: string): string {
+  if (!url) return '';
+  if (typeof window !== 'undefined') {
+    // If URL points to port 5000 in browser, convert to relative Next.js proxy (/api/)
+    if (url.includes(':5000/api/')) {
+      return url.replace(/https?:\/\/[^/]+:5000\/api\//, '/api/');
+    }
+    if (url.startsWith('/api')) {
+      return url;
+    }
+  }
+  return url;
+}
+
 async function cachedFetch(url: string, ttlMs: number = 60000): Promise<any> {
+  const cleanUrl = getCleanUrl(url);
   const now = Date.now();
-  const cached = responseCache.get(url);
+  const cached = responseCache.get(cleanUrl);
   if (cached && cached.expiry > now) {
     return cached.data;
   }
 
   // Return existing in-flight promise if same request is already pending
-  if (inFlightRequests.has(url)) {
-    return inFlightRequests.get(url)!;
+  if (inFlightRequests.has(cleanUrl)) {
+    return inFlightRequests.get(cleanUrl)!;
   }
 
   const promise = (async () => {
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(cleanUrl);
+      if (!res.ok) {
+        console.warn(`[epaperService] HTTP ${res.status} on ${cleanUrl}`);
+        return null;
+      }
       const data = await res.json();
       if (data && data.success) {
-        responseCache.set(url, { data, expiry: now + ttlMs });
+        responseCache.set(cleanUrl, { data, expiry: now + ttlMs });
       }
       return data;
+    } catch (err) {
+      console.warn(`[epaperService] network error on ${cleanUrl}:`, err);
+      return null;
     } finally {
-      inFlightRequests.delete(url);
+      inFlightRequests.delete(cleanUrl);
     }
   })();
 
-  inFlightRequests.set(url, promise);
+  inFlightRequests.set(cleanUrl, promise);
   return promise;
 }
 
@@ -75,20 +96,30 @@ export function prewarmBackend() {
  * Sabhi states aur unki editions fetch karo (Cached 5 minutes)
  */
 export async function fetchStatesWithEditions(): Promise<any[]> {
-  const url = `${API_BASE_URL}${ENDPOINTS.epaper.statesWithEditions}`;
-  const data = await cachedFetch(url, 300000);
-  if (!data?.success || !Array.isArray(data.data)) return [];
-  return data.data;
+  try {
+    const url = `${API_BASE_URL}${ENDPOINTS.epaper.statesWithEditions}`;
+    const data = await cachedFetch(url, 300000);
+    if (!data?.success || !Array.isArray(data.data)) return [];
+    return data.data;
+  } catch (err) {
+    console.error('fetchStatesWithEditions error:', err);
+    return [];
+  }
 }
 
 /**
  * Kisi edition ke available archive dates fetch karo (Cached 3 minutes)
  */
 export async function fetchArchiveDates(editionSlug: string): Promise<any[]> {
-  const url = `${API_BASE_URL}${ENDPOINTS.epaper.archiveDates(editionSlug)}`;
-  const data = await cachedFetch(url, 180000);
-  if (!data?.success || !Array.isArray(data.data)) return [];
-  return data.data;
+  try {
+    const url = `${API_BASE_URL}${ENDPOINTS.epaper.archiveDates(editionSlug)}`;
+    const data = await cachedFetch(url, 180000);
+    if (!data?.success || !Array.isArray(data.data)) return [];
+    return data.data;
+  } catch (err) {
+    console.error('fetchArchiveDates error:', err);
+    return [];
+  }
 }
 
 /**
@@ -98,17 +129,22 @@ export async function fetchEpaperIssue(
   editionSlug: string,
   date: string
 ): Promise<any | null> {
-  const url = `${API_BASE_URL}${ENDPOINTS.epaper.issue(editionSlug, date)}`;
-  const data = await cachedFetch(url, 60000);
-  if (!data?.success || !data.data) return null;
-  return data.data;
+  try {
+    const url = `${API_BASE_URL}${ENDPOINTS.epaper.issue(editionSlug, date)}`;
+    const data = await cachedFetch(url, 60000);
+    if (!data?.success || !data.data) return null;
+    return data.data;
+  } catch (err) {
+    console.error('fetchEpaperIssue error:', err);
+    return null;
+  }
 }
 
 /**
  * TTS audio stream URL generate karo
  */
 export function getTtsAudioUrl(text: string): string {
-  return `${API_BASE_URL}${ENDPOINTS.epaper.tts(text)}`;
+  return getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.tts(text)}`);
 }
 
 // ─── Admin ────────────────────────────────────────────────────────
@@ -117,11 +153,16 @@ export function getTtsAudioUrl(text: string): string {
  * Saari editions fetch karo (admin panel ke liye)
  */
 export async function fetchAdminEditions(): Promise<any[]> {
-  const res = await fetch(`${API_BASE_URL}${ENDPOINTS.epaper.editions}`);
-  if (!res.ok) throw new Error('Failed to fetch editions');
-  const data = await res.json();
-  if (!data.success || !Array.isArray(data.data)) return [];
-  return data.data;
+  try {
+    const res = await fetch(getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.editions}`));
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.data)) return [];
+    return data.data;
+  } catch (err) {
+    console.warn('fetchAdminEditions error:', err);
+    return [];
+  }
 }
 
 /**
@@ -172,16 +213,21 @@ export async function publishLegacy(payload: PublishPayload): Promise<any> {
  * AI Assistant endpoint (generate newspaper slot content)
  */
 export async function callAIAgent(payload: AIAgentPayload): Promise<any> {
-  const res = await fetch(`${API_BASE_URL}${ENDPOINTS.epaper.aiAgent}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) {
-    throw new Error(data.message || `Error (${res.status})`);
+  try {
+    const res = await fetch(getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.aiAgent}`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || `Error (${res.status})`);
+    }
+    return data.data;
+  } catch (err) {
+    console.warn('callAIAgent error:', err);
+    return null;
   }
-  return data.data;
 }
 
 /**
@@ -200,7 +246,7 @@ export async function generatePdf(payload: any): Promise<Response> {
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const response = await fetch(
-    `${API_BASE_URL}${ENDPOINTS.epaper.generatePdf}`,
+    getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.generatePdf}`),
     {
       method: 'POST',
       headers,

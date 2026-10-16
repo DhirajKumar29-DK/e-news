@@ -9,6 +9,7 @@ import { ArrowLeft, Clock, Share2, Tag, Check, Play, Copy, X } from 'lucide-reac
 import { articleService, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml, hasHtmlTags, formatArticleHtml } from '@/utils/textUtils';
+import Script from 'next/script';
 
 export default function ArticlePage() {
   const params = useParams();
@@ -24,6 +25,80 @@ export default function ArticlePage() {
   const [latestVideos, setLatestVideos] = useState<VideoData[]>([]);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !dynamicArticle) return;
+
+    const renderTwitter = () => {
+      const twttr = (window as any).twttr;
+      if (!twttr || !twttr.widgets) {
+        if (!document.getElementById('twitter-wjs')) {
+          const script = document.createElement('script');
+          script.id = 'twitter-wjs';
+          script.src = 'https://platform.twitter.com/widgets.js';
+          script.async = true;
+          script.onload = () => {
+            renderTwitter();
+          };
+          document.body.appendChild(script);
+        }
+        return;
+      }
+
+      // 1. Call native widgets.load()
+      try {
+        twttr.widgets.load();
+      } catch (e) {
+        console.error('Error loading twitter widgets:', e);
+      }
+
+      // 2. Fallback to createTweet for SPA reliability
+      const tweetBlocks = document.querySelectorAll('blockquote.twitter-tweet');
+      tweetBlocks.forEach((block) => {
+        const parentContainer = block.closest('.twitter-tweet-container') || block;
+        if (parentContainer.querySelector('iframe') || (parentContainer as HTMLElement).dataset.rendered === 'true') {
+          return;
+        }
+
+        const link = block.querySelector('a');
+        const href = link?.getAttribute('href') || block.textContent || '';
+        const match = href.match(/status(?:es)?\/(\d+)/i);
+        if (match && match[1]) {
+          const tweetId = match[1];
+          (parentContainer as HTMLElement).dataset.rendered = 'true';
+
+          const mountPoint = document.createElement('div');
+          mountPoint.className = 'w-full flex justify-center my-4';
+          parentContainer.parentNode?.insertBefore(mountPoint, parentContainer);
+          (parentContainer as HTMLElement).style.display = 'none';
+
+          twttr.widgets.createTweet(tweetId, mountPoint, {
+            theme: 'light',
+            align: 'center',
+            dnt: true
+          }).then((el: any) => {
+            if (!el) {
+              (parentContainer as HTMLElement).style.display = '';
+              mountPoint.remove();
+            }
+          }).catch(() => {
+            (parentContainer as HTMLElement).style.display = '';
+            mountPoint.remove();
+          });
+        }
+      });
+    };
+
+    const t1 = setTimeout(renderTwitter, 100);
+    const t2 = setTimeout(renderTwitter, 600);
+    const t3 = setTimeout(renderTwitter, 1500);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [dynamicArticle]);
+
+  useEffect(() => {
     if (!articleId) {
       setIsLoadingArticle(false);
       return;
@@ -37,7 +112,7 @@ export default function ArticlePage() {
         if (data) {
           setDynamicArticle(data);
           if (typeof document !== 'undefined') {
-            document.title = `${stripHtml(data.title)} | The Daily Jagran`;
+            document.title = `${stripHtml(data.title)} | The News Paper`;
             let metaDesc = document.querySelector('meta[name="description"]');
             if (!metaDesc) {
               metaDesc = document.createElement('meta');
@@ -154,7 +229,7 @@ export default function ArticlePage() {
         />
 
         <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 pt-4 pb-12 flex-1 space-y-6 animate-pulse">
-          <h1 className="sr-only">Article Details - The Daily Jagran</h1>
+          <h1 className="sr-only">Article Details - The News Paper</h1>
           {/* Breadcrumb Skeleton */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -269,7 +344,7 @@ export default function ArticlePage() {
   }
 
   // Pure Dynamic Article Representation (Zero mock news, stripped HTML for metadata)
-  const cleanSummary = stripHtml(dynamicArticle.subHeadline) || stripHtml(dynamicArticle.content).slice(0, 180) + '...';
+  const cleanSummary = stripHtml(dynamicArticle.subHeadline) || stripHtml(dynamicArticle.content.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, '').replace(/<div class="twitter-tweet-container"[\s\S]*?<\/div>/gi, '')).slice(0, 180) + '...';
 
   const article = {
     id: dynamicArticle.slug || dynamicArticle.id,
@@ -279,7 +354,7 @@ export default function ArticlePage() {
     imageUrl: dynamicArticle.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
     imageCaption: stripHtml(dynamicArticle.imageCaption || ''),
     author: {
-      name: stripHtml(dynamicArticle.authorName || 'News Bureau'),
+      name: stripHtml(dynamicArticle.authorName || 'News Desk'),
       role: 'Bureau Correspondent',
       avatar: dynamicArticle.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
     },
@@ -306,7 +381,7 @@ export default function ArticlePage() {
         if (lines.length > 0) return lines;
       }
     }
-    const cleanFullContent = stripHtml(dynamicArticle.content);
+    const cleanFullContent = stripHtml(dynamicArticle.content.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, '').replace(/<div class="twitter-tweet-container"[\s\S]*?<\/div>/gi, ''));
     const points: string[] = [];
     if (cleanSummary && cleanSummary !== '...') {
       points.push(cleanSummary.replace(/\.\.\.$/, ''));
@@ -316,7 +391,7 @@ export default function ArticlePage() {
     const sentences = cleanFullContent
       .split(/(?<=[.!?])\s+/)
       .map(s => s.trim())
-      .filter(s => s.length > 25 && s !== cleanSummary);
+      .filter(s => s.length > 25 && s !== cleanSummary && !s.includes('Loading X Post') && !s.includes('twitter.com') && !s.includes('x.com'));
 
     for (const sent of sentences) {
       if (points.length >= 3) break;
@@ -353,7 +428,7 @@ export default function ArticlePage() {
             }],
             'publisher': {
               '@type': 'NewsMediaOrganization',
-              'name': 'The Daily Jagran',
+              'name': 'The News Paper',
               'url': 'http://localhost:3000'
             },
             'mainEntityOfPage': {
@@ -496,105 +571,97 @@ export default function ArticlePage() {
               </figure>
             )}
 
-            {/* ARTICLE BODY CONTENT */}
-            <div className="space-y-5 pt-2">
+            {/* UNDER IMAGE: SPLIT INTO LEFT (RELATED ARTICLES) AND CENTER (CONTENT) */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start pt-3">
               
-              {/* HIGHLIGHTS Box */}
-              {highlightsList.length > 0 && (
-                <div className="border-l-4 border-jagran-red bg-amber-50/60 dark:bg-slate-800/60 p-4 sm:p-5 rounded-r-lg space-y-2.5">
-                  <div className="text-xs font-black uppercase text-jagran-red tracking-wider flex items-center space-x-1.5">
-                    <span>HIGHLIGHTS</span>
-                  </div>
-                  <ul className="space-y-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                    {highlightsList.map((point, index) => (
-                      <li key={index} className="flex items-start space-x-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-jagran-red shrink-0 mt-1.5" />
-                        <span className="leading-relaxed">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Article Body Content */}
-              <article className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-200 font-serif">
-                {hasHtmlTags(article.rawContent) ? (
-                  <div
-                    className="article-body max-w-none space-y-4 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:font-serif [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:font-serif [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-1.5 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-1.5 [&>blockquote]:border-l-4 [&>blockquote]:border-jagran-red [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-slate-600 dark:[&>blockquote]:text-slate-400 [&>img]:rounded-xl [&>img]:my-4"
-                    dangerouslySetInnerHTML={{ __html: formatArticleHtml(article.rawContent) }}
-                  />
-                ) : (
-                  article.rawContent.split(/\n\s*\n|\n/).map((paragraph, index) => {
-                    const trimmed = paragraph.trim();
-                    if (!trimmed) return null;
-                    return (
-                      <p key={index} className="leading-relaxed">
-                        {trimmed}
-                      </p>
-                    );
-                  })
-                )}
-              </article>
-
-              {/* Dynamic Tags Pills */}
-              {dynamicArticle?.tags && (
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  <Tag className="w-3.5 h-3.5 text-slate-400" />
-                  {dynamicArticle.tags.split(',').map((tag, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
-                    >
-                      #{tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* RELATED STORIES: Placed directly BELOW the article */}
+              {/* INNER LEFT: RELATED ARTICLES (Sticky on desktop, text-only with generous spacing) */}
               {dynamicRelated.length > 0 && (
-                <div className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-4">
-                  <div className="flex items-center space-x-2 border-b-2 border-jagran-red pb-2">
-                    <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                      RELATED STORIES
+                <aside className="md:col-span-3 space-y-4 order-2 md:order-1 border-t md:border-t-0 md:border-r border-slate-200 dark:border-slate-800 pt-6 md:pt-0 md:pr-6 lg:md:pr-8 md:sticky md:top-24 self-start">
+                  <div className="border-b-2 border-jagran-red pb-1.5 flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-jagran-red" />
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      RELATED ARTICLES
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {dynamicRelated.map((rel) => (
                       <article
                         key={rel.id}
                         onClick={() => router.push(`/article/${rel.id}`)}
-                        className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer group flex flex-row sm:flex-col items-center sm:items-stretch p-2.5 sm:p-0 gap-3 sm:gap-0 hover:shadow-md transition-all"
+                        className="py-3.5 first:pt-1 last:pb-1 cursor-pointer group space-y-1.5"
                       >
-                        <div className="w-28 h-20 sm:w-full sm:h-36 rounded-lg sm:rounded-none overflow-hidden relative shrink-0 bg-slate-100 dark:bg-slate-800">
-                          <img
-                            src={rel.imageUrl || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600'}
-                            alt={rel.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0 p-0 sm:p-3 space-y-1">
-                          {rel.category && (
-                            <span className="text-[10px] font-black uppercase text-jagran-red block">
-                              {rel.category}
-                            </span>
-                          )}
-                          <h4 className="text-xs sm:text-sm font-bold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-2">
-                            {rel.title}
-                          </h4>
-                          {rel.publishedAt && (
-                            <div className="flex items-center text-[10px] text-slate-400 font-medium pt-0.5">
-                              <Clock className="w-3 h-3 mr-1 shrink-0 text-slate-400" />
-                              <span>{t(formatTimeAgo(rel.publishedAt))}</span>
-                            </div>
-                          )}
-                        </div>
+                        <h4 className="text-xs sm:text-[13px] font-bold font-serif text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+                          {rel.title}
+                        </h4>
+                        {rel.publishedAt && (
+                          <div className="flex items-center text-[10px] text-slate-400 font-medium pt-0.5">
+                            <Clock className="w-2.5 h-2.5 mr-1 text-slate-400" />
+                            <span>{t(formatTimeAgo(rel.publishedAt))}</span>
+                          </div>
+                        )}
                       </article>
                     ))}
                   </div>
-                </div>
+                </aside>
               )}
+
+              {/* INNER RIGHT: HIGHLIGHTS BOX & ARTICLE BODY */}
+              <div className={`${dynamicRelated.length > 0 ? 'md:col-span-9' : 'md:col-span-12'} space-y-5 order-1 md:order-2`}>
+                
+                {/* HIGHLIGHTS Box */}
+                {highlightsList.length > 0 && (
+                  <div className="border-l-4 border-jagran-red bg-amber-50/60 dark:bg-slate-800/60 p-4 sm:p-5 rounded-r-lg space-y-2.5">
+                    <div className="text-xs font-black uppercase text-jagran-red tracking-wider flex items-center space-x-1.5">
+                      <span>HIGHLIGHTS</span>
+                    </div>
+                    <ul className="space-y-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
+                      {highlightsList.map((point, index) => (
+                        <li key={index} className="flex items-start space-x-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-jagran-red shrink-0 mt-1.5" />
+                          <span className="leading-relaxed">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Article Body Content */}
+                <article className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-200 font-serif">
+                  {hasHtmlTags(article.rawContent) ? (
+                    <div
+                      className="article-body max-w-none space-y-4 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:font-serif [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:font-serif [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-1.5 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-1.5 [&>blockquote:not(.twitter-tweet)]:border-l-4 [&>blockquote:not(.twitter-tweet)]:border-jagran-red [&>blockquote:not(.twitter-tweet)]:pl-4 [&>blockquote:not(.twitter-tweet)]:italic [&>blockquote:not(.twitter-tweet)]:text-slate-600 dark:[&>blockquote:not(.twitter-tweet)]:text-slate-400 [&_.twitter-tweet-container]:flex [&_.twitter-tweet-container]:justify-center [&_.twitter-tweet-container]:my-6 [&>img]:rounded-xl [&>img]:my-4"
+                      dangerouslySetInnerHTML={{ __html: formatArticleHtml(article.rawContent) }}
+                    />
+                  ) : (
+                    article.rawContent.split(/\n\s*\n|\n/).map((paragraph, index) => {
+                      const trimmed = paragraph.trim();
+                      if (!trimmed) return null;
+                      return (
+                        <p key={index} className="leading-relaxed">
+                          {trimmed}
+                        </p>
+                      );
+                    })
+                  )}
+                </article>
+
+                {/* Dynamic Tags Pills */}
+                {dynamicArticle?.tags && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <Tag className="w-3.5 h-3.5 text-slate-400" />
+                    {dynamicArticle.tags.split(',').map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
+                      >
+                        #{tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+              </div>
 
             </div>
 
@@ -655,7 +722,7 @@ export default function ArticlePage() {
                   return (
                     <div
                       key={vid.id}
-                      onClick={() => router.push('/videos')}
+                      onClick={() => router.push(`/videos?v=${encodeURIComponent(vid.slug || vid.id)}&play=1`)}
                       className="group cursor-pointer space-y-1.5"
                     >
                       <div className="aspect-[16/10] bg-slate-900 rounded-xl overflow-hidden relative shadow-xs">
@@ -823,6 +890,18 @@ export default function ArticlePage() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Twitter Widgets Script for Live Embedded Tweets */}
+      <Script
+        id="twitter-wjs-root"
+        src="https://platform.twitter.com/widgets.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          if (typeof window !== 'undefined' && (window as any).twttr?.widgets) {
+            (window as any).twttr.widgets.load();
+          }
+        }}
+      />
 
     </main>
   );

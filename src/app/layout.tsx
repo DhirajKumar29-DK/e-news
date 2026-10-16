@@ -1,19 +1,28 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { CapacitorBridge, GlobalMobileBottomNav } from '@/components/common';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover'
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'The Daily Jagran | Latest News, India, World, Cricket, Tech & Breaking Updates',
-    template: '%s | The Daily Jagran'
+    default: 'The News Paper | Latest News, India, World, Cricket, Tech & Breaking Updates',
+    template: '%s | The News Paper'
   },
-  description: 'Stay ahead with The Daily Jagran. Comprehensive breaking news from India and across the globe, in-depth politics, cricket match coverage, tech breakthroughs, markets, education, and lifestyle reports.',
+  description: 'Stay ahead with The News Paper. Comprehensive breaking news from India and across the globe, in-depth politics, cricket match coverage, tech breakthroughs, markets, education, and lifestyle reports.',
   keywords: [
-    'Daily Jagran',
+    'The News Paper',
     'Latest News',
     'India News',
     'Breaking News Today',
@@ -26,9 +35,9 @@ export const metadata: Metadata = {
     'Vande Bharat',
     'ISRO Missions'
   ],
-  authors: [{ name: 'The Daily Jagran Editorial Bureau', url: siteUrl }],
-  creator: 'The Daily Jagran Media Network',
-  publisher: 'The Daily Jagran',
+  authors: [{ name: 'The News Paper Editorial Bureau', url: siteUrl }],
+  creator: 'The News Paper Media Network',
+  publisher: 'The News Paper',
   formatDetection: {
     email: false,
     address: false,
@@ -41,23 +50,23 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_IN',
     url: siteUrl,
-    siteName: 'The Daily Jagran',
-    title: 'The Daily Jagran | Latest News, Breaking Stories & Global Coverage',
+    siteName: 'The News Paper',
+    title: 'The News Paper | Latest News, Breaking Stories & Global Coverage',
     description: 'Trusted 24/7 digital news reporting from India and around the world covering politics, business, sports, entertainment, technology, and lifestyle.',
     images: [
       {
         url: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
         width: 1200,
         height: 630,
-        alt: 'The Daily Jagran - Leading Digital News Portal'
+        alt: 'The News Paper - Leading Digital News Portal'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'The Daily Jagran | Latest News & Breaking Stories',
-    description: 'Real-time breaking news, geopolitical analysis, cricket scores, and lifestyle trends from The Daily Jagran.',
-    creator: '@TheDailyJagran',
+    title: 'The News Paper | Latest News & Breaking Stories',
+    description: 'Real-time breaking news, geopolitical analysis, cricket scores, and lifestyle trends from The News Paper.',
+    creator: '@TheNewsPaper',
     images: ['https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80']
   },
   robots: {
@@ -81,7 +90,7 @@ export default function RootLayout({
   const jsonLdOrg = {
     '@context': 'https://schema.org',
     '@type': 'NewsMediaOrganization',
-    'name': 'The Daily Jagran',
+    'name': 'The News Paper',
     'url': siteUrl,
     'logo': {
       '@type': 'ImageObject',
@@ -90,9 +99,9 @@ export default function RootLayout({
       'height': 120
     },
     'sameAs': [
-      'https://twitter.com/TheDailyJagran',
-      'https://facebook.com/TheDailyJagran',
-      'https://instagram.com/TheDailyJagran'
+      'https://twitter.com/TheNewsPaper',
+      'https://facebook.com/TheNewsPaper',
+      'https://instagram.com/TheNewsPaper'
     ],
     'publishingPrinciples': `${siteUrl}/editorial-guidelines`,
     'correctionsPolicy': `${siteUrl}/corrections`
@@ -101,7 +110,7 @@ export default function RootLayout({
   const jsonLdWebsite = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    'name': 'The Daily Jagran',
+    'name': 'The News Paper',
     'url': siteUrl,
     'potentialAction': {
       '@type': 'SearchAction',
@@ -132,8 +141,10 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="antialiased selection:bg-red-500 selection:text-white">
         <ThemeProvider>
+          <CapacitorBridge />
           <LanguageProvider>
             {children}
+            <GlobalMobileBottomNav />
           </LanguageProvider>
         </ThemeProvider>
       </body>

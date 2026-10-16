@@ -108,6 +108,53 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Lock background scroll when mobile drawer is open in Header
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    const scrollY = window.scrollY;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
+    const preventBackgroundTouch = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('.header-drawer-scrollable')) {
+        return;
+      }
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('touchmove', preventBackgroundTouch, { passive: false });
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchmove', preventBackgroundTouch);
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileMenuOpen]);
+
   const popularTags = ['ISRO', 'Tech', 'Cricket', 'Economy', 'G20', 'Trump', 'NEET'];
 
   useEffect(() => {
@@ -157,6 +204,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
   useEffect(() => {
     const handleScroll = () => {
+      // On mobile screens, keep header always visible so status bar is protected and nav is always accessible
+      if (window.innerWidth < 768) {
+        setIsVisible(true);
+        return;
+      }
+
       const currentScrollPos = window.scrollY;
 
       // Keep navbar visible in the starting section (first 300px of scrolling)
@@ -177,34 +230,50 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     return () => window.removeEventListener('scroll', handleScroll);
   }, [prevScrollPos]);
 
-  // Keep mobile category navbar centered / scrolled to the active selected category
-  useEffect(() => {
+  // Exact calculation to center active category pill inside mobile navbar
+  const centerActivePill = (behavior: ScrollBehavior = 'auto') => {
     const container = mobileCategoryContainerRef.current;
     if (!container) return;
 
-    if (activeCategory && activeCategory !== 'all') {
-      const scrollTimer = setTimeout(() => {
-        const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
-        if (activeEl) {
-          const scrollTarget = activeEl.offsetLeft - (container.clientWidth / 2) + (activeEl.clientWidth / 2);
-          container.scrollTo({
-            left: Math.max(0, scrollTarget),
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
-      return () => clearTimeout(scrollTimer);
-    } else if (activeCategory === 'all') {
-      container.scrollTo({
-        left: 0,
-        behavior: 'smooth'
-      });
+    if (!activeCategory || activeCategory === 'all') {
+      container.scrollTo({ left: 0, behavior });
+      return;
     }
+
+    const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (!activeEl) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+
+    // Absolute offset inside scrollable content
+    const currentScroll = container.scrollLeft;
+    const activeOffset = activeRect.left - containerRect.left + currentScroll;
+    const targetScroll = Math.max(0, activeOffset - (containerRect.width / 2) + (activeRect.width / 2));
+
+    container.scrollTo({
+      left: targetScroll,
+      behavior
+    });
+  };
+
+  // Keep mobile category navbar centered / scrolled to the active selected category without jumping
+  useEffect(() => {
+    // Instant centering on render / category change so it never animates from Home
+    centerActivePill('auto');
+    const raf = requestAnimationFrame(() => {
+      centerActivePill('auto');
+    });
+    return () => cancelAnimationFrame(raf);
   }, [activeCategory, navCategories]);
 
   return (
     <>
-      <header className={`sticky top-0 z-40 w-full bg-white dark:bg-brand-navy border-b border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'
+      <header
+        style={{
+          paddingTop: 'max(30px, env(safe-area-inset-top, 0px))'
+        }}
+        className={`site-header sticky top-0 z-40 w-full bg-white dark:bg-brand-navy border-b border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out lg:!pt-0 ${isVisible ? 'translate-y-0' : '-translate-y-full'
         }`}>
 
         {/* 1. TOP BLACK TIMESTAMP STRIP */}
@@ -436,7 +505,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
         {/* 3. MOBILE ALWAYS-VISIBLE SWIPEABLE CATEGORY PILL BAR (App-like UX like LiveHindustan / Jagran) */}
         <div className="xl:hidden w-full max-w-full overflow-hidden bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1.5 px-3">
-          <div ref={mobileCategoryContainerRef} className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+          <div ref={mobileCategoryContainerRef} suppressHydrationWarning className="relative flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
             {/* Home Pill */}
             <button
               onClick={() => {
@@ -470,19 +539,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 <button
                   key={`mobile-pill-${tab.id || tab.slug}`}
                   data-active={isActive ? 'true' : 'false'}
-                  onClick={(e) => {
-                    const btn = e.currentTarget;
-                    const container = mobileCategoryContainerRef.current;
-                    if (container && btn) {
-                      const scrollTarget = btn.offsetLeft - (container.clientWidth / 2) + (btn.clientWidth / 2);
-                      container.scrollTo({
-                        left: Math.max(0, scrollTarget),
-                        behavior: 'smooth'
-                      });
-                    }
+                  onClick={() => {
                     onSelectCategory(tab.slug);
                   }}
-                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
                     isActive
                       ? 'bg-jagran-red text-white shadow-xs'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-jagran-red'
@@ -616,15 +676,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
         {/* 5. NATIVE MOBILE APP DRAWER MODAL OVERLAY */}
         {mobileMenuOpen && (
-          <div className="xl:hidden fixed inset-0 z-50 flex">
+          <div className="xl:hidden fixed inset-0 z-50 flex justify-end animate-in fade-in duration-200">
             {/* Dark Backdrop */}
             <div
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fade-in"
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fade-in touch-none cursor-pointer"
             />
 
-            {/* Drawer Content */}
-            <div className="relative w-[85vw] max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col shadow-2xl z-10 overflow-hidden">
+            {/* Drawer Content - Slides in from the RIGHT */}
+            <div className="relative w-[85vw] max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col shadow-2xl z-10 overflow-hidden border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
               {/* Drawer Header */}
               <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center space-x-2.5">
@@ -668,7 +728,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               </div>
 
               {/* Drawer Categories Scroll List */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+              <div className="flex-1 overflow-y-auto overscroll-contain header-drawer-scrollable p-3 space-y-1 touch-pan-y">
                 <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
                   All Sections
                 </div>
@@ -720,7 +780,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
               {/* Drawer Footer */}
               <div className="p-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
-                <span>The Daily Jagran • 2026</span>
+                <span>The News Paper • 2026</span>
                 <button
                   onClick={() => router.push('/videos')}
                   className="text-jagran-red font-bold hover:underline"

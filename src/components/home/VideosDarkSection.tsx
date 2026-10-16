@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { Play, Film, ArrowRight, Eye, Sparkles } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
+import { buildVideoEmbedUrl, getVideoThumbnail } from '@/utils/videoUtils';
 
 export const VideosDarkSection: React.FC = () => {
   const { language, t } = useLanguage();
@@ -38,23 +39,20 @@ export const VideosDarkSection: React.FC = () => {
 
   const handleSelectVideo = (vid: VideoData) => {
     setSelectedVideo(vid);
-    setIsPlaying(false);
+    setIsPlaying(true);
     if (vid.id) {
       videoService.incrementViews(vid.id);
     }
   };
 
-  const getEmbedUrl = (video: VideoData) => {
-    if (video.youtubeId) {
-      return `https://www.youtube-nocookie.com/embed/${video.youtubeId}?rel=0`;
-    }
-    return video.videoUrl;
+  const getEmbedUrl = (video: VideoData, options: { autoplay?: boolean } = {}) => {
+    return buildVideoEmbedUrl(video, options);
   };
 
   const currentVideo = selectedVideo || featuredVideo;
 
   return (
-    <section className="bg-[#0b0f19] text-white py-12 px-4 sm:px-8 lg:px-10 my-8 border-y border-slate-800 relative overflow-hidden">
+    <section className="hidden md:block bg-[#0b0f19] text-white py-12 px-4 sm:px-8 lg:px-10 my-8 border-y border-slate-800 relative overflow-hidden">
       {/* Background subtle glow */}
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-10 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
@@ -103,24 +101,24 @@ export const VideosDarkSection: React.FC = () => {
                     <video
                       src={currentVideo.videoUrl}
                       controls
+                      autoPlay
+                      playsInline
                       className="w-full h-full object-contain bg-black"
                     />
                   ) : (
                     <iframe
-                      src={getEmbedUrl(currentVideo)}
+                      src={getEmbedUrl(currentVideo, { autoplay: true })}
                       title={currentVideo.title}
                       className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
                     />
                   )
                 ) : (
                   <>
                     <img
-                      src={
-                        currentVideo.thumbnailUrl ||
-                        (currentVideo.youtubeId ? `https://img.youtube.com/vi/${currentVideo.youtubeId}/maxresdefault.jpg` : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80')
-                      }
+                      src={getVideoThumbnail(currentVideo, 'max')}
                       alt={currentVideo.title}
                       className="w-full h-full object-cover opacity-85 group-hover:opacity-95 group-hover:scale-105 transition-all duration-700"
                     />

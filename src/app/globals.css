@@ -18,6 +18,25 @@
   }
 }
 
+/* Mobile Safe Areas and Bottom Navigation Spacing */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(52px + max(12px, env(safe-area-inset-bottom, 0px))) !important;
+  }
+}
+
+/* Hide Next.js dev overlay badge on mobile so it never covers buttons */
+nextjs-portal, [data-nextjs-dev-tools-button], [data-nextjs-toast], #nextjs-dev-tools {
+  display: none !important;
+}
+
+/* Mobile Status Bar Protection for Top Header */
+@media (max-width: 1023px) {
+  header.site-header {
+    padding-top: max(30px, env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
 /* Hindi Devanagari Readability Tuning */
 .lang-hi {
   font-family: 'Mukta', 'Noto Sans Devanagari', sans-serif;
@@ -111,4 +130,44 @@ b, strong {
   background-color: rgba(220, 38, 38, 0.12) !important;
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
 }
+
+/* Rich Text Editor Styling, High-Contrast Caret & List Enforcements */
+[contenteditable],
+[contenteditable] * {
+  cursor: text !important;
+  caret-color: #0f172a !important; /* High-contrast solid dark caret visible against all text & background colors */
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+[contenteditable] button,
+[contenteditable] button * {
+  cursor: pointer !important;
+  user-select: none !important;
+}
+
+[contenteditable] ul,
+.article-body ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+  padding-left: 0.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+[contenteditable] ol,
+.article-body ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+  padding-left: 0.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+[contenteditable] li,
+.article-body li {
+  display: list-item !important;
+  margin-bottom: 0.25rem !important;
+}
+
 

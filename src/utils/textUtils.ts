@@ -49,6 +49,9 @@ export function formatArticleHtml(input: string | null | undefined): string {
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
+  // Normalize x.com URLs inside twitter blockquotes to twitter.com for widget rendering
+  html = html.replace(/href=["']https?:\/\/x\.com\/([^"']+)["']/gi, 'href="https://twitter.com/$1"');
+
   return html;
 }
 

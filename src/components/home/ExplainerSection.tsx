@@ -7,9 +7,11 @@ import { HelpCircle, ChevronRight, Clock, ArrowRight } from 'lucide-react';
 
 interface ExplainerSectionProps {
   items?: any[];
+  title?: string;
+  categorySlug?: string;
 }
 
-export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => {
+export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items, title, categorySlug }) => {
   const router = useRouter();
   const { language, t } = useLanguage();
 
@@ -18,14 +20,16 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => 
   }
 
   const displayCards = items.slice(0, 4);
+  const displayTitle = title || 'Explainer';
+  const targetSlug = categorySlug || 'explainer';
 
   return (
     <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto">
       <div className="bg-gradient-to-r from-red-700 via-rose-600 to-red-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden">
-        
+
         {/* Background Watermark */}
         <div className="absolute -right-8 -bottom-10 text-9xl font-black font-serif text-white/5 select-none pointer-events-none uppercase">
-          Explainer
+          {displayTitle}
         </div>
 
         {/* Section Header */}
@@ -36,7 +40,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => 
             </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-black font-serif tracking-tight">
-                Explainer
+                {displayTitle}
               </h2>
               <p className="text-sm text-white/90 font-semibold">
                 Deep dive and comprehensive analysis behind the headlines
@@ -45,7 +49,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => 
           </div>
 
           <button
-            onClick={() => router.push('/explainer')}
+            onClick={() => router.push(`/${targetSlug}`)}
             className="self-start sm:self-auto px-5 py-2.5 bg-white text-red-700 hover:bg-slate-950 hover:text-white border-2 border-white font-black text-xs sm:text-sm rounded-full transition-all duration-300 flex items-center space-x-2 group cursor-pointer"
           >
             <span className="tracking-wide">Explore All Stories</span>
@@ -97,8 +101,8 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => 
             </article>
           )}
 
-          {/* 2nd, 3rd, 4th Cards: Horizontal Row (Left Image, Right Text) */}
-          {displayCards.slice(1).map((card) => (
+          {/* 2nd, 3rd, 4th, 5th, 6th Cards: Horizontal Row (Left Image, Right Text) */}
+          {items.slice(1).map((card) => (
             <article
               key={card.id}
               onClick={() => router.push(`/article/${card.id}`)}
@@ -140,7 +144,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items }) => 
 
         {/* Desktop / Tablet Grid (sm:grid) - 100% UNCHANGED */}
         <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-          {displayCards.map((card) => (
+          {items.slice(0, 4).map((card) => (
             <article
               key={card.id}
               onClick={() => router.push(`/article/${card.id}`)}

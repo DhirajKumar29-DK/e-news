@@ -55,7 +55,7 @@ export const HoroscopeSection: React.FC = () => {
 
   return (
     <section 
-      className="w-full bg-gradient-to-r from-[#5C0E1A] via-[#6B111E] to-[#4A0A12] dark:bg-slate-900 py-10 my-8 relative overflow-hidden border-y border-red-950/40 shadow-xl"
+      className="w-full bg-gradient-to-r from-[#5C0E1A] via-[#6B111E] to-[#4A0A12] dark:bg-slate-900 py-10 mt-6 sm:mt-8 mb-0 sm:mb-8 relative overflow-hidden border-y border-red-950/40 shadow-xl"
     >
       {/* Subtle Constellation Dot Grid Pattern */}
       <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />

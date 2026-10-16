@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { X, Play, Film, Eye, Clock, Share2, Sparkles } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
+import { buildVideoEmbedUrl, getVideoThumbnail } from '@/utils/videoUtils';
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -49,15 +50,21 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
+    const handleBack = (e: Event) => {
+      e.preventDefault();
+      onClose();
+    };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('app_back_pressed', handleBack);
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('app_back_pressed', handleBack);
     };
   }, [isOpen, onClose]);
 
@@ -71,7 +78,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
 
   const handleSelectVideo = (v: VideoData) => {
     setActiveVideo(v);
-    setIsPlaying(false);
+    setIsPlaying(true);
     if (v.id) videoService.incrementViews(v.id);
   };
 
@@ -84,17 +91,12 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
     }
   };
 
-  const getEmbedUrl = (v: VideoData) => {
-    if (v.youtubeId) {
-      return `https://www.youtube-nocookie.com/embed/${v.youtubeId}?rel=0`;
-    }
-    return v.videoUrl;
+  const getEmbedUrl = (v: VideoData, options: { autoplay?: boolean } = {}) => {
+    return buildVideoEmbedUrl(v, options);
   };
 
   const getThumbnail = (v: VideoData) => {
-    if (v.thumbnailUrl) return v.thumbnailUrl;
-    if (v.youtubeId) return `https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`;
-    return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80';
+    return getVideoThumbnail(v, 'mq');
   };
 
   return (
@@ -136,16 +138,21 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
                 {isPlaying ? (
                   activeVideo.videoType === 'FILE' ? (
                     <video
+                      key={`modal-file-${activeVideo.id}`}
                       src={activeVideo.videoUrl}
                       controls
+                      autoPlay
+                      playsInline
                       className="w-full h-full object-contain bg-black"
                     />
                   ) : (
                     <iframe
-                      src={getEmbedUrl(activeVideo)}
+                      key={`modal-iframe-${activeVideo.id}`}
+                      src={getEmbedUrl(activeVideo, { autoplay: true })}
                       title={activeVideo.title}
                       className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
                     />
                   )

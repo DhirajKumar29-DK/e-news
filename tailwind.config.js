@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       colors: {
         jagran: {
-          red: '#DC2626',      // The Daily Jagran Crimson Red
+          red: '#DC2626',      // The News Paper Crimson Red
           dark: '#111827',     // Slate Charcoal Footer & Header Dark
           bg: '#F8FAFC',       // Soft off-white paper canvas
           card: '#FFFFFF',     // Clean white card

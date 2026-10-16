@@ -28,9 +28,9 @@ export const AdminSidebar: React.FC = () => {
   const navItems = [
     { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Articles CMS', href: '/admin/articles', icon: FileText },
-    { label: 'Video Studio', href: '/admin/videos', icon: Video, badge: 'New' },
-    { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles, badge: 'Astro' },
-    { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper, badge: 'Live' },
+    { label: 'Video Studio', href: '/admin/videos', icon: Video },
+    { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles },
+    { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper },
   ];
 
   const sidebarContent = (isMobile = false) => (
@@ -42,10 +42,9 @@ export const AdminSidebar: React.FC = () => {
             A
           </div>
           <div>
-            <h1 className="text-sm font-black font-serif uppercase tracking-wider text-white flex items-center space-x-1.5">
-            <span>ASTR CONTROL</span>
-            <span className="bg-red-600/30 text-red-400 text-[9px] font-mono px-1.5 py-0.2 rounded border border-red-500/30 font-bold">PRO</span>
-          </h1>
+            <h1 className="text-sm font-black font-serif uppercase tracking-wider text-white">
+              ASTR CONTROL
+            </h1>
             <p className="text-[10px] text-slate-400 font-medium">Newsroom Admin Portal</p>
           </div>
         </div>
@@ -86,13 +85,7 @@ export const AdminSidebar: React.FC = () => {
                 <span>{item.label}</span>
               </div>
 
-              {item.badge ? (
-                <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] font-mono px-2 py-0.5 rounded-full font-black uppercase animate-pulse">
-                  {item.badge}
-                </span>
-              ) : (
-                <ChevronRight className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'opacity-100 text-white' : 'text-slate-500'}`} />
-              )}
+              <ChevronRight className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'opacity-100 text-white' : 'text-slate-500'}`} />
             </Link>
           );
         })}

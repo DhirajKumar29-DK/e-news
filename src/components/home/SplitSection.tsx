@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Clock } from 'lucide-react';
 
 interface SplitItem {
   id: string;
@@ -12,6 +12,7 @@ interface SplitItem {
   summary?: any;
   imageUrl: string;
   timeAgo?: any;
+  readTime?: any;
 }
 
 interface SplitSectionProps {
@@ -80,23 +81,30 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
                 )}
               </div>
               {leadItem.timeAgo && (
-                <span className="text-xs text-slate-500 font-semibold pt-2.5 block border-t border-slate-100 dark:border-slate-800">
-                  {t(leadItem.timeAgo)}
-                </span>
+                <div className="text-xs text-slate-500 font-semibold pt-2.5 flex items-center space-x-1.5 border-t border-slate-100 dark:border-slate-800">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>{t(leadItem.timeAgo)}</span>
+                  {leadItem.readTime && (
+                    <>
+                      <span>•</span>
+                      <span>{t(leadItem.readTime)}</span>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </article>
         </div>
 
-        {/* Right Half: 2x2 Grid of 4 Cards (6 Cols) */}
-        <div className="w-full min-w-0 lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Mobile View (< sm): 5-6 horizontal cards below lead */}
+        <div className="block sm:hidden w-full space-y-3">
           {gridItems.map((item) => (
             <article
               key={item.id}
               onClick={() => router.push(`/article/${item.id}`)}
-              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row sm:flex-col items-center sm:items-stretch justify-between p-2.5 sm:p-0 gap-3 sm:gap-0"
+              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row items-center p-2.5 gap-3"
             >
-              <div className="w-28 h-20 sm:w-full sm:h-auto sm:aspect-[16/10] bg-slate-100 dark:bg-slate-800 rounded-lg sm:rounded-none overflow-hidden relative shrink-0">
+              <div className="w-28 h-20 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative shrink-0">
                 <img
                   src={item.imageUrl}
                   alt={t(item.title)}
@@ -105,23 +113,71 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
                   }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <span className="hidden sm:inline-block absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-2.5 py-0.5 rounded uppercase">
-                  {item.category}
-                </span>
               </div>
-              <div className="flex-1 min-w-0 p-0 sm:p-3.5 flex flex-col justify-between">
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
-                  <span className="sm:hidden text-[10px] font-black uppercase text-jagran-red block mb-1">
+                  <span className="text-[10px] font-black uppercase text-jagran-red block mb-1">
                     {item.category}
                   </span>
-                  <h4 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-2 leading-snug">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
                     {t(item.title)}
                   </h4>
                 </div>
                 {item.timeAgo && (
-                  <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-1 sm:pt-1.5 block">
-                    {t(item.timeAgo)}
-                  </span>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium pt-1 flex items-center space-x-1">
+                    <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span>{t(item.timeAgo)}</span>
+                    {item.readTime && (
+                      <>
+                        <span>•</span>
+                        <span>{t(item.readTime)}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Desktop View (sm+): Exact 2x2 Grid of 4 Cards (100% UNCHANGED) */}
+        <div className="hidden sm:grid w-full min-w-0 lg:col-span-6 grid-cols-2 gap-3 sm:gap-4">
+          {gridItems.slice(0, 4).map((item) => (
+            <article
+              key={item.id}
+              onClick={() => router.push(`/article/${item.id}`)}
+              className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col items-stretch justify-between"
+            >
+              <div className="w-full aspect-[16/10] bg-slate-100 dark:bg-slate-800 overflow-hidden relative shrink-0">
+                <img
+                  src={item.imageUrl}
+                  alt={t(item.title)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-2.5 py-0.5 rounded uppercase">
+                  {item.category}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0 p-3.5 flex flex-col justify-between">
+                <div>
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                    {t(item.title)}
+                  </h4>
+                </div>
+                {item.timeAgo && (
+                  <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-1.5 flex items-center space-x-1">
+                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{t(item.timeAgo)}</span>
+                    {item.readTime && (
+                      <>
+                        <span>•</span>
+                        <span>{t(item.readTime)}</span>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </article>

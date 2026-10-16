@@ -4,3 +4,6 @@ export { MobileBottomNav } from './MobileBottomNav';
 export { SearchModal } from './SearchModal';
 export { EPaperModal } from './EPaperModal';
 export { VideoModal } from './VideoModal';
+export { CapacitorBridge } from './CapacitorBridge';
+export { ExitConfirmationModal } from './ExitConfirmationModal';
+export { GlobalMobileBottomNav } from './GlobalMobileBottomNav';

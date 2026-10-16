@@ -10,13 +10,13 @@ import { articleService } from '@/services/articleService';
 import {
   ArrowLeft, Save, Send, Image as ImageIcon, Sparkles, Plus, Trash2,
   Star, TrendingUp, CheckCircle, AlertCircle, FileText, Tag, HelpCircle,
-  UploadCloud, Link as LinkIcon, Wand2, Zap, Search
+  UploadCloud, Link as LinkIcon, Wand2, Zap, Search, Clock, Globe, Share2,
+  Eye, Check, ChevronDown, Layers, Sliders, ExternalLink
 } from 'lucide-react';
-import { cleanHtmlToPlainText, stripHtml } from '@/utils/textUtils';
+import { cleanHtmlToPlainText, stripHtml, formatArticleHtml } from '@/utils/textUtils';
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { CategoryManagerModal } from '@/components/admin/CategoryManagerModal';
-
-
+import RichTextEditor from '@/components/admin/RichTextEditor';
 
 function CreateArticleContent() {
   const router = useRouter();
@@ -38,14 +38,50 @@ function CreateArticleContent() {
 
   // Form Fields
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const [category, setCategory] = useState('tech');
   const [subCategory, setSubCategory] = useState('');
   const [subHeadline, setSubHeadline] = useState('');
   const [content, setContent] = useState('');
   const [featuredImage, setFeaturedImage] = useState('');
   const [imageCaption, setImageCaption] = useState('');
+  const [imageAlt, setImageAlt] = useState('');
   const [authorName, setAuthorName] = useState(user?.name || 'News Desk');
   const [tags, setTags] = useState('');
+  const [previewTab, setPreviewTab] = useState<'google' | 'social'>('google');
+  const [isIndexed, setIsIndexed] = useState(true);
+
+  // Inspector Sidebar Tab: 'publish' | 'placement' | 'seo'
+  const [inspectorTab, setInspectorTab] = useState<'publish' | 'placement' | 'seo'>('publish');
+
+  const slugify = (text: string) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\u0900-\u097F\-]+/g, '')
+      .replace(/\-\-+/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '');
+  };
+
+  const handleTitleChange = (val: string) => {
+    setTitle(val);
+    if (!isSlugManuallyEdited) {
+      setSlug(slugify(val));
+    }
+  };
+
+  const handleGenerateSlug = () => {
+    setSlug(slugify(title));
+    setIsSlugManuallyEdited(false);
+  };
+
+  const plainTextContent = stripHtml(content);
+  const wordCount = plainTextContent ? plainTextContent.trim().split(/\s+/).filter(Boolean).length : 0;
+  const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+  const charCount = plainTextContent.length;
 
   // Upload state
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -67,17 +103,12 @@ function CreateArticleContent() {
   };
 
   // Bullet Points (Key Highlights)
-  const [bulletPoints, setBulletPoints] = useState<string[]>([
-    '',
-    '',
-    ''
-  ]);
+  const [bulletPoints, setBulletPoints] = useState<string[]>(['', '', '']);
 
   // Layout & Visibility Toggles
   const [isLeadStory, setIsLeadStory] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
   const [isQuickHighlight, setIsQuickHighlight] = useState(false);
-  const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
 
   // SEO Metadata Fields
   const [metaTitle, setMetaTitle] = useState('');
@@ -118,7 +149,7 @@ function CreateArticleContent() {
       setIsSubmitting(true);
       const cleanedTitle = stripHtml(title.trim());
       const cleanedHeadline = subHeadline ? stripHtml(subHeadline.trim()) : null;
-      const cleanedContent = cleanHtmlToPlainText(content.trim());
+      const formattedContent = formatArticleHtml(content.trim());
       const activeBullets = bulletPoints
         .map(b => stripHtml(b.trim()))
         .filter(Boolean);
@@ -128,28 +159,34 @@ function CreateArticleContent() {
         baseTags.push('quick_highlight');
       }
 
-      const newArticle = await articleService.createArticle({
+      let combinedCaption = imageCaption.trim();
+      if (imageAlt.trim()) {
+        combinedCaption = combinedCaption ? `${combinedCaption} | Alt: ${imageAlt.trim()}` : `Alt: ${imageAlt.trim()}`;
+      }
+
+      await articleService.createArticle({
         title: cleanedTitle,
+        slug: slug.trim() || undefined,
         category,
         subCategory: subCategory.trim() || null,
         subHeadline: cleanedHeadline,
-        content: cleanedContent,
+        content: formattedContent,
         featuredImage: featuredImage.trim() || null,
-        imageCaption: imageCaption ? stripHtml(imageCaption.trim()) : null,
+        imageCaption: combinedCaption || null,
         authorName: authorName.trim() || 'News Desk',
         bulletPoints: activeBullets,
         tags: baseTags,
         isLeadStory,
         isTrending,
         status: publishStatus,
-        // SEO Fields
+        readTimeMinutes,
         metaTitle: metaTitle.trim() || null,
         metaDescription: metaDescription.trim() || null,
         metaKeywords: metaKeywords.trim() || null,
         canonicalUrl: canonicalUrl.trim() || null
       });
 
-      setSuccessMsg('Article published successfully! Redirecting...');
+      setSuccessMsg(`Article ${publishStatus === 'PUBLISHED' ? 'published' : 'saved as draft'} successfully! Redirecting...`);
       setTimeout(() => {
         router.push('/admin/articles');
       }, 1200);
@@ -161,301 +198,414 @@ function CreateArticleContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans select-none">
-      
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex font-sans">
       {/* 1. SIDEBAR */}
       <AdminSidebar />
 
-      {/* 2. MAIN CONTENT */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <AdminHeader title="Create New Story" />
+      {/* 2. MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        <AdminHeader title="Editorial Studio" />
 
-        <div className="p-6 sm:p-8 space-y-6 flex-1 max-w-5xl w-full mx-auto">
-          
-          {/* Header Action Bar */}
-          <div className="flex items-center justify-between">
-            <Link
-              href="/admin/articles"
-              className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Articles</span>
-            </Link>
+        {/* Pinned Production-Grade Editorial Bar */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3 shadow-2xs">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center space-x-3 min-w-0">
+              <Link
+                href="/admin/articles"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
+                title="Back to Articles CMS"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div className="min-w-0">
+                <div className="flex items-center space-x-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-500 truncate">
+                    Newsroom Drafting
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-xs font-bold text-slate-600 truncate max-w-[240px] sm:max-w-md">
+                    {title || 'Untitled News Story'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 text-[11px] text-slate-400 font-medium mt-0.5">
+                  <span className="flex items-center space-x-1">
+                    <FileText className="w-3 h-3 text-slate-400" />
+                    <span className="font-bold text-slate-700">{wordCount}</span> words
+                  </span>
+                  <span>•</span>
+                  <span>~{readTimeMinutes} min read</span>
+                  <span>•</span>
+                  <span className="capitalize text-slate-600 font-semibold">{category}</span>
+                </div>
+              </div>
+            </div>
 
-            <div className="flex items-center space-x-2.5">
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-auto">
               <button
+                type="button"
                 disabled={isSubmitting}
                 onClick={() => handleSubmit('DRAFT')}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer shadow-2xs disabled:opacity-50"
               >
-                <Save className="w-4 h-4 text-slate-500" />
+                <Save className="w-3.5 h-3.5 text-slate-500" />
                 <span>Save Draft</span>
               </button>
 
               <button
+                type="button"
                 disabled={isSubmitting}
                 onClick={() => handleSubmit('PUBLISHED')}
-                className="inline-flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center space-x-2 px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs shadow-md shadow-red-600/25 transition-all cursor-pointer disabled:opacity-50"
               >
-                <Send className="w-4 h-4" />
-                <span>{isSubmitting ? 'Publishing...' : 'Publish Article'}</span>
+                <Send className="w-3.5 h-3.5" />
+                <span>{isSubmitting ? 'Publishing...' : 'Publish Story'}</span>
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Feedback Messages */}
+        {/* Workspace Canvas & Inspector */}
+        <div className="p-4 sm:p-8 pb-36 sm:pb-44 max-w-7xl w-full mx-auto space-y-6 flex-1">
+          {/* Notifications */}
           {errorMsg && (
-            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center space-x-2 shadow-2xs animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 shrink-0" />
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center space-x-2 shadow-2xs animate-in fade-in">
+              <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Form Workspace Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Grid Layout: Main Editorial Canvas (8 cols) + Right Editorial Inspector (4 cols) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Left Column (8 cols): Main Content Fields */}
+            {/* LEFT COLUMN: Editorial Canvas */}
             <div className="lg:col-span-8 space-y-6">
-              
-              {/* 1. Primary Headline & Deck */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+
+              {/* 1. Headline & Deck Card */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+                {/* Headline input */}
                 <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Primary Headline (H1) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      Story Primary Headline <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {title.length} chars
+                    </span>
+                  </div>
+                  <textarea
+                    rows={2}
                     required
-                    placeholder="Enter bold, captivating news headline..."
+                    placeholder="Enter bold, captivating headline..."
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-lg font-black font-serif text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    className="w-full bg-transparent border-0 outline-none p-0 text-2xl sm:text-3xl font-black font-serif text-slate-900 placeholder:text-slate-300 focus:ring-0 leading-tight resize-none"
                   />
                 </div>
 
-                <div>
+                {/* Slug Permalink Pill */}
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200/90 rounded-xl px-3.5 py-2 text-xs">
+                  <div className="flex items-center space-x-1.5 overflow-hidden text-slate-500 font-mono text-xs w-full">
+                    <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="text-slate-400 font-medium select-none shrink-0 font-sans">
+                      thenewspaper.com/article/
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="custom-permalink-slug"
+                      value={slug}
+                      onChange={(e) => {
+                        setSlug(slugify(e.target.value));
+                        setIsSlugManuallyEdited(true);
+                      }}
+                      className="w-full bg-transparent border-0 outline-none p-0 text-xs font-mono text-slate-800 placeholder-slate-400 font-bold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSlug}
+                    className="text-[11px] font-bold text-red-600 hover:text-red-700 flex items-center space-x-1 shrink-0 ml-2 cursor-pointer transition-colors"
+                    title="Auto-regenerate slug from current headline"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    <span className="hidden sm:inline">Sync Slug</span>
+                  </button>
+                </div>
+
+                {/* Deck / Sub-headline */}
+                <div className="pt-3 border-t border-slate-100">
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Sub-Headline / Deck (Summary)
+                    Sub-Headline / Deck (Lead Paragraph Excerpt)
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="Brief 1-2 sentence excerpt displayed under headline and on card previews..."
+                    placeholder="Brief 1-2 sentence summary displayed under the headline on website and news cards..."
                     value={subHeadline}
                     onChange={(e) => setSubHeadline(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all leading-relaxed"
                   />
                 </div>
               </div>
 
-              {/* 2. Featured Image & Photo Caption */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-700">
+              {/* 2. Featured Media Banner */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center space-x-2">
                     <ImageIcon className="w-4 h-4 text-red-600" />
-                    <span>Featured Image (16:9 Aspect Ratio)</span>
-                    {featuredImage && (
-                      <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <CheckCircle className="w-3 h-3" />
-                        <span>Attached</span>
-                      </span>
-                    )}
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Lead Cover Media (16:9 Aspect Ratio)
+                    </h3>
                   </div>
 
-                  {/* Mode switcher tabs */}
-                  <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                  {/* Mode switch */}
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
                     <button
                       type="button"
                       onClick={() => setImageInputMode('upload')}
-                      className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${
                         imageInputMode === 'upload'
-                          ? 'bg-red-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
                       <UploadCloud className="w-3.5 h-3.5" />
-                      <span>Upload from Device</span>
+                      <span>Upload File</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setImageInputMode('url')}
-                      className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${
                         imageInputMode === 'url'
-                          ? 'bg-red-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
                       <LinkIcon className="w-3.5 h-3.5" />
-                      <span>Paste Image URL</span>
+                      <span>Image URL</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {imageInputMode === 'upload' ? (
-                    <div>
-                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                        Choose Image from Computer / Phone
-                      </label>
-                      <label
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={async (e) => {
-                          e.preventDefault();
-                          const file = e.dataTransfer.files?.[0];
-                          if (file) {
-                            try {
-                              setIsUploading(true);
-                              setErrorMsg('');
-                              const uploadedUrl = await articleService.uploadImage(file);
-                              setFeaturedImage(uploadedUrl);
-                              setSuccessMsg('Image uploaded successfully from device!');
-                            } catch (err: any) {
-                              setErrorMsg(err.message || 'Failed to upload image.');
-                            } finally {
-                              setIsUploading(false);
-                            }
-                          }
-                        }}
-                        className="border-2 border-dashed border-red-200 hover:border-red-500 bg-red-50/20 hover:bg-red-50/40 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer transition-all group"
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                          className="hidden"
-                        />
-                        {isUploading ? (
-                          <div className="flex flex-col items-center space-y-3 py-3">
-                            <div className="w-9 h-9 border-3 border-red-600 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-xs font-black text-slate-800 animate-pulse">
-                              Uploading file to server... Please wait
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center space-y-2 text-center">
-                            <div className="w-14 h-14 rounded-2xl bg-white border border-red-100 text-red-600 group-hover:scale-105 flex items-center justify-center transition-transform shadow-xs">
-                              <UploadCloud className="w-7 h-7" />
-                            </div>
-                            <div>
-                              <span className="text-sm font-black text-slate-900 block group-hover:text-red-600 transition-colors">
-                                Click to browse image or drag & drop here
-                              </span>
-                              <span className="text-xs text-slate-500 font-medium block mt-0.5">
-                                JPG, PNG, WebP up to 15MB (Direct local file upload)
-                              </span>
-                            </div>
-                            <span className="text-[11px] font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200 mt-1">
-                              Select from Computer / Laptop
-                            </span>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                        Image Direct Web URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/... or paste image URL"
-                        value={featuredImage}
-                        onChange={(e) => setFeaturedImage(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                      />
-                    </div>
-                  )}
-
+                {imageInputMode === 'upload' ? (
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                      Photo Caption & Credits
+                    <label
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) {
+                          try {
+                            setIsUploading(true);
+                            setErrorMsg('');
+                            const uploadedUrl = await articleService.uploadImage(file);
+                            setFeaturedImage(uploadedUrl);
+                            setSuccessMsg('Image uploaded successfully from device!');
+                          } catch (err: any) {
+                            setErrorMsg(err.message || 'Failed to upload image.');
+                          } finally {
+                            setIsUploading(false);
+                          }
+                        }
+                      }}
+                      className="border-2 border-dashed border-slate-300 hover:border-red-500 bg-slate-50/50 hover:bg-red-50/20 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer transition-all group"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        disabled={isUploading}
+                        className="hidden"
+                      />
+                      {isUploading ? (
+                        <div className="flex flex-col items-center space-y-3 py-3">
+                          <div className="w-8 h-8 border-3 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs font-black text-slate-800 animate-pulse">
+                            Uploading image to server...
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center space-y-2 text-center">
+                          <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-700 group-hover:text-red-600 group-hover:scale-105 flex items-center justify-center transition-all shadow-2xs">
+                            <UploadCloud className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-900 block group-hover:text-red-600 transition-colors">
+                              Click to choose photo or drag & drop here
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-medium block mt-0.5">
+                              High-resolution JPG, PNG, or WebP up to 15MB
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... or paste direct web image link"
+                      value={featuredImage}
+                      onChange={(e) => setFeaturedImage(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+                )}
+
+                {/* Caption & Alt Text Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Photo Caption & Credit
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. Photo: Reuters / Jagran Bureau"
                       value={imageCaption}
                       onChange={(e) => setImageCaption(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Image Alt Text (Google SEO)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Prime Minister addressing tech rally in New Delhi"
+                      value={imageAlt}
+                      onChange={(e) => setImageAlt(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+                </div>
 
-                  {/* Live Image Preview */}
-                  {featuredImage && (
-                    <div className="mt-3 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                        <span>Live Preview (16:9 Banner):</span>
-                        <button
-                          type="button"
-                          onClick={() => setFeaturedImage('')}
-                          className="text-red-600 hover:text-red-700 text-xs font-bold flex items-center space-x-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove Image</span>
-                        </button>
-                      </div>
-                      <div className="aspect-[16/9] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 relative group shadow-xs">
-                        <img
-                          src={featuredImage}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as any).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200';
-                          }}
-                        />
-                        {imageCaption && (
-                          <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs text-white text-[11px] px-3 py-1 font-medium truncate">
-                            {imageCaption}
-                          </div>
-                        )}
-                      </div>
+                {/* Live Preview */}
+                {featuredImage && (
+                  <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 relative group shadow-2xs">
+                    <div className="aspect-[16/9] w-full">
+                      <img
+                        src={featuredImage}
+                        alt="Cover Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as any).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200';
+                        }}
+                      />
                     </div>
-                  )}
+                    <div className="absolute top-3 right-3 flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setFeaturedImage('')}
+                        className="px-2.5 py-1.5 rounded-lg bg-black/70 hover:bg-red-600 text-white text-xs font-bold backdrop-blur-sm transition-colors cursor-pointer flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                    {imageCaption && (
+                      <div className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs text-white text-xs px-4 py-1.5 font-medium truncate">
+                        {imageCaption}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Story Content / Body (Centerpiece) */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-red-600" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Story Content & Editorial Body <span className="text-red-500">*</span>
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-black uppercase">
+                    WYSIWYG Active
+                  </span>
+                </div>
+
+                <RichTextEditor
+                  value={content}
+                  onChange={setContent}
+                  label="Story Content / Body"
+                  placeholder="Write the complete news story here... Use H2/H3 for subheadings, bullet points for lists, quotes for statements, or embed X posts."
+                />
+
+                {/* Word Count Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
+                  <div className="flex items-center space-x-3">
+                    <span className="flex items-center space-x-1 text-slate-800">
+                      <FileText className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{wordCount} Words</span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center space-x-1 text-slate-800">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>~{readTimeMinutes} Min Read</span>
+                    </span>
+                    <span>•</span>
+                    <span className="text-slate-400 font-mono">
+                      {charCount} Characters
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Calculated for standard reading pace
+                  </span>
                 </div>
               </div>
 
-              {/* 3. Key Highlights (Bullet Points) */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600">
+              {/* 4. Quick Takeaways / Key Highlights */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center space-x-2">
                     <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Key Highlights (Bullet Points)</span>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Executive Key Highlights (Bullet Points)
+                    </h3>
                   </div>
                   <button
                     type="button"
                     onClick={handleAddBullet}
-                    className="inline-flex items-center space-x-1 text-[11px] font-bold text-red-600 hover:text-red-700 cursor-pointer"
+                    className="inline-flex items-center space-x-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add Point</span>
+                    <span>Add Highlight</span>
                   </button>
                 </div>
 
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Key takeaway points displayed in a highlighted box at the top of the article for fast reader skimming.
+                </p>
+
                 <div className="space-y-2.5">
                   {bulletPoints.map((bullet, idx) => (
-                    <div key={idx} className="flex items-center space-x-2">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center shrink-0">
+                    <div key={idx} className="flex items-center space-x-2 group">
+                      <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0 border border-slate-200">
                         {idx + 1}
                       </span>
                       <input
                         type="text"
-                        placeholder={`Key highlight #${idx + 1}...`}
+                        placeholder={`Key takeaway point #${idx + 1}...`}
                         value={bullet}
                         onChange={(e) => handleBulletChange(idx, e.target.value)}
-                        className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                       />
                       {bulletPoints.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveBullet(idx)}
                           className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                          title="Remove bullet point"
+                          title="Remove point"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -463,288 +613,402 @@ function CreateArticleContent() {
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* 4. Article Body Content */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-slate-600">
-                    <FileText className="w-4 h-4 text-red-600" />
-                    <span>Story Content / Body <span className="text-red-500">*</span></span>
-                  </div>
-                  {content.includes('<') && content.includes('>') && (
-                    <button
-                      type="button"
-                      onClick={() => setContent(cleanHtmlToPlainText(content))}
-                      className="inline-flex items-center space-x-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-md border border-amber-200 transition-colors cursor-pointer"
-                      title="Remove raw <p>, <h>, etc. and convert to clean plain paragraphs"
-                    >
-                      <Wand2 className="w-3 h-3 text-amber-600" />
-                      <span>Clean HTML Tags</span>
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <textarea
-                    rows={12}
-                    required
-                    placeholder="Write the complete news article here..."
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-sans leading-relaxed text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                  />
-                </div>
+                {/* Bottom Add Point Button */}
+                <button
+                  type="button"
+                  onClick={handleAddBullet}
+                  className="w-full py-2.5 mt-2 border-2 border-dashed border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50/50 hover:bg-red-50/50 transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Another Highlight Point</span>
+                </button>
               </div>
 
             </div>
 
-            {/* Right Column (4 cols): Meta, Categories & Layout Controls */}
-            <div className="lg:col-span-4 space-y-6">
-              
-              {/* Category Selector */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-                    Category Assignment
-                  </span>
+            {/* RIGHT COLUMN: Production-Grade Inspector Rail (4 cols, Sticky) */}
+            <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+
+              {/* Inspector Tab Selector */}
+              <div className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-md pb-1 pt-0.5">
+                <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs grid grid-cols-3 gap-1">
                   <button
                     type="button"
-                    onClick={() => setIsCategoryModalOpen(true)}
-                    className="text-[11px] font-bold text-red-600 hover:text-red-700 flex items-center space-x-1 cursor-pointer"
+                    onClick={() => setInspectorTab('publish')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                      inspectorTab === 'publish'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Manage / Add</span>
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Metadata</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectorTab('placement')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                      inspectorTab === 'placement'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Placement</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectorTab('seo')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                      inspectorTab === 'seo'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>SEO & Social</span>
                   </button>
                 </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Primary Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer"
-                  >
-                    {dynamicCategories.map(c => (
-                      <option key={c.id} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Sub-Topic / Kicker
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. AI Tech, Bollywood, Election"
-                    value={subCategory}
-                    onChange={(e) => setSubCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                  />
-                </div>
               </div>
 
-              {/* Homepage Layout Placement Switches */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="text-xs font-black uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
-                  Homepage Placement
-                </div>
-
-                {/* Lead Story Toggle */}
-                <div className="flex items-start justify-between p-3 rounded-xl bg-amber-50/60 border border-amber-200/80">
-                  <div className="space-y-0.5 pr-2">
-                    <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-900">
-                      <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      <span>Make Lead Story</span>
+              {/* TAB 1: Metadata & Classification */}
+              {inspectorTab === 'publish' && (
+                <div className="space-y-6 animate-in fade-in duration-150">
+                  {/* Category Assignment */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Primary Classification
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="text-[11px] font-bold text-red-600 hover:text-red-700 flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Categories</span>
+                      </button>
                     </div>
-                    <p className="text-[10px] text-amber-700/80 font-medium">
-                      Pins this article as the big center hero feature on Homepage.
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isLeadStory}
-                    onChange={(e) => setIsLeadStory(e.target.checked)}
-                    className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer mt-0.5"
-                  />
-                </div>
 
-                {/* Top News (Sidebar) Toggle */}
-                <div className="flex items-start justify-between p-3 rounded-xl bg-rose-50/60 border border-rose-200/80">
-                  <div className="space-y-0.5 pr-2">
-                    <div className="flex items-center space-x-1.5 text-xs font-bold text-rose-900">
-                      <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Top News (01-05 Sidebar)</span>
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer"
+                      >
+                        {dynamicCategories.map(c => (
+                          <option key={c.id} value={c.slug}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
-                    <p className="text-[10px] text-rose-700/80 font-medium">
-                      Pins article in the numbered Top News 1 to 5 list on Homepage & Category pages.
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isTrending}
-                    onChange={(e) => setIsTrending(e.target.checked)}
-                    className="w-4 h-4 text-rose-600 rounded border-rose-300 focus:ring-rose-500 cursor-pointer mt-0.5"
-                  />
-                </div>
 
-                {/* Quick Highlights Toggle */}
-                <div className="flex items-start justify-between p-3 rounded-xl bg-indigo-50/60 border border-indigo-200/80">
-                  <div className="space-y-0.5 pr-2">
-                    <div className="flex items-center space-x-1.5 text-xs font-bold text-indigo-900">
-                      <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-500" />
-                      <span>Quick Highlights (Left Column)</span>
-                    </div>
-                    <p className="text-[10px] text-indigo-700/80 font-medium">
-                      Pins article in the 5 text-only Quick Highlights on the left strip of Homepage.
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isQuickHighlight}
-                    onChange={(e) => setIsQuickHighlight(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500 cursor-pointer mt-0.5"
-                  />
-                </div>
-              </div>
-
-              {/* Author & Tags */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="text-xs font-black uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
-                  Metadata & Byline
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Author Byline
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Jagran News Network"
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Tags (Comma Separated)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Technology, Apple, Gadgets"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                  />
-                </div>
-              </div>
-
-              {/* SEO Metadata */}
-              <div className="bg-white p-6 rounded-2xl border border-emerald-200 shadow-xs space-y-4">
-                <div className="flex items-center space-x-2 border-b border-slate-100 pb-2">
-                  <Search className="w-4 h-4 text-emerald-600" />
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-600">SEO Metadata</span>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Google</span>
-                </div>
-
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Ye fields Google aur social media ke liye hain. Khali chhodne par article title/content auto-use hoga.
-                </p>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                    Meta Title
-                    <span className="ml-1 font-normal normal-case text-slate-400">(Max 60 chars)</span>
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={60}
-                    placeholder="SEO title — appears in Google search results"
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                  <div className="text-right text-[10px] text-slate-400 mt-0.5">{metaTitle.length}/60</div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                    Meta Description
-                    <span className="ml-1 font-normal normal-case text-slate-400">(Max 160 chars)</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    maxLength={160}
-                    placeholder="Short description shown under title in Google — write compelling 1-2 sentences"
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                  <div className="text-right text-[10px] text-slate-400 mt-0.5">{metaDescription.length}/160</div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                    Meta Keywords
-                    <span className="ml-1 font-normal normal-case text-slate-400">(comma separated)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Modi, Budget 2025, India Economy"
-                    value={metaKeywords}
-                    onChange={(e) => setMetaKeywords(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                    Canonical URL
-                    <span className="ml-1 font-normal normal-case text-slate-400">(optional)</span>
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://yourdomain.com/article/slug (leave blank for default)"
-                    value={canonicalUrl}
-                    onChange={(e) => setCanonicalUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-
-                {/* Live Google Preview */}
-                {(metaTitle || title) && (
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Google Preview</div>
-                    <div className="text-[13px] font-semibold text-blue-600 truncate">
-                      {metaTitle || title || 'Article Title'}
-                    </div>
-                    <div className="text-[11px] text-emerald-700 truncate">
-                      yourdomain.com › article › {title.toLowerCase().replace(/\s+/g, '-').slice(0, 30) || 'slug'}
-                    </div>
-                    <div className="text-[11px] text-slate-500 line-clamp-2">
-                      {metaDescription || subHeadline || 'Meta description will appear here...'}
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Sub-Category / Kicker
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. AI Tech, Cricket, Election 2026"
+                        value={subCategory}
+                        onChange={(e) => setSubCategory(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Author Byline & Tags */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2.5">
+                      Author & Discovery Tags
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Author Byline
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Jagran News Network"
+                        value={authorName}
+                        onChange={(e) => setAuthorName(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                        Tags (Comma Separated)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Tech, Apple, Budget 2026"
+                        value={tags}
+                        onChange={(e) => setTags(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                        Used for internal search indexing and related articles recommendation.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: Homepage Placement & Editorial Distribution */}
+              {inspectorTab === 'placement' && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2.5">
+                      Homepage & Section Distribution
+                    </div>
+
+                    {/* Lead Story Switch */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                      <div className="space-y-0.5 pr-3">
+                        <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                          <Star className={`w-3.5 h-3.5 ${isLeadStory ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
+                          <span>Make Lead Story (Hero)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-snug">
+                          Pins story in the big spotlight center hero on Homepage.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isLeadStory}
+                          onChange={(e) => setIsLeadStory(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Top News Switch */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                      <div className="space-y-0.5 pr-3">
+                        <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                          <TrendingUp className={`w-3.5 h-3.5 ${isTrending ? 'text-red-600' : 'text-slate-400'}`} />
+                          <span>Top News (01-05 Sidebar)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-snug">
+                          Pins story in the numbered Top News 1 to 5 rail across pages.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isTrending}
+                          onChange={(e) => setIsTrending(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Quick Highlights Switch */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                      <div className="space-y-0.5 pr-3">
+                        <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                          <Zap className={`w-3.5 h-3.5 ${isQuickHighlight ? 'text-blue-600 fill-blue-500' : 'text-slate-400'}`} />
+                          <span>Quick Highlights Strip</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-snug">
+                          Pins story in the 5 text-only rapid bulletin headlines.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isQuickHighlight}
+                          onChange={(e) => setIsQuickHighlight(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: Google SEO & Social Optimization */}
+              {inspectorTab === 'seo' && (
+                <div className="space-y-6 animate-in fade-in duration-150">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center space-x-1.5">
+                        <Search className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                          Search Engine Optimization
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Google Ready
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                          Meta Title
+                        </label>
+                        <span className={`text-[10px] font-mono ${metaTitle.length > 60 ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                          {metaTitle.length}/60
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={70}
+                        placeholder="SEO title — appears in Google search results"
+                        value={metaTitle}
+                        onChange={(e) => setMetaTitle(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                          Meta Description
+                        </label>
+                        <span className={`text-[10px] font-mono ${metaDescription.length > 160 ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                          {metaDescription.length}/160
+                        </span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        maxLength={180}
+                        placeholder="Compelling 1-2 sentence snippet shown under title in search results..."
+                        value={metaDescription}
+                        onChange={(e) => setMetaDescription(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 leading-relaxed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                        Meta Keywords
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Budget 2026, India Economy, Tech News"
+                        value={metaKeywords}
+                        onChange={(e) => setMetaKeywords(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                        Canonical URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://thenewspaper.com/article/slug (leave blank for default)"
+                        value={canonicalUrl}
+                        onChange={(e) => setCanonicalUrl(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      />
+                    </div>
+
+                    {/* Indexing Toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50">
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">Search Engine Indexing</div>
+                        <p className="text-[10px] text-slate-500">Allow Google to crawl and index this story</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isIndexed}
+                          onChange={(e) => setIsIndexed(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Previews: Google & Social Card */}
+                    {(metaTitle || title) && (
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            Search Result Preview
+                          </span>
+                          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewTab('google')}
+                              className={`px-2 py-0.5 rounded-md cursor-pointer ${
+                                previewTab === 'google' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                              }`}
+                            >
+                              Google
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewTab('social')}
+                              className={`px-2 py-0.5 rounded-md cursor-pointer ${
+                                previewTab === 'social' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                              }`}
+                            >
+                              WhatsApp
+                            </button>
+                          </div>
+                        </div>
+
+                        {previewTab === 'google' ? (
+                          <div className="p-3 bg-white rounded-xl border border-slate-200 text-left space-y-1">
+                            <div className="text-[10px] text-slate-500 truncate flex items-center space-x-1">
+                              <span className="font-semibold text-slate-700">thenewspaper.com</span>
+                              <span>› article › {slug || 'custom-permalink'}</span>
+                            </div>
+                            <div className="text-xs font-semibold text-blue-700 line-clamp-1 hover:underline cursor-pointer">
+                              {metaTitle || title} | The News Paper
+                            </div>
+                            <div className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                              {metaDescription || subHeadline || plainTextContent.slice(0, 140) || 'Story description will appear here...'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-white rounded-xl border border-slate-200 text-left space-y-2">
+                            {featuredImage && (
+                              <div className="aspect-[1.91/1] w-full bg-slate-100 rounded-lg overflow-hidden">
+                                <img src={featuredImage} alt="Social Card" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">
+                              THENEWSPAPER.COM
+                            </div>
+                            <div className="text-xs font-bold text-slate-900 line-clamp-1">
+                              {metaTitle || title}
+                            </div>
+                            <div className="text-[10px] text-slate-500 line-clamp-2">
+                              {metaDescription || subHeadline || plainTextContent.slice(0, 100)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             </div>
 
           </div>
-
         </div>
       </div>
 
       {/* Category Manager Modal */}
       <CategoryManagerModal
         isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onUpdated={() => {
+        onClose={() => {
+          setIsCategoryModalOpen(false);
           categoryService.getCategories(true).then((cats) => {
             if (cats && cats.length > 0) setDynamicCategories(cats);
           });

@@ -873,8 +873,6 @@ export default function CityWeatherDetailPage({ params }: PageProps) {
         onClose={() => setIsSearchOpen(false)}
       />
 
-      {/* 5. Mobile Bottom Navigation */}
-      <MobileBottomNav onOpenSearch={() => setIsSearchOpen(true)} />
     </main>
   );
 }

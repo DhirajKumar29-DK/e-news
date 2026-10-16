@@ -630,7 +630,26 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
   // LiveHindustan Hotspot & Dual-View Article Modal State
   const pageContainerRef = useRef<HTMLDivElement>(null);
+  const canvasScrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(900);
+  const [screenWidth, setScreenWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth;
+    return 1024;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Reset broadsheet scroll position to top-left on page change
+  useEffect(() => {
+    if (canvasScrollContainerRef.current) {
+      canvasScrollContainerRef.current.scrollTo({ left: 0, top: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, [currentPageIndex]);
   const [selectedArticle, setSelectedArticle] = useState<EPaperSlot | null>(null);
   const [isArticleModalOpen, setIsArticleModalOpen] = useState<boolean>(false);
   const [activeViewTab, setActiveViewTab] = useState<'text' | 'image'>('text');
@@ -747,6 +766,37 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   useEffect(() => {
     stopAllAudio();
   }, [selectedArticle, isArticleModalOpen]);
+
+  // Handle hardware / back button press inside EPaperModal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleBack = (e: Event) => {
+      e.preventDefault();
+      if (isArticleModalOpen) {
+        setIsArticleModalOpen(false);
+      } else {
+        onClose();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isArticleModalOpen) {
+          setIsArticleModalOpen(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+
+    window.addEventListener('app_back_pressed', handleBack);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('app_back_pressed', handleBack);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isArticleModalOpen, onClose]);
 
   const handleToggleSpeech = () => {
     if (!selectedArticle) return;
@@ -1335,8 +1385,11 @@ ${rawBody}
     ? (proxyPdfUrl + '#page=' + (currentPageIndex + 1) + '&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : null;
 
-  // Base visual scale multiplier: expands base paper width by 1.05x while keeping zoom base at 100%
-  const effectiveCanvasScale = Number((canvasZoom * 1.05).toFixed(3));
+  // Base visual scale multiplier: expands base paper width by 1.05x on desktop while keeping zoom base at 100%
+  const isMobileScreen = screenWidth < 768;
+  const fitScale = Number((Math.min(1.0, (screenWidth - 16) / 1344)).toFixed(3));
+  const baseScale = isMobileScreen ? 1.0 : 1.05;
+  const effectiveCanvasScale = Number((canvasZoom * baseScale).toFixed(3));
 
   const totalPages = Math.max(1, pages.length > 0 ? pages.length : totalPagesCount);
 
@@ -1514,13 +1567,30 @@ ${rawBody}
     <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
 
       {/* 1. TOP CONTROL TOOLBAR */}
-      <header className="h-[64px] bg-gradient-to-r from-[#ba1228] via-[#8a0b1d] to-[#680714] px-4 sm:px-8 flex items-center justify-between shrink-0 shadow-2xl relative z-40 border-b border-red-900/60">
+      <header
+        style={{
+          paddingTop: 'max(46px, calc(env(safe-area-inset-top, 0px) + 12px))'
+        }}
+        className="min-h-[72px] sm:min-h-[64px] sm:h-[64px] sm:pt-0 pb-2 sm:pb-0 bg-gradient-to-r from-[#ba1228] via-[#8a0b1d] to-[#680714] px-2.5 sm:px-8 flex items-center justify-between shrink-0 shadow-2xl relative z-40 border-b border-red-900/60"
+      >
 
         {/* Brand & Edition & Date Selector */}
-        <div className="flex items-center space-x-3 sm:space-x-4">
-          <div className="flex items-center space-x-2.5">
-            <div className="bg-white text-[#ba1228] w-9 h-9 rounded-lg flex items-center justify-center shadow-md border border-amber-300">
-              <Newspaper className="w-5 h-5 text-[#ba1228]" />
+        <div className="flex items-center space-x-1.5 sm:space-x-3 min-w-0">
+          {/* Mobile Back / Close Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="sm:hidden p-1.5 rounded-lg bg-black/35 hover:bg-black/50 text-white cursor-pointer transition-colors shrink-0"
+            title="वापस जाएं (Back)"
+            aria-label="Close"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Newspaper Logo Emblem */}
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className="bg-white text-[#ba1228] w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shadow-md border border-amber-300">
+              <Newspaper className="w-4 h-4 sm:w-5 sm:h-5 text-[#ba1228]" />
             </div>
             <div className="hidden md:block">
               <span className="font-serif font-black text-lg tracking-wide text-white block leading-tight">
@@ -1535,124 +1605,138 @@ ${rawBody}
           <div className="h-6 w-px bg-red-700/80 hidden sm:block" />
 
           {/* Dynamic 2-Column Mega-Menu Selector */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setIsEditionMenuOpen(!isEditionMenuOpen)}
-              className="flex items-center space-x-1.5 bg-black/30 hover:bg-black/40 border border-white/25 rounded-lg px-3 py-1.5 text-xs text-white font-bold cursor-pointer transition-colors"
+              className="flex items-center space-x-1 bg-black/30 hover:bg-black/40 border border-white/25 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-white font-bold cursor-pointer transition-colors"
             >
-              <MapPin className="w-3.5 h-3.5 text-amber-300" />
-              <span>{activeEdition.city || activeEdition.name}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
+              <MapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <span className="max-w-[65px] sm:max-w-none truncate">{activeEdition.city || activeEdition.name}</span>
+              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
             </button>
 
             {isEditionMenuOpen && (
-              <div className="absolute top-full left-0 mt-2 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 z-50 w-[340px] sm:w-[500px] overflow-hidden animate-in fade-in duration-150">
-                {/* Mega-Menu Top Header */}
-                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-[#ba1228]" />
-                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                      राज्य और शहर चुनें (Select Edition)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditionMenuOpen(false)}
-                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+              <>
+                {/* Mobile Backdrop */}
+                <div
+                  className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs sm:hidden"
+                  onClick={() => setIsEditionMenuOpen(false)}
+                />
 
-                {/* 2-Column Mega Menu (Left: States, Right: Cities) */}
-                <div className="flex h-72 divide-x divide-slate-100">
-                  {/* Left Column: States List */}
-                  <div className="w-2/5 bg-slate-50/80 overflow-y-auto p-1.5 space-y-1">
-                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
-                      राज्य (States)
+                {/* Opens from TOP on mobile, with inset-x-3 so it fits without overflowing */}
+                <div
+                  style={{
+                    top: 'calc(max(46px, env(safe-area-inset-top, 0px)) + 46px)'
+                  }}
+                  className="fixed inset-x-3 z-50 rounded-2xl bg-white text-slate-900 shadow-2xl border border-slate-200 overflow-hidden sm:absolute sm:inset-auto sm:top-full sm:left-0 sm:mt-2 sm:w-[500px] animate-in slide-in-from-top-3 duration-150"
+                >
+                  {/* Mega-Menu Top Header */}
+                  <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="w-4 h-4 text-[#ba1228]" />
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                        राज्य और शहर चुनें (Select Edition)
+                      </span>
                     </div>
-                    {statesData.length > 0 ? (
-                      statesData.map((st) => {
-                        const isSelectedState = st.slug === activeStateSlug;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => setActiveStateSlug(st.slug)}
-                            onMouseEnter={() => setActiveStateSlug(st.slug)}
-                            className={`w-full text-left px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-between ${isSelectedState
-                              ? 'bg-[#ba1228] text-white shadow-sm'
-                              : 'hover:bg-slate-200/70 text-slate-700'
-                              }`}
-                          >
-                            <span>{st.name}</span>
-                            {isSelectedState && <ChevronRight className="w-3.5 h-3.5 text-white shrink-0" />}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="p-3 text-xs text-slate-400 text-center">लोड हो रहा है...</div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsEditionMenuOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-full hover:bg-slate-200/60"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  {/* Right Column: Selected State's Editions/Cities */}
-                  <div className="w-3/5 p-3 overflow-y-auto bg-white space-y-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      शहर / संस्करण (Editions)
+                  {/* 2-Column Mega Menu (Left: States, Right: Cities) */}
+                  <div className="flex h-72 divide-x divide-slate-100">
+                    {/* Left Column: States List */}
+                    <div className="w-[38%] sm:w-2/5 bg-slate-50/80 overflow-y-auto p-1.5 space-y-1">
+                      <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
+                        राज्य (States)
+                      </div>
+                      {statesData.length > 0 ? (
+                        statesData.map((st) => {
+                          const isSelectedState = st.slug === activeStateSlug;
+                          return (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => setActiveStateSlug(st.slug)}
+                              onMouseEnter={() => setActiveStateSlug(st.slug)}
+                              className={`w-full text-left px-2.5 sm:px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-between ${isSelectedState
+                                ? 'bg-[#ba1228] text-white shadow-sm'
+                                : 'hover:bg-slate-200/70 text-slate-700'
+                                }`}
+                            >
+                              <span className="truncate">{st.name}</span>
+                              {isSelectedState && <ChevronRight className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="p-3 text-xs text-slate-400 text-center">लोड हो रहा है...</div>
+                      )}
                     </div>
-                    {(() => {
-                      const selectedState = statesData.find(st => st.slug === activeStateSlug) || statesData[0];
-                      const editionsList = selectedState?.editions || [];
 
-                      if (editionsList.length === 0) {
+                    {/* Right Column: Selected State's Editions/Cities */}
+                    <div className="w-[62%] sm:w-3/5 p-2.5 sm:p-3 overflow-y-auto bg-white space-y-2">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        शहर / संस्करण (Editions)
+                      </div>
+                      {(() => {
+                        const selectedState = statesData.find(st => st.slug === activeStateSlug) || statesData[0];
+                        const editionsList = selectedState?.editions || [];
+
+                        if (editionsList.length === 0) {
+                          return (
+                            <div className="p-6 text-center text-xs text-slate-400">
+                              इस राज्य में कोई संस्करण उपलब्ध नहीं है।
+                            </div>
+                          );
+                        }
+
                         return (
-                          <div className="p-6 text-center text-xs text-slate-400">
-                            इस राज्य में कोई संस्करण उपलब्ध नहीं है।
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {editionsList.map((ed) => {
+                              const isCurrentActive = activeEdition?.slug === ed.slug;
+                              return (
+                                <button
+                                  key={ed.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveEdition(ed);
+                                    setIsEditionMenuOpen(false);
+                                  }}
+                                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer w-full ${isCurrentActive
+                                    ? 'border-[#ba1228] bg-red-50/70 text-[#ba1228] ring-1 ring-[#ba1228]'
+                                    : 'border-slate-200 hover:border-red-300 hover:bg-slate-50 text-slate-800'
+                                    }`}
+                                >
+                                  <div className="text-xs font-extrabold flex items-center justify-between">
+                                    <span>{ed.city || ed.name}</span>
+                                    {isCurrentActive && <Check className="w-3.5 h-3.5 text-[#ba1228] shrink-0" />}
+                                  </div>
+                                  {ed.tag && (
+                                    <div className="text-[9px] text-slate-500 font-medium truncate mt-0.5">
+                                      {ed.tag}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         );
-                      }
-
-                      return (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {editionsList.map((ed) => {
-                            const isCurrentActive = activeEdition?.slug === ed.slug;
-                            return (
-                              <button
-                                key={ed.id}
-                                type="button"
-                                onClick={() => {
-                                  setActiveEdition(ed);
-                                  setIsEditionMenuOpen(false);
-                                }}
-                                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${isCurrentActive
-                                  ? 'border-[#ba1228] bg-red-50/70 text-[#ba1228] ring-1 ring-[#ba1228]'
-                                  : 'border-slate-200 hover:border-red-300 hover:bg-slate-50 text-slate-800'
-                                  }`}
-                              >
-                                <div className="text-xs font-extrabold flex items-center justify-between">
-                                  <span>{ed.city || ed.name}</span>
-                                  {isCurrentActive && <Check className="w-3.5 h-3.5 text-[#ba1228]" />}
-                                </div>
-                                {ed.tag && (
-                                  <div className="text-[9px] text-slate-500 font-medium truncate mt-0.5">
-                                    {ed.tag}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
+                      })()}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
           {/* Date Picker Trigger & Custom Calendar Grid */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -1664,17 +1748,27 @@ ${rawBody}
                 setTempSelectedDate(selectedDate);
                 setIsDatePickerOpen(!isDatePickerOpen);
               }}
-              className="flex items-center space-x-2 bg-black/30 hover:bg-black/40 border border-white/25 rounded-lg px-3 py-1.5 text-xs text-white font-bold cursor-pointer transition-colors"
+              className="flex items-center space-x-1 bg-black/30 hover:bg-black/40 border border-white/25 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-white font-bold cursor-pointer transition-colors"
             >
-              <Calendar className="w-3.5 h-3.5 text-amber-300" />
+              <Calendar className="w-3.5 h-3.5 text-amber-300 shrink-0" />
               <span className="hidden sm:inline">{formatHindiDate(selectedDate)}</span>
-              <span className="sm:hidden">{selectedDate}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
+              <span className="sm:hidden text-[11px] font-semibold">{selectedDate}</span>
+              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
             </button>
 
             {isDatePickerOpen && (
-              <div className="absolute top-full left-0 mt-2 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 w-80 animate-in fade-in duration-150">
-                {/* 1. Top Header Navigation Bar */}
+              <>
+                <div
+                  className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs sm:hidden"
+                  onClick={() => setIsDatePickerOpen(false)}
+                />
+                <div
+                  style={{
+                    top: 'calc(max(46px, env(safe-area-inset-top, 0px)) + 46px)'
+                  }}
+                  className="fixed inset-x-3 z-50 sm:inset-auto sm:absolute sm:top-full sm:left-0 sm:mt-2 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 w-auto sm:w-80 max-w-[calc(100vw-24px)] mx-auto animate-in slide-in-from-top-3 duration-150"
+                >
+                  {/* 1. Top Header Navigation Bar */}
                 <div className="flex items-center justify-between mb-3 px-0.5">
                   {/* Previous Month Arrow Button */}
                   <button
@@ -1825,28 +1919,29 @@ ${rawBody}
                   </div>
                 </div>
               </div>
-            )}
+            </>
+          )}
           </div>
 
         </div>
 
-        {/* Right Tools: ZoomIn, ZoomOut, Copy, Download, Share, Close */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
-          {/* 1. Zoom In Button */}
+        {/* Right Tools: ZoomIn, ZoomOut, Download, Share, Close */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 ml-1">
+          {/* 1. Zoom In Button (desktop/tablet only, mobile uses pinch-to-zoom) */}
           <button
             type="button"
             onClick={() => setCanvasZoom(prev => Math.min(2.0, Number((prev + 0.1).toFixed(2))))}
-            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            className="hidden sm:flex p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
             title="ज़ूम बढ़ाएं (Zoom In)"
           >
             <ZoomIn className="w-5 h-5" />
           </button>
 
-          {/* 2. Zoom Out Button */}
+          {/* 2. Zoom Out Button (desktop/tablet only) */}
           <button
             type="button"
             onClick={() => setCanvasZoom(prev => Math.max(0.4, Number((prev - 0.1).toFixed(2))))}
-            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            className="hidden sm:flex p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
             title="ज़ूम कम करें (Zoom Out)"
           >
             <ZoomOut className="w-5 h-5" />
@@ -1857,33 +1952,33 @@ ${rawBody}
             type="button"
             onClick={handleDownloadFullPdf}
             disabled={isDownloadingPdf}
-            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
             title="पूरा ई-पेपर PDF डाउनलोड करें (सभी पृष्ठ - Download Full PDF)"
           >
             {isDownloadingPdf ? (
-              <Loader2 className="w-5 h-5 animate-spin text-amber-300" />
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-amber-300" />
             ) : (
-              <Download className="w-5 h-5" />
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
 
-          {/* 5. Share Button */}
+          {/* 4. Share Button */}
           <button
             type="button"
             onClick={handleHeaderShare}
-            className="p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-black/25 active:bg-black/40 text-white/90 hover:text-white transition-colors cursor-pointer"
             title="ई-पेपर शेयर करें (Share ePaper)"
           >
-            <Share2 className="w-5 h-5" />
+            <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           <div className="h-6 w-px bg-white/20 mx-1 hidden sm:block" />
 
-          {/* 6. Close Modal Button */}
+          {/* 5. Close Modal Button */}
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg bg-black/30 hover:bg-white/20 text-white cursor-pointer transition-colors"
+            className="hidden sm:flex p-2 rounded-lg bg-black/30 hover:bg-white/20 text-white cursor-pointer transition-colors"
             title="बंद करें (Close)"
           >
             <X className="w-5 h-5" />
@@ -1911,22 +2006,22 @@ ${rawBody}
         {/* Error State or Not Created State */}
         {!isLoading && errorMsg && (
           errorMsg === 'NOT_CREATED' ? (
-            <div className="flex flex-col items-center justify-center p-8 sm:p-12 border border-slate-700/60 rounded-3xl bg-slate-900/90 max-w-lg text-center space-y-5 my-auto shadow-2xl backdrop-blur-md">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <AlertCircle className="w-8 h-8" />
+            <div className="flex flex-col items-center justify-center p-5 sm:p-8 border border-slate-700/60 rounded-2xl sm:rounded-3xl bg-slate-900/95 w-[90%] max-w-sm sm:max-w-md text-center space-y-4 my-auto mx-auto shadow-2xl backdrop-blur-md">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
+                <AlertCircle className="w-6 h-6" />
               </div>
-              <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-wide">
+              <div className="space-y-1.5">
+                <span className="px-3 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-wide inline-block">
                   अंक उपलब्ध नहीं है (Not Available)
                 </span>
-                <h3 className="text-lg sm:text-xl font-bold text-white font-serif pt-1">
+                <h3 className="text-base sm:text-lg font-bold text-white font-serif pt-0.5 leading-snug">
                   {formatHindiDate(selectedDate)} का ई-पेपर प्रकाशित नहीं हुआ है
                 </h3>
-                <p className="text-xs text-slate-400 font-sans max-w-sm mx-auto">
-                  इस तारीख के लिए कोई ई-पेपर नहीं बनाया गया है (No ePaper was created for this date)। कृपया कैलेंडर से कोई अन्य तारीख चुनें या नवीनतम अंक पढ़ें।
+                <p className="text-xs text-slate-400 font-sans max-w-xs sm:max-w-sm mx-auto leading-relaxed">
+                  इस तारीख के लिए कोई ई-पेपर नहीं बनाया गया है। कृपया कैलेंडर से कोई अन्य तारीख चुनें या नवीनतम अंक पढ़ें।
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 pt-1.5 w-full">
                 {archiveDatesList.length > 0 && (
                   <button
                     type="button"
@@ -1940,7 +2035,7 @@ ${rawBody}
                         setTempSelectedDate(latest.date);
                       }
                     }}
-                    className="px-5 py-2.5 bg-[#ba1228] hover:bg-[#9b0f21] text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center space-x-1.5"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[#ba1228] hover:bg-[#9b0f21] text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5"
                   >
                     <FileText className="w-4 h-4" />
                     <span>नवीनतम प्रकाशित अंक देखें</span>
@@ -1949,7 +2044,7 @@ ${rawBody}
                 <button
                   type="button"
                   onClick={() => setIsDatePickerOpen(true)}
-                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center space-x-1.5"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center justify-center space-x-1.5"
                 >
                   <Calendar className="w-4 h-4 text-amber-400" />
                   <span>कैलेंडर खोलें</span>
@@ -1957,9 +2052,9 @@ ${rawBody}
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 border border-red-500/30 rounded-2xl bg-red-950/20 max-w-md text-center space-y-4 my-auto shadow-2xl">
-              <FileText className="w-12 h-12 text-red-400" />
-              <h3 className="text-base font-bold text-red-200 font-serif">{errorMsg}</h3>
+            <div className="flex flex-col items-center justify-center p-6 border border-red-500/30 rounded-2xl bg-red-950/20 w-[90%] max-w-sm text-center space-y-4 my-auto mx-auto shadow-2xl">
+              <FileText className="w-10 h-10 text-red-400" />
+              <h3 className="text-sm font-bold text-red-200 font-serif">{errorMsg}</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -1983,12 +2078,21 @@ ${rawBody}
           <div className="w-full h-full flex flex-col items-center justify-start overflow-hidden relative">
             {readerViewMode === 'newspaper' ? (
               /* 1. 1344x2112 BROADSHEET CANVAS + INTERACTIVE HOTSPOT OVERLAY */
-              <div className="w-full h-full overflow-auto flex justify-center items-start pt-0 pb-16 px-2 sm:px-4 custom-scrollbar select-none">
+              <div
+                ref={canvasScrollContainerRef}
+                style={{
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain',
+                }}
+                className="w-full h-full overflow-x-auto overflow-y-auto block pt-1 pb-28 px-1 sm:px-4 custom-scrollbar select-none touch-pan-x touch-pan-y"
+              >
                 <div
-                  className="transition-transform duration-150 origin-top mt-0 mb-8"
+                  className="mx-auto transition-transform duration-150 origin-top mt-0 mb-8 shrink-0"
                   style={{
                     width: `${Math.round(1344 * effectiveCanvasScale)}px`,
+                    minWidth: `${Math.round(1344 * effectiveCanvasScale)}px`,
                     height: `${Math.round(2112 * effectiveCanvasScale)}px`,
+                    minHeight: `${Math.round(2112 * effectiveCanvasScale)}px`,
                   }}
                 >
                                     <div
@@ -2450,78 +2554,126 @@ ${rawBody}
           </div>
         )}
 
-        {/* 3. FLOATING PAGE NAVIGATION PILL BAR (EXACT MATCHING IMAGE 2) */}
+        {/* 3. FLOATING PAGE NAVIGATION PILL BAR */}
         {!isLoading && !errorMsg && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-200">
-            <div className="bg-[#2d3342] text-slate-100 px-4 py-2 rounded-2xl border border-slate-600/60 shadow-2xl flex items-center space-x-3 text-xs font-sans font-bold">
+          <>
+            {/* 3A. SLEEK MOBILE FLOATING GLASS PILL (Page Navigation Only) */}
+            <div
+              style={{
+                bottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
+              }}
+              className="sm:hidden fixed left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-200"
+            >
+              <div className="flex items-center bg-slate-950/90 backdrop-blur-xl text-white px-3 py-1.5 rounded-full border border-white/20 shadow-2xl space-x-2 shrink-0">
+                {/* Previous Page */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex === 0}
+                  onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
+                  className="w-7 h-7 rounded-full bg-white/10 active:bg-white/30 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                  title="पिछला पृष्ठ (Previous Page)"
+                  aria-label="Previous Page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-white" />
+                </button>
 
-              {/* All Pages Button */}
-              <button
-                type="button"
-                onClick={() => setShowAllPagesGrid(!showAllPagesGrid)}
-                className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/80 text-slate-200 transition-colors cursor-pointer"
-              >
-                <LayoutGrid className="w-4 h-4 text-amber-300" />
-                <span className="text-xs">सभी पृष्ठ देखें</span>
-              </button>
+                {/* All Pages Grid Toggle & Current Page Indicator */}
+                <button
+                  type="button"
+                  onClick={() => setShowAllPagesGrid(!showAllPagesGrid)}
+                  className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 active:bg-white/25 text-xs font-bold text-slate-100 transition-all cursor-pointer shrink-0"
+                  title="सभी पृष्ठ देखें (All Pages Grid)"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span className="font-mono text-xs font-extrabold whitespace-nowrap">
+                    {formattedCurrentPage}/{formattedTotalPages}
+                  </span>
+                </button>
 
-              {/* Vertical Divider Line | */}
-              <div className="h-5 w-px bg-slate-500/50" />
-
-              {/* First Page Button |< */}
-              <button
-                type="button"
-                disabled={currentPageIndex === 0}
-                onClick={() => setCurrentPageIndex(0)}
-                className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="पहला पृष्ठ (First Page)"
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </button>
-
-              {/* Previous Page Button < */}
-              <button
-                type="button"
-                disabled={currentPageIndex === 0}
-                onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
-                className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="पिछला पृष्ठ (Previous Page)"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {/* Current Page Display Text e.g. "Page 01 of 04" */}
-              <span className="px-3 py-1 font-mono font-extrabold text-white text-xs bg-slate-900/60 rounded-lg border border-slate-600/40 tracking-wide">
-                Page {formattedCurrentPage} of {formattedTotalPages}
-              </span>
-
-              {/* Next Page Button > */}
-              <button
-                type="button"
-                disabled={currentPageIndex >= totalPages - 1}
-                onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
-                className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="अगला पृष्ठ (Next Page)"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              {/* Last Page Button >| */}
-              <button
-                type="button"
-                disabled={currentPageIndex >= totalPages - 1}
-                onClick={() => setCurrentPageIndex(totalPages - 1)}
-                className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="अंतिम पृष्ठ (Last Page)"
-              >
-                <ChevronsRight className="w-4 h-4" />
-              </button>
-
+                {/* Next Page */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex >= totalPages - 1}
+                  onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
+                  className="w-7 h-7 rounded-full bg-white/10 active:bg-white/30 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                  title="अगला पृष्ठ (Next Page)"
+                  aria-label="Next Page"
+                >
+                  <ChevronRight className="w-4 h-4 text-white" />
+                </button>
+              </div>
             </div>
-          </div>
+
+            {/* 3B. DESKTOP FULL PAGE NAVIGATION BAR */}
+            <div className="hidden sm:block absolute bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-200">
+              <div className="bg-[#2d3342] text-slate-100 px-4 py-2 rounded-2xl border border-slate-600/60 shadow-2xl flex items-center space-x-3 text-xs font-sans font-bold">
+                {/* All Pages Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowAllPagesGrid(!showAllPagesGrid)}
+                  className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/80 text-slate-200 transition-colors cursor-pointer"
+                >
+                  <LayoutGrid className="w-4 h-4 text-amber-300" />
+                  <span className="text-xs">सभी पृष्ठ देखें</span>
+                </button>
+
+                {/* Vertical Divider Line | */}
+                <div className="h-5 w-px bg-slate-500/50" />
+
+                {/* First Page Button |< */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex === 0}
+                  onClick={() => setCurrentPageIndex(0)}
+                  className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="पहला पृष्ठ (First Page)"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Previous Page Button < */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex === 0}
+                  onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
+                  className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="पिछला पृष्ठ (Previous Page)"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Current Page Display Text e.g. "Page 01 of 04" */}
+                <span className="px-3 py-1 font-mono font-extrabold text-white text-xs bg-slate-900/60 rounded-lg border border-slate-600/40 tracking-wide">
+                  Page {formattedCurrentPage} of {formattedTotalPages}
+                </span>
+
+                {/* Next Page Button > */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex >= totalPages - 1}
+                  onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
+                  className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="अगला पृष्ठ (Next Page)"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page Button >| */}
+                <button
+                  type="button"
+                  disabled={currentPageIndex >= totalPages - 1}
+                  onClick={() => setCurrentPageIndex(totalPages - 1)}
+                  className="p-1.5 rounded-lg hover:bg-slate-700/80 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="अंतिम पृष्ठ (Last Page)"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
-        {/* 3.1 HINDUSTAN EPAPER STYLE LEFT & RIGHT SIDE PAGE NAVIGATION PADDLES */}
+        {/* 3.1 HINDUSTAN EPAPER STYLE LEFT & RIGHT SIDE PAGE NAVIGATION PADDLES (Desktop Only) */}
         {!isLoading && !errorMsg && totalPages > 1 && (
           <>
             {/* Left Paddle (Previous Page) */}
@@ -2529,7 +2681,7 @@ ${rawBody}
               type="button"
               disabled={currentPageIndex === 0}
               onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
-              className={`fixed sm:absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl shadow-lg shadow-black/30 flex items-center justify-center text-white transition-all border border-white/20 select-none group ${
+              className={`hidden sm:flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${
                 currentPageIndex === 0
                   ? 'opacity-0 pointer-events-none'
                   : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
@@ -2537,7 +2689,7 @@ ${rawBody}
               title="पिछला पृष्ठ (Previous Page)"
               aria-label="Previous Page"
             >
-              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[2.5] group-hover:-translate-x-0.5 transition-transform" />
+              <ChevronLeft className="w-5 h-5 text-white stroke-[2.5] group-hover:-translate-x-0.5 transition-transform" />
             </button>
 
             {/* Right Paddle (Next Page) */}
@@ -2545,7 +2697,7 @@ ${rawBody}
               type="button"
               disabled={currentPageIndex >= totalPages - 1}
               onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
-              className={`fixed sm:absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl shadow-lg shadow-black/30 flex items-center justify-center text-white transition-all border border-white/20 select-none group ${
+              className={`hidden sm:flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${
                 currentPageIndex >= totalPages - 1
                   ? 'opacity-0 pointer-events-none'
                   : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
@@ -2553,7 +2705,7 @@ ${rawBody}
               title="अगला पृष्ठ (Next Page)"
               aria-label="Next Page"
             >
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="w-5 h-5 text-white stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
             </button>
           </>
         )}
@@ -2615,181 +2767,363 @@ ${rawBody}
       {isArticleModalOpen && selectedArticle && (
         <div className="fixed inset-0 z-50 bg-[#f4f5f7] flex flex-col text-slate-900 select-text overflow-hidden animate-in fade-in duration-150">
 
-          {/* 1. TOP HEADER NAVIGATION (EXACT LIVEHINDUSTAN SPECIFICATION) */}
-          <header className="h-14 sm:h-16 px-4 sm:px-8 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-xs z-30 relative">
-            {/* Left: < Back button */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsArticleModalOpen(false);
-                setSelectedArticle(null);
-              }}
-              className="flex items-center gap-1.5 font-bold text-slate-800 text-sm hover:text-[#ba1228] transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
-            </button>
+          {/* 1. TOP HEADER NAVIGATION (RESPONSIVE: 2-TIER ON MOBILE WITH SAFE AREA, 1-TIER ON DESKTOP) */}
+          <header
+            style={{
+              paddingTop: 'max(32px, env(safe-area-inset-top, 0px))',
+            }}
+            className="bg-white border-b border-slate-200/80 shrink-0 shadow-xs z-30 relative"
+          >
+            {/* 1A. MOBILE TWO-TIER HEADER (< 640px) */}
+            <div className="sm:hidden flex flex-col">
+              {/* Row 1: Back, Listen, Share, Download, Close */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsArticleModalOpen(false);
+                    setSelectedArticle(null);
+                  }}
+                  className="flex items-center gap-1 font-bold text-slate-800 text-sm hover:text-[#ba1228] p-1 rounded-lg active:bg-slate-100 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4 text-slate-700" />
+                  <span>Back</span>
+                </button>
 
-            {/* Center Pill Switcher (Centered / Shifted to the right over clipping content) */}
-            <div className="bg-slate-200 p-1 flex items-center gap-1 rounded-xl shadow-inner md:absolute md:left-1/2 md:-translate-x-1/2">
-              <button
-                type="button"
-                onClick={() => setActiveViewTab('text')}
-                className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
-                  ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                  : 'text-slate-600 font-semibold hover:text-slate-900'
-                  }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Text View</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveViewTab('image')}
-                className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
-                  ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                  : 'text-slate-600 font-semibold hover:text-slate-900'
-                  }`}
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span>Image View</span>
-              </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Blue Audio Pill: [ 🔊 Listen ] */}
+                  <button
+                    type="button"
+                    onClick={handleToggleSpeech}
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer ${
+                      isSpeaking
+                        ? 'bg-amber-600 text-white animate-pulse'
+                        : 'bg-[#0088cc] active:bg-[#0077b5] text-white'
+                    }`}
+                    title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
+                  >
+                    {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    <span>{isSpeaking ? 'Pause' : 'Listen'}</span>
+                  </button>
+
+                  {/* Copy Button */}
+                  <button
+                    type="button"
+                    onClick={handleCopyArticle}
+                    className="p-1.5 rounded-lg border border-slate-200 active:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer relative"
+                    title="समाचार कॉपी करें (Copy)"
+                  >
+                    <Copy className="w-4 h-4" />
+                    {articleCopiedToast && (
+                      <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
+                        कॉपी हो गया!
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Share Button */}
+                  <button
+                    type="button"
+                    onClick={handleShareArticle}
+                    className="p-1.5 rounded-lg border border-slate-200 active:bg-slate-100 text-slate-600 hover:text-[#ba1228] transition-colors cursor-pointer"
+                    title="शेयर करें (Share / WhatsApp)"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+
+                  {/* Download Button */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadArticle}
+                    disabled={isDownloadingArticle}
+                    className="p-1.5 rounded-lg border border-slate-200 active:bg-slate-100 text-slate-700 hover:text-[#ba1228] transition-colors cursor-pointer relative"
+                    title={activeViewTab === 'text' ? 'टेक्स्ट डाउनलोड करें' : 'इमेज डाउनलोड करें'}
+                  >
+                    {isDownloadingArticle ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#ba1228]" />
+                    ) : (
+                      <Download className="w-4 h-4 text-slate-700" />
+                    )}
+                    {articleDownloadedToast && (
+                      <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
+                        {articleDownloadedToast}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Close Modal Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsArticleModalOpen(false);
+                      setSelectedArticle(null);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-500 active:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                    title="बंद करें (Close)"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Text / Image Switcher + Font Size / Zoom Controls */}
+              <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50/90">
+                <div className="bg-slate-200 p-0.5 flex items-center gap-1 rounded-xl shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewTab('text')}
+                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${
+                      activeViewTab === 'text'
+                        ? 'bg-[#ba1228] text-white font-bold shadow-xs'
+                        : 'text-slate-600 font-semibold'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Text View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewTab('image')}
+                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${
+                      activeViewTab === 'image'
+                        ? 'bg-[#ba1228] text-white font-bold shadow-xs'
+                        : 'text-slate-600 font-semibold'
+                    }`}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Image View</span>
+                  </button>
+                </div>
+
+                {activeViewTab === 'text' ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setFontSize(prev => Math.max(14, prev - 1))}
+                      className="border border-slate-200 bg-white rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 active:bg-slate-100 cursor-pointer shadow-xs"
+                      title="फ़ॉन्ट छोटा करें (A-)"
+                    >
+                      A-
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFontSize(prev => Math.min(26, prev + 1))}
+                      className="border border-slate-200 bg-white rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 active:bg-slate-100 cursor-pointer shadow-xs"
+                      title="फ़ॉन्ट बड़ा करें (A+)"
+                    >
+                      A+
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => setClippingZoom(prev => Math.max(0.6, Number((prev - 0.15).toFixed(2))))}
+                      className="p-1 rounded text-slate-700 cursor-pointer"
+                      title="Zoom Out (-)"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-[10px] font-mono font-bold text-slate-700 px-1 min-w-[34px] text-center">
+                      {Math.round(clippingZoom * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setClippingZoom(prev => Math.min(2.0, Number((prev + 0.15).toFixed(2))))}
+                      className="p-1 rounded text-slate-700 cursor-pointer"
+                      title="Zoom In (+)"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Right Actions */}
-            <div className="flex items-center gap-2">
-              {/* A- / A+ Font Size Controls */}
-              {activeViewTab === 'text' && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setFontSize(prev => Math.max(14, prev - 1))}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                    title="फ़ॉन्ट छोटा करें (A-)"
-                  >
-                    A-
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFontSize(prev => Math.min(26, prev + 1))}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                    title="फ़ॉन्ट बड़ा करें (A+)"
-                  >
-                    A+
-                  </button>
-                </div>
-              )}
-
-              {/* Clipping Zoom Controls (- 100% + Reset) - In Header to the left of Listen */}
-              {activeViewTab === 'image' && (
-                <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-0.5 mr-1 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => setClippingZoom(prev => Math.max(0.6, Number((prev - 0.15).toFixed(2))))}
-                    className="p-1 rounded hover:bg-white text-slate-700 transition-colors cursor-pointer"
-                    title="Zoom Out (-)"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-[11px] font-mono font-bold text-slate-700 px-1 min-w-[38px] text-center">
-                    {Math.round(clippingZoom * 100)}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setClippingZoom(prev => Math.min(2.0, Number((prev + 0.15).toFixed(2))))}
-                    className="p-1 rounded hover:bg-white text-slate-700 transition-colors cursor-pointer"
-                    title="Zoom In (+)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setClippingZoom(1)}
-                    className="text-[11px] font-bold text-slate-600 hover:text-slate-900 px-1.5 py-0.5 rounded hover:bg-white transition-colors"
-                    title="Reset Zoom"
-                  >
-                    Reset
-                  </button>
-                </div>
-              )}
-
-              {/* Blue Audio Pill: [ 🔊 Listen ] */}
-              <button
-                type="button"
-                onClick={handleToggleSpeech}
-                className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${isSpeaking
-                  ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
-                  : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
-                  }`}
-                title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
-              >
-                {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                <span>{isSpeaking ? 'Pause' : 'Listen'}</span>
-              </button>
-
-              {/* Quick Share / Copy Icon Set */}
-              <button
-                type="button"
-                onClick={handleCopyArticle}
-                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer relative"
-                title="समाचार कॉपी करें (Copy)"
-              >
-                <Copy className="w-4 h-4" />
-                {articleCopiedToast && (
-                  <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
-                    कॉपी हो गया!
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleShareArticle}
-                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-[#ba1228] transition-colors cursor-pointer"
-                title="शेयर करें (Share / WhatsApp)"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-
-              {/* Download Button (Downloads Text in Text View & Image in Image View) */}
-              <button
-                type="button"
-                onClick={handleDownloadArticle}
-                disabled={isDownloadingArticle}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-[#ba1228] transition-colors cursor-pointer flex items-center gap-1.5 relative text-xs font-bold shadow-xs active:scale-95"
-                title={activeViewTab === 'text' ? 'टेक्स्ट डाउनलोड करें (Download Text)' : 'क्लिपिंग / इमेज डाउनलोड करें (Download Image)'}
-              >
-                {isDownloadingArticle ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#ba1228]" />
-                ) : (
-                  <Download className="w-4 h-4 text-slate-700" />
-                )}
-                <span className="hidden sm:inline">
-                  {activeViewTab === 'text' ? 'Download Text' : 'Download Image'}
-                </span>
-                {articleDownloadedToast && (
-                  <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
-                    {articleDownloadedToast}
-                  </span>
-                )}
-              </button>
-
+            {/* 1B. DESKTOP SINGLE-ROW HEADER (sm and up) */}
+            <div className="hidden sm:flex h-16 px-8 items-center justify-between">
+              {/* Left: < Back button */}
               <button
                 type="button"
                 onClick={() => {
                   setIsArticleModalOpen(false);
                   setSelectedArticle(null);
                 }}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer ml-1"
-                title="बंद करें (Close)"
+                className="flex items-center gap-1.5 font-bold text-slate-800 text-sm hover:text-[#ba1228] transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back</span>
               </button>
+
+              {/* Center Pill Switcher */}
+              <div className="bg-slate-200 p-1 flex items-center gap-1 rounded-xl shadow-inner absolute left-1/2 -translate-x-1/2">
+                <button
+                  type="button"
+                  onClick={() => setActiveViewTab('text')}
+                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${
+                    activeViewTab === 'text'
+                      ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                      : 'text-slate-600 font-semibold hover:text-slate-900'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Text View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveViewTab('image')}
+                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${
+                    activeViewTab === 'image'
+                      ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                      : 'text-slate-600 font-semibold hover:text-slate-900'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Image View</span>
+                </button>
+              </div>
+
+              {/* Right Actions */}
+              <div className="flex items-center gap-2">
+                {/* A- / A+ Font Size Controls */}
+                {activeViewTab === 'text' && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setFontSize(prev => Math.max(14, prev - 1))}
+                      className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      title="फ़ॉन्ट छोटा करें (A-)"
+                    >
+                      A-
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFontSize(prev => Math.min(26, prev + 1))}
+                      className="border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      title="फ़ॉन्ट बड़ा करें (A+)"
+                    >
+                      A+
+                    </button>
+                  </div>
+                )}
+
+                {/* Clipping Zoom Controls (- 100% + Reset) */}
+                {activeViewTab === 'image' && (
+                  <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-0.5 mr-1 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => setClippingZoom(prev => Math.max(0.6, Number((prev - 0.15).toFixed(2))))}
+                      className="p-1 rounded hover:bg-white text-slate-700 transition-colors cursor-pointer"
+                      title="Zoom Out (-)"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[11px] font-mono font-bold text-slate-700 px-1 min-w-[38px] text-center">
+                      {Math.round(clippingZoom * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setClippingZoom(prev => Math.min(2.0, Number((prev + 0.15).toFixed(2))))}
+                      className="p-1 rounded hover:bg-white text-slate-700 transition-colors cursor-pointer"
+                      title="Zoom In (+)"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClippingZoom(1)}
+                      className="text-[11px] font-bold text-slate-600 hover:text-slate-900 px-1.5 py-0.5 rounded hover:bg-white transition-colors"
+                      title="Reset Zoom"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+
+                {/* Blue Audio Pill: [ 🔊 Listen ] */}
+                <button
+                  type="button"
+                  onClick={handleToggleSpeech}
+                  className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${
+                    isSpeaking
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                      : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
+                  }`}
+                  title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
+                >
+                  {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  <span>{isSpeaking ? 'Pause' : 'Listen'}</span>
+                </button>
+
+                {/* Quick Share / Copy Icon Set */}
+                <button
+                  type="button"
+                  onClick={handleCopyArticle}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer relative"
+                  title="समाचार कॉपी करें (Copy)"
+                >
+                  <Copy className="w-4 h-4" />
+                  {articleCopiedToast && (
+                    <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
+                      कॉपी हो गया!
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareArticle}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-[#ba1228] transition-colors cursor-pointer"
+                  title="शेयर करें (Share / WhatsApp)"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+
+                {/* Download Button */}
+                <button
+                  type="button"
+                  onClick={handleDownloadArticle}
+                  disabled={isDownloadingArticle}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-[#ba1228] transition-colors cursor-pointer flex items-center gap-1.5 relative text-xs font-bold shadow-xs active:scale-95"
+                  title={activeViewTab === 'text' ? 'टेक्स्ट डाउनलोड करें (Download Text)' : 'क्लिपिंग / इमेज डाउनलोड करें (Download Image)'}
+                >
+                  {isDownloadingArticle ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#ba1228]" />
+                  ) : (
+                    <Download className="w-4 h-4 text-slate-700" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {activeViewTab === 'text' ? 'Download Text' : 'Download Image'}
+                  </span>
+                  {articleDownloadedToast && (
+                    <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
+                      {articleDownloadedToast}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsArticleModalOpen(false);
+                    setSelectedArticle(null);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer ml-1"
+                  title="बंद करें (Close)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </header>
 
           {/* 2. SCROLLABLE MIDDLE CONTENT AREA */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+          <div
+            style={{
+              paddingBottom: 'max(40px, env(safe-area-inset-bottom, 0px))',
+            }}
+            className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 custom-scrollbar"
+          >
             {activeViewTab === 'text' ? (
               /* TAB 1: TEXT VIEW (IMAGE 1 SPECIFICATION) */
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-8 sm:p-12 mx-auto my-6 max-w-3xl">

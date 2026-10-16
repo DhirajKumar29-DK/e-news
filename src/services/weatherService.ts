@@ -101,21 +101,40 @@ export interface CityForecastData {
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+function getCleanUrl(url: string): string {
+  if (!url) return '';
+  if (typeof window !== 'undefined') {
+    if (url.includes(':5000/api/')) {
+      return url.replace(/https?:\/\/[^/]+:5000\/api\//, '/api/');
+    }
+    if (url.startsWith('/api')) {
+      return url;
+    }
+  }
+  return url;
+}
+
 async function fetchWithCache<T>(url: string): Promise<T> {
-  const cached = cache.get(url);
+  const cleanUrl = getCleanUrl(url);
+  const cached = cache.get(cleanUrl);
   const now = Date.now();
   if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
     return cached.data;
   }
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success && json.data) {
-    cache.set(url, { data: json.data, timestamp: now });
-    return json.data;
+  try {
+    const res = await fetch(cleanUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      cache.set(cleanUrl, { data: json.data, timestamp: now });
+      return json.data;
+    }
+    throw new Error(json.message || 'Failed to fetch weather data');
+  } catch (err) {
+    console.warn(`[weatherService] fetch error on ${cleanUrl}:`, err);
+    throw err;
   }
-  throw new Error(json.message || 'Failed to fetch weather data');
 }
 
 // Top 15 State & UT Capitals of India with New Delhi & Patna as top priority

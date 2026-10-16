@@ -15,6 +15,7 @@ import { articleService, HomeArticlesResponse, ArticleData } from '@/services/ar
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml } from '@/utils/textUtils';
+import { ChevronUp } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,8 +23,27 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [homeData, setHomeData] = useState<HomeArticlesResponse | null>(null);
   const [allArticlesMap, setAllArticlesMap] = useState<Record<string, ArticleData[]>>({});
+  const [allArticlesList, setAllArticlesList] = useState<ArticleData[]>([]);
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [, setTick] = useState(0);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Scroll listener for floating Back To Top button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        setShowBackToTop(window.scrollY > 280);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     // 1. Load categories instantly from cache, then refresh from API
@@ -94,6 +114,7 @@ export default function HomePage() {
         }
 
         setAllArticlesMap(map);
+        setAllArticlesList(allList);
       })
       .catch(err => console.error('Failed to load home articles:', err));
 
@@ -137,9 +158,9 @@ export default function HomePage() {
     const key = catKey.toLowerCase().trim();
     const altKey =
       key === 'world' ? 'global' :
-      key === 'global' ? 'world' :
-      key === 'national' ? 'india' :
-      key === 'india' ? 'national' : null;
+        key === 'global' ? 'world' :
+          key === 'national' ? 'india' :
+            key === 'india' ? 'national' : null;
 
     const matchedCat = categories.find(c => c.slug.toLowerCase() === key);
     const catNameKey = matchedCat ? matchedCat.name.toLowerCase().trim() : null;
@@ -171,14 +192,15 @@ export default function HomePage() {
   const getCategoryGridItems = (catKey: string) => {
     const list = resolveArticleList(catKey);
     if (list && list.length > 0) {
-      return list.slice(0, 4).map(a => ({
+      // Up to 7 items: 1 lead + up to 6 sub-articles for mobile (desktop slices 4)
+      return list.slice(0, 7).map(a => ({
         id: a.slug || a.id,
         category: a.category.toUpperCase(),
         title: stripHtml(a.title),
         summary: stripHtml(a.subHeadline) || stripHtml(a.content).slice(0, 140) + '...',
         imageUrl: a.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
         timeAgo: formatTimeAgo(a.publishedAt || a.createdAt),
-        readTime: `${a.readTimeMinutes || 3} min read`
+        readTime: { en: `${a.readTimeMinutes || 3} min read`, hi: `${a.readTimeMinutes || 3} मिनट पढ़ें` }
       }));
     }
     return [];
@@ -188,7 +210,8 @@ export default function HomePage() {
     const list = resolveArticleList(catKey);
     if (list && list.length > 0) {
       const lead = list[0];
-      const rest = list.slice(1, 5);
+      // Up to 6 items below lead for mobile (desktop slices 4)
+      const rest = list.slice(1, 7);
       return {
         lead: {
           id: lead.slug || lead.id,
@@ -196,14 +219,16 @@ export default function HomePage() {
           title: stripHtml(lead.title),
           summary: stripHtml(lead.subHeadline) || stripHtml(lead.content).slice(0, 180) + '...',
           imageUrl: lead.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
-          timeAgo: formatTimeAgo(lead.publishedAt || lead.createdAt)
+          timeAgo: formatTimeAgo(lead.publishedAt || lead.createdAt),
+          readTime: { en: `${lead.readTimeMinutes || 3} min read`, hi: `${lead.readTimeMinutes || 3} मिनट पढ़ें` }
         },
         grid: rest.map(r => ({
           id: r.slug || r.id,
           category: r.category.toUpperCase(),
           title: stripHtml(r.title),
           imageUrl: r.featuredImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600',
-          timeAgo: formatTimeAgo(r.publishedAt || r.createdAt)
+          timeAgo: formatTimeAgo(r.publishedAt || r.createdAt),
+          readTime: { en: `${r.readTimeMinutes || 3} min read`, hi: `${r.readTimeMinutes || 3} मिनट पढ़ें` }
         }))
       };
     }
@@ -220,7 +245,40 @@ export default function HomePage() {
       return <HoroscopeSection key={cat.id || slug} />;
     }
 
-    // 2. Split Layout (50/50: 1 Lead Story + 4 Cards = 5 Cards)
+    // 2. Explainer Special Section (Dynamic Order & Custom Name from Admin)
+    const isExplainer =
+      slug === 'explainer' ||
+      slug === 'explainers' ||
+      slug.includes('explain') ||
+      name.toLowerCase().includes('explain') ||
+      cat.id === '17b7c935-e567-4e20-a17c-88b808719b9b';
+
+    if (isExplainer) {
+      const candidates = [
+        ...getCategoryGridItems(slug),
+        ...getCategoryGridItems('explainer')
+      ];
+      const seen = new Set<string>();
+      const explainerItems = candidates.filter(item => {
+        if (!item || !item.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+      if (explainerItems.length > 0) {
+        return (
+          <ExplainerSection
+            key={cat.id || slug}
+            title={cat.name}
+            categorySlug={slug}
+            items={explainerItems}
+          />
+        );
+      }
+      return null;
+    }
+
+    // 3. Split Layout (50/50: 1 Lead Story + 4 Cards = 5 Cards)
     // Preferred for marquee categories: entertainment, cricket, education, india, national
     const isSplitCandidate = ['entertainment', 'cricket', 'education', 'india', 'national'].includes(slug);
     if (isSplitCandidate) {
@@ -238,7 +296,7 @@ export default function HomePage() {
       }
     }
 
-    // 3. Grid Layout (4-Column Horizontal Cards)
+    // 4. Grid Layout (4-Column Horizontal Cards)
     // For world, global, lifestyle, auto, tech, business, sports, spiritual, fashion, etc.
     const gridItems = getCategoryGridItems(slug);
     if (gridItems.length > 0) {
@@ -255,39 +313,27 @@ export default function HomePage() {
     return null;
   };
 
-  // Filter dynamic categories from Admin (excluding explainer & videos which are fixed at Slot 4 and Slot 9)
+  // Filter dynamic categories from Admin (including explainer; videos is at Slot 9)
   const dynamicHomeCategories = categories
     .filter(c =>
       c.isActive &&
       c.showOnHome !== false &&
       c.slug !== 'all' &&
       c.slug !== 'latest' &&
-      c.slug !== 'explainer' &&
-      c.slug !== 'explainers' &&
       c.slug !== 'videos' &&
       c.slug !== 'video'
     )
     .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
-  const explainerItems = getCategoryGridItems('explainer');
-
   // Build the final ordered homepage sections:
-  // Slot 4 is FIXED for EXPLAINER
   // Slot 9 is FIXED for VIDEOS
-  // All other dynamic categories from admin flow sequentially and auto-shift!
+  // All other dynamic categories from admin (including Explainer) flow in their exact Admin Order!
   const finalHomeSections: React.ReactNode[] = [];
   let dynamicCursor = 0;
-  const targetTotalSlots = dynamicHomeCategories.length + 2;
+  const targetTotalSlots = dynamicHomeCategories.length + 1;
 
   for (let slot = 1; slot <= targetTotalSlots; slot++) {
-    if (slot === 4) {
-      // Slot 4: Fixed EXPLAINER
-      if (explainerItems.length > 0) {
-        finalHomeSections.push(
-          <ExplainerSection key="fixed-slot-4-explainer" items={explainerItems} />
-        );
-      }
-    } else if (slot === 9) {
+    if (slot === 9) {
       // Slot 9: Fixed VIDEOS SHOWCASE
       finalHomeSections.push(
         <VideosDarkSection key="fixed-slot-9-videos" />
@@ -317,9 +363,9 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen flex flex-col bg-jagran-bg dark:bg-brand-dark-bg text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
-      
+
       {/* Accessible & SEO-Optimized Semantic H1 Heading */}
-      <h1 className="sr-only">The Daily Jagran - Latest Breaking News, National &amp; Global Updates</h1>
+      <h1 className="sr-only">The News Paper - Latest Breaking News, National &amp; Global Updates</h1>
 
       {/* 1. Header & Navigation */}
       <Header
@@ -329,22 +375,32 @@ export default function HomePage() {
       />
 
       {/* 2. Hero / Top News Section (3-Column Layout with skeleton loader) */}
-      <HeroSection dynamicData={homeData} />
+      <HeroSection dynamicData={homeData} allArticles={allArticlesList} />
 
       {/* 3. DYNAMIC HOMEPAGE SECTIONS: Explainer at #4, Videos at #9, others auto-adjusted in Admin Order */}
       {finalHomeSections}
 
-      {/* 4. Exact The Daily Jagran Dark Footer */}
+      {/* 4. The News Paper Dark Footer */}
       <Footer />
+
+      {/* Floating Back To Top Button on Mobile & Desktop */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-40 w-11 h-11 md:w-12 md:h-12 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl flex items-center justify-center transition-all duration-300 animate-in fade-in zoom-in-90 cursor-pointer border-2 border-white/40 active:scale-95"
+          title="Back to Top"
+          aria-label="Back to Top"
+        >
+          <ChevronUp className="w-6 h-6 stroke-[2.5]" />
+        </button>
+      )}
 
       {/* 16. Search Overlay Modal */}
       <SearchModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
       />
-
-      {/* 17. Persistent Mobile App-Style Bottom Navigation Bar */}
-      <MobileBottomNav onOpenSearch={() => setIsSearchOpen(true)} />
 
     </main>
   );
