@@ -18,7 +18,7 @@ export default function RankingsPage() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans">
+    <main className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
       <Header
         onOpenSearch={() => setIsSearchOpen(true)}
         activeCategory="cricket"
@@ -28,18 +28,18 @@ export default function RankingsPage() {
       <LiveScoreStrip />
 
       <div className="max-w-7xl mx-auto px-4 py-6 w-full space-y-6 flex-1">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <Link href="/cricket" className="hover:text-white flex items-center gap-1 font-semibold">
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <Link href="/cricket" className="hover:text-red-600 dark:hover:text-white flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-400">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Cricket Center
           </Link>
         </div>
 
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            <Trophy className="w-6 h-6 text-amber-400" />
+        <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <Trophy className="w-6 h-6 text-amber-500" />
             ICC Official Rankings
           </h1>
-          <p className="text-xs md:text-sm text-slate-400 mt-1">
+          <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1">
             Latest International Cricket Council rankings across T20I, ODI, and Test formats
           </p>
         </div>

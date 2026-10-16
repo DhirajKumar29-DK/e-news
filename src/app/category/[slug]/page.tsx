@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
 import { Clock, TrendingUp, ChevronRight, HelpCircle, ArrowRight, Home, RefreshCw } from 'lucide-react';
 import { articleService, ArticleData } from '@/services/articleService';
+import { categoryService, CategoryData } from '@/services/categoryService';
 import VideosPage from '@/app/videos/page';
 
 import { formatTimeAgo } from '@/utils/timeAgo';
@@ -34,50 +35,25 @@ export default function CategoryPage() {
     return <VideosPage />;
   }
 
-  const categoryNames: Record<string, string> = {
-    latest: 'Latest News',
-    'latest-news': 'Latest News',
-    national: 'National News',
-    india: 'India',
-    world: 'World News',
-    tech: 'Tech & Science',
-    sports: 'Sports',
-    cricket: 'Cricket News',
-    business: 'Business',
-    entertainment: 'Entertainment',
-    lifestyle: 'Lifestyle & Health',
-    fashion: 'Fashion & Beauty',
-    brandverse: 'Brandverse',
-    education: 'Education & Career',
-    auto: 'Auto',
-    spiritual: 'Spiritual',
-    horoscope: 'Horoscope News',
-    opinion: 'Opinion & Analysis',
-    explainer: 'Explainer & Deep Analysis'
-  };
+  const [categories, setCategories] = useState<CategoryData[]>([]);
 
-  const subFilters: Record<string, string[]> = {
-    latest: ['ALL', 'WORLD', 'INDIA', 'BUSINESS', 'TECH', 'SPORTS', 'ENTERTAINMENT', 'FASHION'],
-    'latest-news': ['ALL', 'WORLD', 'INDIA', 'BUSINESS', 'TECH', 'SPORTS', 'ENTERTAINMENT', 'FASHION'],
-    india: ['ALL', 'NATIONAL', 'SCIENCE', 'RAILWAYS', 'AGRICULTURE', 'ECONOMY'],
-    national: ['ALL', 'JUDICIARY', 'SPACE MISSION', 'INFRASTRUCTURE', 'DEFENCE'],
-    world: ['ALL', 'GEOPOLITICS', 'GLOBAL ECONOMY', 'SCIENCE', 'ENVIRONMENT', 'SPACE'],
-    entertainment: ['ALL', 'BOLLYWOOD', 'HOLLYWOOD', 'OTT', 'BOX OFFICE', 'CELEBS'],
-    fashion: ['ALL', 'TRENDS', 'CELEBRITY STYLE', 'BEAUTY & SKINCARE', 'FASHION WEEKS', 'ACCESSORIES'],
-    brandverse: ['ALL', 'ASTRO APPS', 'PERSONAL FINANCE', 'CONSTRUCTION EXPO', 'CLEAN MOBILITY'],
-    sports: ['ALL', 'CRICKET', 'FOOTBALL', 'BADMINTON', 'TENNIS', 'ISL'],
-    cricket: ['ALL', 'IPL', 'TEST', 'ODI', 'T20', 'DOMESTIC'],
-    tech: ['ALL', 'AI TECH', 'SMARTPHONES', 'GADGETS', 'CYBERSECURITY'],
-    business: ['ALL', 'STOCK MARKET', 'IPO', 'REAL ESTATE', 'STARTUPS'],
-    lifestyle: ['ALL', 'HEALTH', 'WELLNESS', 'FITNESS', 'FOOD', 'TRAVEL'],
-    auto: ['ALL', 'ELECTRIC VEHICLES', 'CARS', 'BIKES', 'AUTO TECH'],
-    explainer: ['ALL', 'GEOPOLITICS', 'HEALTH & MEDICINE', 'ENVIRONMENT', 'PERSONAL FINANCE', 'ECONOMY & TAX', 'ARTIFICIAL INTELLIGENCE'],
-    opinion: ['ALL', 'GEOPOLITICS', 'HEALTH & MEDICINE', 'ENVIRONMENT', 'PERSONAL FINANCE', 'ECONOMY & TAX', 'ARTIFICIAL INTELLIGENCE'],
-    spiritual: ['ALL', 'TEMPLES', 'FESTIVALS', 'RITUALS', 'VEDAS & PHILOSOPHY', 'ASTRO & FAITH'],
-    horoscope: ['ALL', 'LOVE HOROSCOPE', 'DAILY HOROSCOPE', 'WEEKLY HOROSCOPE', 'ZODIAC SIGNS']
-  };
+  useEffect(() => {
+    const cached = categoryService.getCachedCategories();
+    if (cached && cached.length > 0) setCategories(cached);
 
-  const currentFilters = subFilters[slug] || ['ALL', 'FEATURED', 'TRENDING', 'EXPLAINERS'];
+    categoryService.getCategories().then(cats => {
+      if (cats && cats.length > 0) setCategories(cats);
+    }).catch(() => {});
+
+    const handleCatsChanged = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) setCategories(e.detail);
+    };
+    window.addEventListener('categories_changed', handleCatsChanged);
+    return () => window.removeEventListener('categories_changed', handleCatsChanged);
+  }, []);
+
+  const matchedCategory = categories.find(c => c.slug?.toLowerCase() === slug.toLowerCase());
+  const currentCategoryName = matchedCategory?.name || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ') : 'News');
 
   // Helper to format date like THU, 08 OCT 2026 06:14 PM (IST) matching screenshot
   const formatBrandverseDate = (dateStr?: string) => {
@@ -118,6 +94,7 @@ export default function CategoryPage() {
 
   // Dynamic backend articles & Pagination states (10 per load from DB)
   const [dynamicArticles, setDynamicArticles] = useState<any[]>([]);
+  const [allCategorySubCats, setAllCategorySubCats] = useState<string[]>([]);
   const [topNewsArticles, setTopNewsArticles] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -148,7 +125,7 @@ export default function CategoryPage() {
     setPage(1);
 
     if (typeof document !== 'undefined') {
-      const catTitle = categoryNames[slug] || slug.toUpperCase();
+      const catTitle = currentCategoryName;
       document.title = `${catTitle} News - Latest Breaking Updates | The Daily Jagran`;
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
@@ -180,6 +157,24 @@ export default function CategoryPage() {
           })
           .catch(() => {});
       });
+
+    articleService.getArticles({
+      category: isLatest ? undefined : slug,
+      limit: 50,
+      status: 'PUBLISHED'
+    }).then(res => {
+      if (res.articles && res.articles.length > 0) {
+        const subs = Array.from(
+          new Set(
+            res.articles
+              .filter(a => isLatest || (a.category || '').toLowerCase() === slug.toLowerCase())
+              .map(a => (a.subCategory || '').trim())
+              .filter(Boolean)
+          )
+        );
+        setAllCategorySubCats(subs);
+      }
+    }).catch(() => {});
 
     fetchCategoryBatch(1)
       .then((res: any) => {
@@ -233,13 +228,25 @@ export default function CategoryPage() {
 
   const rawArticles = dynamicArticles;
 
+  // Dynamically extract unique subcategories from articles in this category (NO hardcoded fake tags)
+  const dynamicSubCategories = Array.from(
+    new Set([
+      ...allCategorySubCats,
+      ...rawArticles.map(a => (a.subCategory || '').trim()).filter(Boolean)
+    ])
+  );
+
+  const currentFilters = dynamicSubCategories.length > 0
+    ? ['ALL', ...dynamicSubCategories.map(s => s.toUpperCase())]
+    : [];
+
   // Sub-filter: strictly match subCategory tag, never bleed across
-  const articles = activeFilter === 'ALL'
+  const articles = activeFilter.toUpperCase() === 'ALL'
     ? rawArticles
     : rawArticles.filter(a => {
-        const subCat = (a.subCategory || '').toUpperCase();
-        const tags = (a.subTags || []) as string[];
-        return subCat === activeFilter || tags.includes(activeFilter);
+        const subCat = (a.subCategory || '').trim().toUpperCase();
+        const tags = ((a.subTags || []) as string[]).map(t => t.trim().toUpperCase());
+        return subCat === activeFilter.toUpperCase() || tags.includes(activeFilter.toUpperCase());
       });
 
   const displayArticles = articles;
@@ -275,7 +282,7 @@ export default function CategoryPage() {
               {
                 '@type': 'ListItem',
                 'position': 2,
-                'name': categoryNames[slug] || slug.toUpperCase(),
+                'name': currentCategoryName,
                 'item': `http://localhost:3000/${slug}`
               }
             ]
@@ -293,7 +300,7 @@ export default function CategoryPage() {
 
         {isLoading ? (
           <div className="space-y-6 animate-pulse py-4">
-            <h1 className="sr-only">{categoryNames[slug] || slug.toUpperCase()} - The Daily Jagran</h1>
+            <h1 className="sr-only">{currentCategoryName} - The Daily Jagran</h1>
             <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-4">
@@ -306,182 +313,100 @@ export default function CategoryPage() {
               </div>
             </div>
           </div>
-        ) : (slug === 'explainer' || slug === 'opinion') ? (
-          <div className="space-y-6 pb-10">
-
-            {/* Banner Header */}
-            <div className="bg-gradient-to-r from-red-700 via-rose-600 to-red-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg">
-              <div className="absolute -right-8 -bottom-10 text-9xl font-black font-serif text-white/5 select-none pointer-events-none uppercase">
-                {slug}
-              </div>
-              <div className="flex items-center space-x-4 relative z-10">
-                <div className="p-3 bg-white/20 backdrop-blur rounded-xl shadow-inner">
-                  <HelpCircle className="w-8 h-8 text-white" />
+        ) : (
+          <div className="space-y-6">
+            {/* Header: Explainer/Opinion Banner OR Standard Category Header */}
+            {(slug === 'explainer' || slug === 'opinion') ? (
+              <div className="bg-gradient-to-r from-red-700 via-rose-600 to-red-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg mb-4">
+                <div className="absolute -right-8 -bottom-10 text-9xl font-black font-serif text-white/5 select-none pointer-events-none uppercase">
+                  {slug}
                 </div>
-                <div>
-                  <h1 className="text-2xl sm:text-4xl font-black font-serif tracking-tight">
-                    {categoryNames[slug]}
+                <div className="flex items-center space-x-4 relative z-10">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl shadow-inner">
+                    <HelpCircle className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-4xl font-black font-serif tracking-tight">
+                      {currentCategoryName}
+                    </h1>
+                    <p className="text-sm sm:text-base text-white/90 font-medium pt-1">
+                      Deep dive and comprehensive analysis behind the headlines
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+                  <button onClick={() => router.push('/')} className="hover:text-jagran-red flex items-center space-x-1" title="Home">
+                    <Home className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                  </button>
+                  <span>/</span>
+                  <span className="uppercase text-jagran-red font-extrabold tracking-wider">{slug}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="w-3 h-8 bg-jagran-red rounded"></span>
+                  <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight">
+                    {currentCategoryName}
                   </h1>
-                  <p className="text-sm sm:text-base text-white/90 font-medium pt-1">
-                    Deep dive and comprehensive analysis behind the headlines
-                  </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Sub-category Filter Chips */}
-            <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-2 border-b border-slate-200 dark:border-slate-800">
-              {currentFilters.map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeFilter === filter
-                    ? 'bg-jagran-red text-white border-jagran-red shadow-sm'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-jagran-red/50 hover:text-jagran-red'
-                    }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
-            {/* Grid of ALL Explainer Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-              {displayArticles.map((card) => (
-                <article
-                  key={card.id}
-                  onClick={() => router.push(`/article/${card.id}`)}
-                  className="bg-white dark:bg-brand-dark-card text-slate-900 dark:text-slate-100 rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col justify-between border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md"
-                >
-                  {/* Card Image Header */}
-                  <div className="aspect-[16/10] overflow-hidden bg-slate-900 relative">
-                    <img
-                      src={card.imageUrl}
-                      alt={t(card.title)}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <span className="absolute top-3 left-3 bg-red-700 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest shadow">
-                      EXPLAINED
-                    </span>
-                  </div>
-
-                  {/* Card Content Body */}
-                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-400 block">
-                        {card.category}
-                      </span>
-                      <h3 className="text-base font-black font-serif text-slate-900 dark:text-white group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors leading-snug">
-                        {t(card.title)}
-                      </h3>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed font-medium">
-                        {t(card.summary)}
-                      </p>
-                    </div>
-
-                    {/* Footer Bar */}
-                    <div className="pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
-                      <span className="flex items-center space-x-1.5 text-slate-500 font-semibold">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{t(card.readTime)}</span>
-                      </span>
-                      <span className="flex items-center space-x-1 text-red-700 dark:text-red-400 font-black group-hover:translate-x-1 transition-transform">
-                        <span>Read Analysis</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {/* Load More Button for Explainer/Opinion view */}
-            {page < totalPages && (
-              <div className="pt-6 pb-2 text-center">
-                <button
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                  className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-300 dark:border-slate-700 hover:border-jagran-red hover:text-jagran-red dark:hover:text-jagran-red shadow-sm hover:shadow transition-all group inline-flex items-center space-x-2 disabled:opacity-60 cursor-pointer"
-                >
-                  {isLoadingMore ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-jagran-red" />
-                      <span>Loading Analysis...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Load More Analysis</span>
-                      <ChevronRight className="w-4 h-4 text-jagran-red group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
               </div>
             )}
 
-          </div>
-        ) : (
-          /* Standard 2-Column Category View (EXACT MATCH TO https://e-news-ebon.vercel.app/category/world) */
-          <div className="space-y-6">
-            {/* Category Header & Sub-filters */}
-            <div className="space-y-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-              <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
-                <button onClick={() => router.push('/')} className="hover:text-jagran-red flex items-center space-x-1" title="Home">
-                  <Home className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                </button>
-                <span>/</span>
-                <span className="uppercase text-jagran-red font-extrabold tracking-wider">{slug}</span>
+            {/* Sub-category Filter Chips (Dynamic from backend articles) */}
+            {currentFilters.length > 1 && (
+              <div className="w-full max-w-full min-w-0 overflow-hidden pt-1 pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
+                  {currentFilters.map((filter) => {
+                    const isSelected = activeFilter.toUpperCase() === filter.toUpperCase();
+                    return (
+                      <button
+                        key={filter}
+                        onClick={() => setActiveFilter(filter)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+                          isSelected
+                            ? 'bg-jagran-red text-white border-jagran-red shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-jagran-red/50 hover:text-jagran-red'
+                        }`}
+                      >
+                        {filter.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <span className="w-3 h-8 bg-jagran-red rounded"></span>
-                <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight">
-                  {categoryNames[slug] || slug.toUpperCase()}
-                </h1>
-              </div>
-
-              {/* Sub-category Filter Chips */}
-              <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1">
-                {currentFilters.map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${activeFilter === filter
-                      ? 'bg-jagran-red text-white border-jagran-red shadow-sm'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-jagran-red/50 hover:text-jagran-red'
-                      }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* 2-Column Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="w-full min-w-0 max-w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
 
               {/* Main Feed Column (8 Cols) */}
-              <div className="lg:col-span-8 space-y-8">
+              <div className="w-full min-w-0 lg:col-span-8 space-y-6 sm:space-y-8">
 
                 {/* Primary Category Lead Article */}
                 {leadArticle && (
                   <article
                     onClick={() => router.push(`/article/${leadArticle.id}`)}
-                    className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all group"
+                    className="w-full min-w-0 max-w-full bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all group"
                   >
                     <div className="aspect-[16/9] bg-slate-900 overflow-hidden relative">
                       <img
                         src={leadArticle.imageUrl}
                         alt={t(leadArticle.title)}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=1200&q=80';
+                        }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <span className="absolute top-3 left-3 bg-jagran-red text-white text-xs font-bold px-3 py-1 rounded shadow uppercase tracking-wide">
-                        {leadArticle.category}
+                        {leadArticle.subCategory || leadArticle.category}
                       </span>
                     </div>
-                    <div className="p-6 space-y-3">
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight font-serif">
+                    <div className="p-4 sm:p-6 space-y-2.5 sm:space-y-3">
+                      <h2 className="text-base sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug sm:leading-tight font-serif break-words">
                         {t(leadArticle.title)}
                       </h2>
-                      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3 break-words">
                         {t(leadArticle.summary)}
                       </p>
                       <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
@@ -498,7 +423,7 @@ export default function CategoryPage() {
                   </article>
                 )}
 
-                {/* Stacked Feed Articles List */}
+                {/* Stacked Feed Articles List: LEFT Image, RIGHT Text (Desktop & Mobile) */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                     <h3 className="text-sm font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -510,31 +435,31 @@ export default function CategoryPage() {
                     <article
                       key={art.id}
                       onClick={() => router.push(`/article/${art.id}`)}
-                      className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:shadow-md cursor-pointer transition-all group flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-start"
+                      className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 shadow-xs hover:shadow-md cursor-pointer transition-all group flex flex-row items-center gap-3 sm:gap-4"
                     >
-                      <div className="w-full sm:w-48 aspect-[16/10] rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                      {/* Left: Thumbnail Image */}
+                      <div className="w-28 h-20 sm:w-44 sm:h-28 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/80 dark:border-slate-700">
                         <img
                           src={art.imageUrl}
                           alt={t(art.title)}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80';
+                          }}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
-                      <div className="flex-1 space-y-2">
-                        <span className="text-[10px] font-bold uppercase text-jagran-red block">
-                          {art.category}
+
+                      {/* Right: Article Details */}
+                      <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
+                        <span className="text-[10px] sm:text-xs font-black uppercase text-jagran-red tracking-wider block">
+                          {art.subCategory || art.category}
                         </span>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+                        <h4 className="text-xs sm:text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-2 sm:line-clamp-3">
                           {t(art.title)}
-                        </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
-                          {t(art.summary)}
-                        </p>
-                        <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1">
-                          <div className="flex items-center space-x-2">
-                            <span>{t(art.timeAgo)}</span>
-                            <span>•</span>
-                            <span>{t(art.readTime)}</span>
-                          </div>
+                        </h4>
+                        <div className="flex items-center space-x-2 text-[10px] sm:text-xs text-slate-400 font-medium">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{t(art.timeAgo)}</span>
                         </div>
                       </div>
                     </article>

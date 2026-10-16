@@ -43,6 +43,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreDropdownRef = useRef<HTMLLIElement>(null);
 
+  // Mobile Category Pill Bar Scroll Container Ref
+  const mobileCategoryContainerRef = useRef<HTMLDivElement>(null);
+
+  const isTabActive = (tabSlug?: string, currentActive?: string) => {
+    if (!tabSlug || !currentActive) return false;
+    const s = tabSlug.toLowerCase().trim();
+    const a = currentActive.toLowerCase().trim();
+    if (s === a) return true;
+    if ((s === 'india' && a === 'national') || (s === 'national' && a === 'india')) return true;
+    if ((s === 'world' && a === 'global') || (s === 'global' && a === 'world')) return true;
+    return false;
+  };
+
   // Dynamic Navigation Categories
   const [navCategories, setNavCategories] = useState<CategoryData[]>([]);
 
@@ -163,6 +176,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [prevScrollPos]);
+
+  // Keep mobile category navbar centered / scrolled to the active selected category
+  useEffect(() => {
+    const container = mobileCategoryContainerRef.current;
+    if (!container) return;
+
+    if (activeCategory && activeCategory !== 'all') {
+      const scrollTimer = setTimeout(() => {
+        const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
+        if (activeEl) {
+          const scrollTarget = activeEl.offsetLeft - (container.clientWidth / 2) + (activeEl.clientWidth / 2);
+          container.scrollTo({
+            left: Math.max(0, scrollTarget),
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+      return () => clearTimeout(scrollTimer);
+    } else if (activeCategory === 'all') {
+      container.scrollTo({
+        left: 0,
+        behavior: 'smooth'
+      });
+    }
+  }, [activeCategory, navCategories]);
 
   return (
     <>
@@ -398,10 +436,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
         {/* 3. MOBILE ALWAYS-VISIBLE SWIPEABLE CATEGORY PILL BAR (App-like UX like LiveHindustan / Jagran) */}
         <div className="xl:hidden w-full max-w-full overflow-hidden bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1.5 px-3">
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+          <div ref={mobileCategoryContainerRef} className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth">
             {/* Home Pill */}
             <button
-              onClick={() => onSelectCategory('all')}
+              onClick={() => {
+                if (mobileCategoryContainerRef.current) {
+                  mobileCategoryContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+                }
+                onSelectCategory('all');
+              }}
+              data-active={activeCategory === 'all' ? 'true' : 'false'}
               className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 ${
                 activeCategory === 'all'
                   ? 'bg-jagran-red text-white shadow-xs'
@@ -421,11 +465,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                   slug: t.slug
                 }))
             ).map((tab: any) => {
-              const isActive = activeCategory === tab.slug;
+              const isActive = isTabActive(tab.slug, activeCategory);
               return (
                 <button
                   key={`mobile-pill-${tab.id || tab.slug}`}
-                  onClick={() => onSelectCategory(tab.slug)}
+                  data-active={isActive ? 'true' : 'false'}
+                  onClick={(e) => {
+                    const btn = e.currentTarget;
+                    const container = mobileCategoryContainerRef.current;
+                    if (container && btn) {
+                      const scrollTarget = btn.offsetLeft - (container.clientWidth / 2) + (btn.clientWidth / 2);
+                      container.scrollTo({
+                        left: Math.max(0, scrollTarget),
+                        behavior: 'smooth'
+                      });
+                    }
+                    onSelectCategory(tab.slug);
+                  }}
                   className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-jagran-red text-white shadow-xs'
@@ -465,7 +521,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                     slug: t.slug
                   }))
               ).map((tab: any) => {
-                const isActive = activeCategory === tab.slug;
+                const isActive = isTabActive(tab.slug, activeCategory);
                 return (
                   <li key={tab.id || tab.slug} className="whitespace-nowrap shrink-0">
                     <button
@@ -489,59 +545,70 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 onMouseLeave={() => setIsMoreOpen(false)}
                 className="relative group whitespace-nowrap shrink-0"
               >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsMoreOpen(prev => !prev);
-                  }}
-                  className={`flex items-center space-x-0.5 py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight cursor-pointer select-none ${
-                    isMoreOpen || activeCategory === 'fashion' || activeCategory === 'brandverse' || activeCategory === 'weather'
-                      ? 'text-jagran-red font-black'
-                      : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
-                  }`}
-                  aria-expanded={isMoreOpen}
-                >
-                  <span className="font-bold text-[12px] lg:text-[13px]">MORE</span>
-                  <MoreVertical className="w-3.5 h-3.5 -mr-1 text-slate-900 dark:text-slate-200" />
-                </button>
-
-                {/* Dropdown Menu */}
-                <div
-                  className={`absolute right-0 top-full z-[9999] min-w-[150px] ${
-                    isMoreOpen ? 'block' : 'hidden group-hover:block'
-                  }`}
-                  style={{ marginTop: '0px' }}
-                >
-                  <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1 divide-y divide-[#ffe2e2]/60 dark:divide-slate-800 max-h-72 overflow-y-auto">
-                    {(navCategories.length > 0
-                      ? navCategories.filter(c => c.slug !== 'all' && c.isActive).slice(11)
-                      : mockCategoryTabs.filter((t: any) => t.slug !== 'all').slice(11).map((t: any) => ({
-                          id: t.id,
-                          name: t.label.en,
-                          slug: t.slug
-                        }))
-                    ).map((cat: any) => (
+                {(() => {
+                  const moreList = (navCategories.length > 0
+                    ? navCategories.filter(c => c.slug !== 'all' && c.isActive).slice(11)
+                    : mockCategoryTabs.filter((t: any) => t.slug !== 'all').slice(11).map((t: any) => ({
+                        id: t.id,
+                        name: t.label.en,
+                        slug: t.slug
+                      }))
+                  );
+                  const isMoreCategoryActive = moreList.some((c: any) => isTabActive(c.slug, activeCategory));
+                  return (
+                    <>
                       <button
-                        key={cat.id || cat.slug}
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
-                          onSelectCategory(cat.slug);
-                          setIsMoreOpen(false);
+                          e.stopPropagation();
+                          setIsMoreOpen(prev => !prev);
                         }}
-                        className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors uppercase whitespace-nowrap block ${
-                          activeCategory === cat.slug
-                            ? 'text-jagran-red bg-red-50 dark:bg-red-950/40'
-                            : 'text-slate-700 dark:text-slate-300 hover:text-jagran-red hover:bg-white/60 dark:hover:bg-slate-800'
+                        className={`flex items-center space-x-0.5 py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight cursor-pointer select-none ${
+                          isMoreOpen || isMoreCategoryActive
+                            ? 'text-jagran-red font-black'
+                            : 'text-slate-800 dark:text-slate-200 hover:text-jagran-red'
                         }`}
+                        aria-expanded={isMoreOpen}
                       >
-                        {String(cat.name || cat.label?.en || cat.slug || '').toUpperCase()}
+                        <span className="font-bold text-[12px] lg:text-[13px]">MORE</span>
+                        <MoreVertical className="w-3.5 h-3.5 -mr-1 text-slate-900 dark:text-slate-200" />
                       </button>
-                    ))}
-                  </div>
-                </div>
+
+                      {/* Dropdown Menu */}
+                      <div
+                        className={`absolute right-0 top-full z-[9999] min-w-[150px] ${
+                          isMoreOpen ? 'block' : 'hidden group-hover:block'
+                        }`}
+                        style={{ marginTop: '0px' }}
+                      >
+                        <div className="bg-[#FFF4F4] dark:bg-slate-900 border border-[#FFE2E2] dark:border-slate-800 shadow-lg py-1.5 px-1 divide-y divide-[#ffe2e2]/60 dark:divide-slate-800 max-h-72 overflow-y-auto">
+                          {moreList.map((cat: any) => {
+                            const isCatActive = isTabActive(cat.slug, activeCategory);
+                            return (
+                              <button
+                                key={cat.id || cat.slug}
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onSelectCategory(cat.slug);
+                                  setIsMoreOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors uppercase whitespace-nowrap block ${
+                                  isCatActive
+                                    ? 'text-jagran-red bg-red-50 dark:bg-red-950/40'
+                                    : 'text-slate-700 dark:text-slate-300 hover:text-jagran-red hover:bg-white/60 dark:hover:bg-slate-800'
+                                }`}
+                              >
+                                {String(cat.name || cat.label?.en || cat.slug || '').toUpperCase()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </li>
             </ul>
           </div>
@@ -630,7 +697,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                       slug: t.slug
                     }))
                 ).map((cat: any) => {
-                  const isActive = activeCategory === cat.slug;
+                  const isActive = isTabActive(cat.slug, activeCategory);
                   return (
                     <button
                       key={`drawer-${cat.id || cat.slug}`}

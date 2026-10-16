@@ -53,13 +53,13 @@ export interface BowlerLive {
 export interface LiveCreaseData {
   match: CricketMatch;
   currentBatters: BatterLive[];
-  currentBowler: BowlerLive;
+  currentBowler: BowlerLive | null;
   thisOverBalls: string[];
   partnership: {
     runs: number;
     balls: number;
     runRate: string;
-  };
+  } | null;
   lastWicket: string;
   equation: string;
   crr: string;
@@ -134,7 +134,10 @@ export interface CommentaryItem {
   overNumber?: number;
   overSummary?: string;
   isPreMatch?: boolean;
-  type?: 'ball' | 'over' | 'prematch' | 'milestone';
+  inning?: string | number;
+  timestamp?: string;
+  uid?: number;
+  type?: 'ball' | 'over' | 'prematch' | 'milestone' | 'editorial';
 }
 
 export interface MatchPlayer {

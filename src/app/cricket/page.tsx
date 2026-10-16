@@ -122,8 +122,29 @@ export default function CricketHubPage() {
     else router.push(`/${slug}`);
   };
 
-  const leadArticle = articles[0] || null;
-  const feedArticles = articles.slice(1, 7);
+  const [activeFilter, setActiveFilter] = useState('ALL');
+
+  const dynamicSubCategories = Array.from(
+    new Set(
+      articles
+        .map(a => (renderText(a.subCategory) || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  const currentFilters = dynamicSubCategories.length > 0
+    ? ['ALL', ...dynamicSubCategories.map(s => s.toUpperCase())]
+    : [];
+
+  const displayArticles = activeFilter.toUpperCase() === 'ALL'
+    ? articles
+    : articles.filter(a => {
+        const subCat = (renderText(a.subCategory) || '').trim().toUpperCase();
+        return subCat === activeFilter.toUpperCase();
+      });
+
+  const leadArticle = displayArticles[0] || null;
+  const feedArticles = displayArticles.slice(1);
 
   return (
     <main className="min-h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
@@ -180,6 +201,30 @@ export default function CricketHubPage() {
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
+
+        {/* Dynamic Sub-Category Filter Chips */}
+        {currentFilters.length > 1 && (
+          <div className="w-full max-w-full min-w-0 overflow-hidden pt-1 pb-4 mb-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
+              {currentFilters.map((filter) => {
+                const isSelected = activeFilter.toUpperCase() === filter.toUpperCase();
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+                      isSelected
+                        ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-red-600/50 hover:text-red-600'
+                    }`}
+                  >
+                    {filter.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Loading Skeleton */}
         {loadingArticles && articles.length === 0 ? (
@@ -253,9 +298,9 @@ export default function CricketHubPage() {
                   <article
                     key={art.id}
                     onClick={() => router.push(`/article/${art.slug || art.id}`)}
-                    className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:shadow-md cursor-pointer transition-all duration-200 group flex flex-col sm:flex-row gap-4 items-start"
+                    className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 shadow-sm hover:shadow-md cursor-pointer transition-all duration-200 group flex flex-row items-center gap-3 sm:gap-4"
                   >
-                    <div className="w-full sm:w-48 aspect-[16/10] rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
+                    <div className="w-28 h-20 sm:w-44 sm:h-28 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/80">
                       <img
                         src={
                           art.featuredImage ||
@@ -266,17 +311,17 @@ export default function CricketHubPage() {
                       />
                     </div>
 
-                    <div className="flex-1 space-y-2 min-w-0">
-                      <span className="text-[10px] font-black uppercase text-red-600 block tracking-wider">
-                        {renderText(art.category) || 'CRICKET'}
+                    <div className="flex-1 space-y-1.5 sm:space-y-2 min-w-0">
+                      <span className="text-[10px] sm:text-xs font-black uppercase text-red-600 block tracking-wider">
+                        {renderText(art.subCategory || art.category) || 'CRICKET'}
                       </span>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-red-600 transition-colors leading-snug line-clamp-2">
+                      <h3 className="text-xs sm:text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-red-600 transition-colors leading-snug line-clamp-2 sm:line-clamp-3">
                         {renderText(art.title)}
                       </h3>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                      <p className="hidden md:line-clamp-2 text-xs text-slate-600 dark:text-slate-300">
                         {stripHtml(renderText(art.subHeadline || art.content || ''))}
                       </p>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-2 pt-1">
+                      <div className="text-[10px] sm:text-xs text-slate-500 flex items-center gap-2 pt-0.5">
                         <Clock className="w-3 h-3 text-slate-400" />
                         <span>{formatTimeAgoString(art.publishedAt || art.createdAt)}</span>
                         <span>•</span>

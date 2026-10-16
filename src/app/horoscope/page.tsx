@@ -31,32 +31,16 @@ const ZODIAC_SIGNS = [
   { id: 'pisces', name: 'Pisces', hindi: 'मीन', dates: 'FEB 19 - MAR 20' },
 ];
 
-const DEFAULT_ZODIAC_IMAGES: Record<string, string> = {
-  aries: '/images/zodiac/aries.jpg',
-  taurus: '/images/zodiac/taurus.jpg',
-  gemini: '/images/zodiac/gemini.jpg',
-  cancer: '/images/zodiac/cancer.jpg',
-  leo: '/images/zodiac/leo.jpg',
-  virgo: '/images/zodiac/virgo.jpg',
-  libra: '/images/zodiac/libra.jpg',
-  scorpio: '/images/zodiac/scorpio.jpg',
-  sagittarius: '/images/zodiac/sagittarius.jpg',
-  capricorn: '/images/zodiac/capricorn.jpg',
-  aquarius: '/images/zodiac/aquarius.jpg',
-  pisces: '/images/zodiac/pisces.jpg',
-};
-
 const isValidImageUrl = (url?: string | null) => {
   if (!url) return false;
   return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:');
 };
 
-const getSignImage = (signId: string, dynamicUrl?: string | null) => {
-  const s = signId.toLowerCase();
+const getSignImage = (signId: string, dynamicUrl?: string | null): string | null => {
   if (dynamicUrl && isValidImageUrl(dynamicUrl)) {
     return dynamicUrl;
   }
-  return DEFAULT_ZODIAC_IMAGES[s] || `/images/zodiac/${s}.jpg`;
+  return null;
 };
 
 // Default Astrological Traits for all 12 Zodiac signs (Astrology Reference)
@@ -300,7 +284,7 @@ function HoroscopeContent() {
     }
   };
 
-  const getSignImage = (signId: string) => {
+  const getSignImage = (signId: string): string | null => {
     const s = signId.toLowerCase();
     if (s === activeSign && horoscopeData) {
       const activeUrl = horoscopeData.iconUrl || (horoscopeData as any)?.image || (isValidImageUrl(horoscopeData.hindiName) ? horoscopeData.hindiName : null);
@@ -311,7 +295,7 @@ function HoroscopeContent() {
       const dynamicUrl = signData.iconUrl || (signData as any)?.image || (isValidImageUrl(signData.hindiName) ? signData.hindiName : null);
       if (dynamicUrl && isValidImageUrl(dynamicUrl)) return dynamicUrl;
     }
-    return DEFAULT_ZODIAC_IMAGES[s] || `/images/zodiac/${s}.jpg`;
+    return null;
   };
 
   const [copied, setCopied] = useState(false);
@@ -376,11 +360,13 @@ function HoroscopeContent() {
                         : 'border-2 border-white/80 shadow-xs group-hover:scale-105'
                     }`}
                   >
-                    <img
-                      src={getSignImage(sign.id)}
-                      alt={sign.name}
-                      className="w-full h-full object-cover rounded-full"
-                    />
+                    {getSignImage(sign.id) ? (
+                      <img
+                        src={getSignImage(sign.id)!}
+                        alt={sign.name}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : null}
                   </div>
                   <span className={`text-xs sm:text-sm font-black mt-2 tracking-tight ${
                     isSelected ? 'text-amber-300' : 'text-white'
@@ -398,7 +384,7 @@ function HoroscopeContent() {
       <main className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6 space-y-10">
 
         {/* 2. BREADCRUMB */}
-        <nav className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <nav className="hidden md:flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
           <Link href="/" className="hover:text-red-600 flex items-center space-x-1">
             <Home className="w-3.5 h-3.5" />
           </Link>
@@ -428,11 +414,13 @@ function HoroscopeContent() {
 
                 {/* Framed Circular Medallion (Centered) */}
                 <div className="relative w-56 h-56 sm:w-64 sm:h-64 lg:w-80 lg:h-80 rounded-full p-2.5 bg-gradient-to-b from-amber-400/40 via-white/5 to-amber-600/40 border border-amber-400/50 shadow-2xl backdrop-blur-md flex items-center justify-center">
-                  <img
-                    src={activeImage}
-                    alt={selectedSignMeta.name}
-                    className="w-full h-full object-cover rounded-full shadow-inner transform group-hover:scale-105 transition-transform duration-500"
-                  />
+                  {activeImage ? (
+                    <img
+                      src={activeImage}
+                      alt={selectedSignMeta.name}
+                      className="w-full h-full object-cover rounded-full shadow-inner transform group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -568,27 +556,6 @@ function HoroscopeContent() {
                 );
               })}
             </div>
-
-            {/* Quick Share / Copy Reading Actions */}
-            <div className="flex items-center space-x-2 self-end sm:self-auto">
-              <button
-                onClick={handleCopyReading}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                title="Copy horoscope text to clipboard"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700 font-black">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Copy Forecast</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
           {/* Elevated Reading Deck Card */}
@@ -668,70 +635,132 @@ function HoroscopeContent() {
                 </div>
               ) : (
                 <>
-                  <div className="space-y-6 divide-y divide-slate-100">
-                    {newsArticles.map((art) => (
-                      <article key={art.id} className="pt-6 first:pt-0 flex flex-col sm:flex-row gap-5 group">
-                        {/* Thumbnail */}
-                        <div className="w-full sm:w-56 h-36 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80">
-                          <img
-                            src={art.featuredImage || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80'}
-                            alt={art.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
+                  {(() => {
+                    const leadArticle = newsArticles[0] || null;
+                    const feedArticles = newsArticles.slice(1);
 
-                        {/* Article Details */}
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <Link href={`/article/${art.slug || art.id}`}>
-                            <h3 className="text-base sm:text-lg font-bold font-serif text-slate-900 group-hover:text-[#8E192B] transition-colors leading-snug">
-                              {stripHtml(art.title)}
-                            </h3>
-                          </Link>
-                          {art.subHeadline && (
-                            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                              {stripHtml(art.subHeadline)}
-                            </p>
-                          )}
-                          <div className="flex items-center space-x-3 text-[11px] text-slate-400 font-medium pt-1">
-                            <span className="uppercase font-mono text-[#8E192B] font-bold">
-                              {art.subCategory || 'Astro Forecast'}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {new Date(art.publishedAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
+                    return (
+                      <>
+                        {leadArticle && (
+                          <article
+                            onClick={() => router.push(`/article/${leadArticle.slug || leadArticle.id}`)}
+                            className="w-full min-w-0 max-w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 group mb-6"
+                          >
+                            <div className="aspect-[16/9] w-full bg-slate-900 overflow-hidden relative">
+                              <img
+                                src={leadArticle.featuredImage || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&q=80'}
+                                alt={stripHtml(leadArticle.title)}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <span className="absolute top-3 left-3 bg-[#8E192B] text-white text-[11px] font-black px-3 py-1 rounded shadow uppercase tracking-wider">
+                                {leadArticle.subCategory || 'HOROSCOPE'}
+                              </span>
+                            </div>
 
-                  {/* Load More Button for Horoscope */}
-                  {page < totalPages && (
-                    <div className="pt-6 text-center border-t border-slate-100">
-                      <button
-                        onClick={handleLoadMore}
-                        disabled={isLoadingMore}
-                        className="inline-flex items-center space-x-2 px-8 py-3 rounded-full bg-slate-900 hover:bg-[#8E192B] text-white text-xs font-bold tracking-wider uppercase transition-all shadow-xs hover:shadow-md disabled:opacity-60 cursor-pointer"
-                      >
-                        {isLoadingMore ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
-                            <span>Loading Articles...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Load More Stories</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </>
+                            <div className="p-5 sm:p-6 space-y-3">
+                              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white group-hover:text-[#8E192B] transition-colors leading-tight font-serif">
+                                {stripHtml(leadArticle.title)}
+                              </h2>
+                              {leadArticle.subHeadline && (
+                                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                                  {stripHtml(leadArticle.subHeadline)}
+                                </p>
+                              )}
+                              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                                <span className="flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5 text-[#8E192B]" />
+                                  <span>
+                                    {new Date(leadArticle.publishedAt).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                </span>
+                                <span className="font-bold text-[#8E192B] group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                                  <span>Read Full Story</span>
+                                  <ChevronRight className="w-4 h-4" />
+                                </span>
+                              </div>
+                            </div>
+                          </article>
                         )}
-                      </button>
-                    </div>
-                  )}
+
+                        <div className="space-y-4 pt-2">
+                          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Recent Astrology Stories
+                            </h3>
+                          </div>
+
+                          {feedArticles.map((art) => (
+                            <article
+                              key={art.id}
+                              onClick={() => router.push(`/article/${art.slug || art.id}`)}
+                              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 shadow-sm hover:shadow-md cursor-pointer transition-all duration-200 group flex flex-row items-center gap-3 sm:gap-4"
+                            >
+                              {/* Left: Thumbnail Image */}
+                              <div className="w-28 h-20 sm:w-44 sm:h-28 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/80">
+                                <img
+                                  src={art.featuredImage || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80'}
+                                  alt={stripHtml(art.title)}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              </div>
+
+                              {/* Right: Article Details */}
+                              <div className="flex-1 space-y-1.5 sm:space-y-2 min-w-0">
+                                <span className="text-[10px] sm:text-xs font-black uppercase text-[#8E192B] block tracking-wider">
+                                  {art.subCategory || 'Astro Forecast'}
+                                </span>
+                                <h3 className="text-xs sm:text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-[#8E192B] transition-colors leading-snug line-clamp-2 sm:line-clamp-3">
+                                  {stripHtml(art.title)}
+                                </h3>
+                                {art.subHeadline && (
+                                  <p className="hidden md:line-clamp-2 text-xs text-slate-600 dark:text-slate-300">
+                                    {stripHtml(art.subHeadline)}
+                                  </p>
+                                )}
+                                <div className="text-[10px] sm:text-xs text-slate-500 flex items-center gap-2 pt-0.5">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  <span>
+                                    {new Date(art.publishedAt).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+
+                        {/* Load More Button for Horoscope */}
+                        {page < totalPages && (
+                          <div className="pt-6 text-center border-t border-slate-100">
+                            <button
+                              onClick={handleLoadMore}
+                              disabled={isLoadingMore}
+                              className="inline-flex items-center space-x-2 px-8 py-3 rounded-full bg-slate-900 hover:bg-[#8E192B] text-white text-xs font-bold tracking-wider uppercase transition-all shadow-xs hover:shadow-md disabled:opacity-60 cursor-pointer"
+                            >
+                              {isLoadingMore ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                                  <span>Loading Articles...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Load More Stories</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

@@ -38,14 +38,14 @@ export const HoroscopeSection: React.FC = () => {
     return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:');
   };
 
-  const getSignImage = (signKey: string) => {
+  const getSignImage = (signKey: string): string | null => {
     const s = signKey.toLowerCase();
     const signData = allSignsMap[s];
     if (signData) {
       const dynamicUrl = signData.iconUrl || (signData as any).image || (isValidImageUrl(signData.hindiName) ? signData.hindiName : null);
       if (dynamicUrl && isValidImageUrl(dynamicUrl)) return dynamicUrl;
     }
-    return `/images/zodiac/${s}.jpg`;
+    return null;
   };
 
   const handleSignClick = (signName: string) => {
@@ -104,11 +104,13 @@ export const HoroscopeSection: React.FC = () => {
               >
                 {/* Circular Medallion Avatar with Dynamic Backend Image / 3D Medallion */}
                 <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-amber-400/50 p-0.5 bg-[#FFF5F7] group-hover:scale-110 group-hover:ring-2 group-hover:ring-amber-400 transition-all mb-2.5 overflow-hidden shadow-sm flex items-center justify-center">
-                  <img
-                    src={imgSrc}
-                    alt={sign.name}
-                    className="w-full h-full object-cover rounded-full"
-                  />
+                  {imgSrc ? (
+                    <img
+                      src={imgSrc}
+                      alt={sign.name}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : null}
                 </div>
                 
                 {/* Title */}

@@ -33,6 +33,7 @@ export interface ArticleData {
 
 export interface ArticlesQuery {
   category?: string;
+  subCategory?: string;
   status?: string;
   search?: string;
   isLeadStory?: boolean;
@@ -71,6 +72,7 @@ export const articleService = {
   async getArticles(query: ArticlesQuery = {}): Promise<ArticlesResponse> {
     const params = new URLSearchParams();
     if (query.category) params.append('category', query.category);
+    if (query.subCategory) params.append('subCategory', query.subCategory);
     if (query.status) params.append('status', query.status);
     if (query.search) params.append('search', query.search);
     if (typeof query.isLeadStory !== 'undefined') params.append('isLeadStory', String(query.isLeadStory));
