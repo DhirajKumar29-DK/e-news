@@ -9,8 +9,8 @@ export const GlobalMobileBottomNav: React.FC = () => {
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Never render mobile bottom nav on Admin pages
-  if (pathname?.startsWith('/admin')) {
+  // Never render mobile bottom nav on Admin pages or ePaper viewer
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/epaper')) {
     return null;
   }
 

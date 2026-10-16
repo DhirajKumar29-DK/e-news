@@ -1495,14 +1495,32 @@ ${rawBody}
 
   // Download complete multi-page PDF with all pages compiled
   const handleDownloadFullPdf = async () => {
-    if (!directFullUrl) return;
     setIsDownloadingPdf(true);
     const fileName = `epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`;
 
+    const backendBase = 'https://e-news-backend.onrender.com';
+    const directPdf = (pdfUrl && pdfUrl.startsWith('http'))
+      ? pdfUrl
+      : `${backendBase}${pdfUrl ? (pdfUrl.startsWith('/') ? '' : '/') + pdfUrl : `/uploads/pdfs/epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`}`;
+
     try {
-      const downloadTarget = proxyPdfUrl || directFullUrl;
-      const res = await fetch(downloadTarget);
-      if (!res.ok) throw new Error('Fetch failed');
+      if (isMobileScreen) {
+        // Direct browser/system download for mobile
+        const link = document.createElement('a');
+        link.href = directPdf;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setIsDownloadingPdf(false);
+        return;
+      }
+
+      // Desktop: fetch blob for clean named download
+      const res = await fetch(directPdf);
+      if (!res.ok) throw new Error('Direct fetch failed');
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const a = document.createElement('a');
@@ -1515,15 +1533,8 @@ ${rawBody}
         document.body.removeChild(a);
       }, 1200);
     } catch {
-      // Direct window open fallback
-      const a = document.createElement('a');
-      a.href = directFullUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Fallback: open in new tab/download
+      window.open(directPdf, '_blank');
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -1533,45 +1544,69 @@ ${rawBody}
 
   const handleHeaderCopy = async () => {
     try {
-      const url = typeof window !== 'undefined' ? window.location.href : '';
-      if (navigator.clipboard) {
+      const url = typeof window !== 'undefined' ? (window.location.origin + '/epaper') : 'https://e-news-ebon.vercel.app/epaper';
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url);
       }
       setHeaderCopiedToast(true);
-      setTimeout(() => setHeaderCopiedToast(false), 2000);
+      setTimeout(() => setHeaderCopiedToast(false), 2500);
     } catch {
       setHeaderCopiedToast(true);
-      setTimeout(() => setHeaderCopiedToast(false), 2000);
+      setTimeout(() => setHeaderCopiedToast(false), 2500);
     }
   };
 
   const handleHeaderShare = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-    const shareData = {
-      title: `डिजिटल ई-पेपर - ${activeEdition?.name || 'दैनिक समाचार'}`,
-      text: `आज का ई-पेपर ऑनलाइन पढ़ें (${formatHindiDate(selectedDate)}): ${url}`,
-      url: url,
-    };
-    if (navigator.share) {
+    const url = typeof window !== 'undefined' ? (window.location.origin + '/epaper') : 'https://e-news-ebon.vercel.app/epaper';
+    const shareTitle = `डिजिटल ई-पेपर - ${activeEdition?.name || 'दैनिक समाचार'}`;
+    const shareText = `आज का डिजिटल ई-पेपर पढ़ें (${formatHindiDate(selectedDate)}): ${url}`;
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        await navigator.share(shareData);
-      } catch {
-        // User closed share dialog
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: url,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
       }
-    } else {
-      handleHeaderCopy();
     }
+
+    // Fallback: Copy to clipboard with Toast and open WhatsApp share option
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText}\n${url}`);
+      }
+      setHeaderCopiedToast(true);
+      setTimeout(() => setHeaderCopiedToast(false), 2500);
+    } catch {
+      // ignore
+    }
+
+    // Direct WhatsApp share fallback for mobile
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText}\n${url}`)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
+
+      {/* Floating Copied Toast Alert */}
+      {headerCopiedToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[110] bg-slate-900/95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl flex items-center space-x-2 animate-in fade-in zoom-in-95 duration-150 border border-slate-700">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>ई-पेपर लिंक कॉपी हो गया! (Link copied)</span>
+        </div>
+      )}
 
       {/* 1. TOP CONTROL TOOLBAR */}
       <header
         style={{
-          paddingTop: 'max(46px, calc(env(safe-area-inset-top, 0px) + 12px))'
+          paddingTop: isMobileScreen ? 'max(46px, calc(env(safe-area-inset-top, 0px) + 12px))' : '0px'
         }}
-        className="min-h-[72px] sm:min-h-[64px] sm:h-[64px] sm:pt-0 pb-2 sm:pb-0 bg-gradient-to-r from-[#ba1228] via-[#8a0b1d] to-[#680714] px-2.5 sm:px-8 flex items-center justify-between shrink-0 shadow-2xl relative z-40 border-b border-red-900/60"
+        className="min-h-[72px] sm:min-h-[64px] sm:h-[64px] pb-2 sm:pb-0 bg-gradient-to-r from-[#ba1228] via-[#8a0b1d] to-[#680714] px-2.5 sm:px-8 flex items-center justify-between shrink-0 shadow-2xl relative z-40 border-b border-red-900/60"
       >
 
         {/* Brand & Edition & Date Selector */}
@@ -2560,21 +2595,21 @@ ${rawBody}
             {/* 3A. SLEEK MOBILE FLOATING GLASS PILL (Page Navigation Only) */}
             <div
               style={{
-                bottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
+                bottom: 'max(20px, calc(env(safe-area-inset-bottom, 0px) + 16px))',
               }}
-              className="sm:hidden fixed left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-200"
+              className="sm:hidden fixed left-1/2 -translate-x-1/2 z-[105] animate-in slide-in-from-bottom-4 duration-200 pointer-events-auto"
             >
-              <div className="flex items-center bg-slate-950/90 backdrop-blur-xl text-white px-3 py-1.5 rounded-full border border-white/20 shadow-2xl space-x-2 shrink-0">
+              <div className="flex items-center bg-slate-950/95 backdrop-blur-xl text-white px-3.5 py-1.5 rounded-full border border-white/25 shadow-2xl space-x-3 shrink-0">
                 {/* Previous Page */}
                 <button
                   type="button"
                   disabled={currentPageIndex === 0}
                   onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
-                  className="w-7 h-7 rounded-full bg-white/10 active:bg-white/30 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                  className="w-8 h-8 rounded-full bg-white/15 active:bg-white/35 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
                   title="पिछला पृष्ठ (Previous Page)"
                   aria-label="Previous Page"
                 >
-                  <ChevronLeft className="w-4 h-4 text-white" />
+                  <ChevronLeft className="w-5 h-5 text-white" />
                 </button>
 
                 {/* All Pages Grid Toggle & Current Page Indicator */}
@@ -2586,7 +2621,7 @@ ${rawBody}
                 >
                   <LayoutGrid className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                   <span className="font-mono text-xs font-extrabold whitespace-nowrap">
-                    {formattedCurrentPage}/{formattedTotalPages}
+                    पृष्ठ {formattedCurrentPage}/{formattedTotalPages}
                   </span>
                 </button>
 
@@ -2595,11 +2630,11 @@ ${rawBody}
                   type="button"
                   disabled={currentPageIndex >= totalPages - 1}
                   onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
-                  className="w-7 h-7 rounded-full bg-white/10 active:bg-white/30 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                  className="w-8 h-8 rounded-full bg-white/15 active:bg-white/35 disabled:opacity-20 flex items-center justify-center transition-all cursor-pointer shrink-0"
                   title="अगला पृष्ठ (Next Page)"
                   aria-label="Next Page"
                 >
-                  <ChevronRight className="w-4 h-4 text-white" />
+                  <ChevronRight className="w-5 h-5 text-white" />
                 </button>
               </div>
             </div>
