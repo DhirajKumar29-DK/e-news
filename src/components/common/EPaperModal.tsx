@@ -14,6 +14,7 @@ import {
   fetchArchiveDates,
   fetchEpaperIssue,
   getTtsAudioUrl,
+  generatePdf,
 } from '@/services/epaperService';
 
 // Utility to decode HTML entities and format paragraphs properly
@@ -624,9 +625,9 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
       </div>
 
       {/* BIG RED BROADSHEET MASTHEAD (Exact Match to Admin Broadsheet Canvas) */}
-      <div className="text-center border-b-4 border-double border-slate-900 pb-1.5 space-y-0.5">
+      <div className="text-center border-b-4 border-double border-slate-900 pb-1 space-y-0.5">
         <h1
-          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
+          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 1.15, padding: '2px 0' }}
           className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight select-none"
         >
           {activeEdition.title || 'अपना पटना'}
@@ -678,7 +679,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
         const headerContent = (
           <div id={`reader-slot-header-${s.id}`} className="space-y-0.5 shrink-0">
             {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
-              <div className="mb-1 flex items-center">
+              <div className="mb-0.5 flex items-center">
                 <span
                   style={{ fontFamily: "'Inter', 'Mukta', sans-serif" }}
                   className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide leading-none shadow-xs select-none"
@@ -2043,21 +2044,64 @@ ${rawBody}
       }
     }
 
-    const backendBase = 'https://e-news-backend.onrender.com';
+    // If still no PDF exists in DB, invoke Backend Puppeteer to generate high-fidelity vector PDF
+    if (!currentPdf) {
+      try {
+        setPdfCompileStatus('सर्वर पर उच्च गुणवत्ता वाला PDF तैयार हो रहा है (Puppeteer)...');
+        const genRes = await generatePdf({
+          editionSlug,
+          editionTitle: activeEdition?.title || 'अपना पटना',
+          publishDate: selectedDate,
+          pages: pages && pages.length > 0 ? pages : undefined,
+        });
+        if (genRes.ok) {
+          const genData = await genRes.json();
+          if (genData?.success && (genData.data?.pdfUrl || genData.data?.publicUrl)) {
+            currentPdf = genData.data?.publicUrl || genData.data?.pdfUrl;
+            setPdfUrl(currentPdf);
+            pdfUrlRef.current = currentPdf;
+          }
+        }
+      } catch (genErr) {
+        console.warn('Backend Puppeteer PDF generation error:', genErr);
+      }
+    }
 
-    // 1. If direct pre-compiled PDF exists in DB, fetch as Blob to trigger authentic .pdf download
+    // 1. Direct Puppeteer Vector PDF download via Blob (zero client-side rasterization / zero cut text)
     if (currentPdf) {
       try {
         setPdfCompileStatus('PDF डाउनलोड हो रहा है...');
         const cleanPath = currentPdf.startsWith('/') ? currentPdf : `/${currentPdf}`;
-        const directPdf = currentPdf.startsWith('http')
-          ? currentPdf
-          : `${backendBase}${cleanPath}`;
+        const candidateUrls: string[] = [];
+        if (currentPdf.startsWith('http')) {
+          candidateUrls.push(currentPdf);
+        } else {
+          const envBackend = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
+          if (envBackend) candidateUrls.push(`${envBackend}${cleanPath}`);
+          candidateUrls.push(`http://localhost:5000${cleanPath}`);
+          candidateUrls.push(`https://e-news-backend.onrender.com${cleanPath}`);
+          const fullMedia = getFullMediaUrl(cleanPath);
+          if (fullMedia && !candidateUrls.includes(fullMedia)) candidateUrls.push(fullMedia);
+        }
 
-        const resp = await fetch(directPdf);
-        if (resp.ok) {
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
+        let downloadedBlob: Blob | null = null;
+        for (const testUrl of candidateUrls) {
+          try {
+            const resp = await fetch(testUrl);
+            if (resp.ok) {
+              const blob = await resp.blob();
+              if (blob.size > 1000) {
+                downloadedBlob = blob;
+                break;
+              }
+            }
+          } catch (fetchErr) {
+            console.warn(`Attempt to fetch PDF from ${testUrl} failed:`, fetchErr);
+          }
+        }
+
+        if (downloadedBlob) {
+          const blobUrl = URL.createObjectURL(downloadedBlob);
           const link = document.createElement('a');
           link.href = blobUrl;
           link.download = fileName;
@@ -2072,7 +2116,7 @@ ${rawBody}
           return;
         }
       } catch (err) {
-        console.warn('Direct PDF download failed, compiling digital pages into multi-page PDF:', err);
+        console.warn('Direct PDF download failed, falling back to emergency client compile:', err);
       }
     }
 
@@ -2957,8 +3001,8 @@ ${rawBody}
               disabled={currentPageIndex === 0}
               onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
               className={`hidden sm:flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${currentPageIndex === 0
-                  ? 'opacity-0 pointer-events-none'
-                  : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
+                ? 'opacity-0 pointer-events-none'
+                : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
                 }`}
               title="पिछला पृष्ठ (Previous Page)"
               aria-label="Previous Page"
@@ -2972,8 +3016,8 @@ ${rawBody}
               disabled={currentPageIndex >= totalPages - 1}
               onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
               className={`hidden sm:flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${currentPageIndex >= totalPages - 1
-                  ? 'opacity-0 pointer-events-none'
-                  : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
+                ? 'opacity-0 pointer-events-none'
+                : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
                 }`}
               title="अगला पृष्ठ (Next Page)"
               aria-label="Next Page"
@@ -3069,8 +3113,8 @@ ${rawBody}
                     type="button"
                     onClick={handleToggleSpeech}
                     className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer ${isSpeaking
-                        ? 'bg-amber-600 text-white animate-pulse'
-                        : 'bg-[#0088cc] active:bg-[#0077b5] text-white'
+                      ? 'bg-amber-600 text-white animate-pulse'
+                      : 'bg-[#0088cc] active:bg-[#0077b5] text-white'
                       }`}
                     title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
                   >
@@ -3145,8 +3189,8 @@ ${rawBody}
                     type="button"
                     onClick={() => setActiveViewTab('text')}
                     className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
-                        ? 'bg-[#ba1228] text-white font-bold shadow-xs'
-                        : 'text-slate-600 font-semibold'
+                      ? 'bg-[#ba1228] text-white font-bold shadow-xs'
+                      : 'text-slate-600 font-semibold'
                       }`}
                   >
                     <FileText className="w-3.5 h-3.5" />
@@ -3156,8 +3200,8 @@ ${rawBody}
                     type="button"
                     onClick={() => setActiveViewTab('image')}
                     className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
-                        ? 'bg-[#ba1228] text-white font-bold shadow-xs'
-                        : 'text-slate-600 font-semibold'
+                      ? 'bg-[#ba1228] text-white font-bold shadow-xs'
+                      : 'text-slate-600 font-semibold'
                       }`}
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
@@ -3231,8 +3275,8 @@ ${rawBody}
                   type="button"
                   onClick={() => setActiveViewTab('text')}
                   className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
-                      ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                      : 'text-slate-600 font-semibold hover:text-slate-900'
+                    ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                    : 'text-slate-600 font-semibold hover:text-slate-900'
                     }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -3242,8 +3286,8 @@ ${rawBody}
                   type="button"
                   onClick={() => setActiveViewTab('image')}
                   className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
-                      ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                      : 'text-slate-600 font-semibold hover:text-slate-900'
+                    ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                    : 'text-slate-600 font-semibold hover:text-slate-900'
                     }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -3313,8 +3357,8 @@ ${rawBody}
                   type="button"
                   onClick={handleToggleSpeech}
                   className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${isSpeaking
-                      ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
-                      : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                    : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
                     }`}
                   title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
                 >

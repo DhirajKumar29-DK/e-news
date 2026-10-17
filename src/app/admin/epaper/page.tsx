@@ -2286,8 +2286,8 @@ function FullStudioInner() {
             type="button"
             onClick={() => setShowPagesSidebar(prev => !prev)}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-sm ${showPagesSidebar
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 hover:border-slate-300'
-                : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 hover:border-red-300'
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 hover:border-slate-300'
+              : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 hover:border-red-300'
               }`}
             title={showPagesSidebar ? 'पेज स्टैक छुपाएं (Hide Pages Stack for More Canvas Space)' : 'पेज स्टैक दिखाएं (Show Pages Stack)'}
           >
@@ -2516,8 +2516,8 @@ function FullStudioInner() {
                 type="button"
                 onClick={() => setShowSlotGuides(prev => !prev)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer border ${showSlotGuides
-                    ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-xs'
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-xs'
                   }`}
                 title="स्लॉट की सीमा रेखाएं (Slot Boundaries Outline) चालू / बंद करें"
               >
@@ -2858,8 +2858,8 @@ function FullStudioInner() {
                                     transition: isManipulatingImg ? 'none' : 'box-shadow 0.15s ease'
                                   }}
                                   className={`block overflow-visible shadow-md cursor-grab active:cursor-grabbing bg-slate-900 group/img relative select-none rounded-md border-2 ${isManipulatingImg
-                                      ? 'border-amber-500 shadow-2xl ring-4 ring-amber-400/50'
-                                      : 'border-slate-300 hover:border-slate-400'
+                                    ? 'border-amber-500 shadow-2xl ring-4 ring-amber-400/50'
+                                    : 'border-slate-300 hover:border-slate-400'
                                     }`}
                                   title="Feature Photo (Drag to Move Smoothly Anywhere • Drag Corner Arrow to Resize)"
                                 >
@@ -3013,8 +3013,8 @@ function FullStudioInner() {
                                   transition: isManipulatingImg ? 'none' : 'box-shadow 0.15s ease'
                                 }}
                                 className={`block overflow-visible shadow-md cursor-grab active:cursor-grabbing bg-slate-900 group/img relative select-none rounded-md border-2 ${isManipulatingImg
-                                    ? 'border-amber-500 shadow-2xl ring-4 ring-amber-400/50'
-                                    : 'border-slate-300 hover:border-slate-400'
+                                  ? 'border-amber-500 shadow-2xl ring-4 ring-amber-400/50'
+                                  : 'border-slate-300 hover:border-slate-400'
                                   }`}
                                 title="Feature Photo (Drag to Move Smoothly Anywhere • Drag Corner Arrow to Resize Width & Height)"
                               >
@@ -3373,8 +3373,8 @@ function FullStudioInner() {
                       handleUpdateSlotField('categoryBadge', tag);
                     }}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${formCategory === tag
-                        ? 'bg-red-600 border-red-500 text-white shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400 hover:text-slate-900 shadow-xs'
+                      ? 'bg-red-600 border-red-500 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400 hover:text-slate-900 shadow-xs'
                       }`}
                   >
                     {tag === 'ट्रेंडिंग' ? '🔥 ' + tag : tag}
@@ -3721,8 +3721,8 @@ function FullStudioInner() {
                           handleUpdateSlotField('columnsCount', num);
                         }}
                         className={`py-1.5 px-2 rounded-lg text-xs font-bold font-mono transition-all flex items-center justify-center space-x-1 cursor-pointer border ${isSelected
-                            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-sm'
-                            : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
+                          ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-500 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
                           }`}
                       >
                         <span>{num}</span>
@@ -3784,8 +3784,8 @@ function FullStudioInner() {
                         handleUpdateSlotField('imageWrapMode', 'auto');
                       }}
                       className={`p-2 rounded-lg text-center transition-all cursor-pointer border ${formImageWrapMode === 'auto'
-                          ? 'bg-red-50 text-red-700 border-red-500 font-black shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
+                        ? 'bg-red-50 text-red-700 border-red-500 font-black shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
                         }`}
                       title="Text wraps around photo inside column or with float"
                     >
@@ -3800,8 +3800,8 @@ function FullStudioInner() {
                         handleUpdateSlotField('imageWrapMode', 'top-span');
                       }}
                       className={`p-2 rounded-lg text-center transition-all cursor-pointer border ${formImageWrapMode === 'top-span'
-                          ? 'bg-red-50 text-red-700 border-red-500 font-black shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
+                        ? 'bg-red-50 text-red-700 border-red-500 font-black shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
                         }`}
                       title="Image spans on top across all columns, columns flow below"
                     >

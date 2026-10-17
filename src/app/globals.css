@@ -7,8 +7,10 @@
     overflow-x: clip !important;
     width: 100% !important;
     max-width: 100% !important;
-    background-color: #020617; /* Dark slate-950 so no white line can ever peek through at edges or bottom */
+    background-color: #020617;
+    /* Dark slate-950 so no white line can ever peek through at edges or bottom */
   }
+
   body {
     overflow-x: clip !important;
     width: 100% !important;
@@ -26,7 +28,10 @@
 }
 
 /* Hide Next.js dev overlay badge on mobile so it never covers buttons */
-nextjs-portal, [data-nextjs-dev-tools-button], [data-nextjs-toast], #nextjs-dev-tools {
+nextjs-portal,
+[data-nextjs-dev-tools-button],
+[data-nextjs-toast],
+#nextjs-dev-tools {
   display: none !important;
 }
 
@@ -69,6 +74,7 @@ nextjs-portal, [data-nextjs-dev-tools-button], [data-nextjs-toast], #nextjs-dev-
   width: 0 !important;
   height: 0 !important;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
@@ -79,23 +85,29 @@ nextjs-portal, [data-nextjs-dev-tools-button], [data-nextjs-toast], #nextjs-dev-
   width: 4px;
   height: 4px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(220, 38, 38, 0.6);
 }
 
 /* Ticker Pulse Animation */
 @keyframes livePulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.6;
     transform: scale(0.95);
@@ -115,7 +127,8 @@ mark {
   font-weight: 700 !important;
 }
 
-b, strong {
+b,
+strong {
   font-weight: 800 !important;
 }
 
@@ -125,6 +138,7 @@ b, strong {
   border: 1px solid transparent;
   transition: all 0.15s ease-in-out;
 }
+
 .epaper-slot-hotspot:hover {
   border-color: rgba(220, 38, 38, 0.65) !important;
   background-color: rgba(220, 38, 38, 0.12) !important;
@@ -135,7 +149,8 @@ b, strong {
 [contenteditable],
 [contenteditable] * {
   cursor: text !important;
-  caret-color: #0f172a !important; /* High-contrast solid dark caret visible against all text & background colors */
+  caret-color: #0f172a !important;
+  /* High-contrast solid dark caret visible against all text & background colors */
   user-select: text !important;
   -webkit-user-select: text !important;
 }
@@ -169,5 +184,3 @@ b, strong {
   display: list-item !important;
   margin-bottom: 0.25rem !important;
 }
-
-
