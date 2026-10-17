@@ -18,12 +18,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'The News Paper | Latest News, India & World Updates',
-    template: '%s | The News Paper'
+    default: 'Vartiq | Latest News, India & World Updates',
+    template: '%s | Vartiq'
   },
-  description: 'Stay ahead with The News Paper. Trusted breaking news from India and the world covering politics, cricket, business, tech, and entertainment.',
+  description: 'Stay ahead with Vartiq. Trusted breaking news from India and the world covering politics, cricket, business, tech, and entertainment.',
   keywords: [
-    'The News Paper',
+    'Vartiq',
+    'Vartiq News',
+    'वार्तिक',
     'Latest News',
     'India News',
     'Breaking News Today',
@@ -36,9 +38,9 @@ export const metadata: Metadata = {
     'Vande Bharat',
     'ISRO Missions'
   ],
-  authors: [{ name: 'The News Paper Editorial Bureau', url: siteUrl }],
-  creator: 'The News Paper Media Network',
-  publisher: 'The News Paper',
+  authors: [{ name: 'Vartiq Editorial Bureau', url: siteUrl }],
+  creator: 'Vartiq Media Network',
+  publisher: 'Vartiq',
   formatDetection: {
     email: false,
     address: false,
@@ -49,34 +51,34 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/vartiq-icon.png', type: 'image/png' },
       { url: '/favicon.ico', sizes: '32x32' }
     ],
-    shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png'
+    shortcut: '/vartiq-icon.png',
+    apple: '/vartiq-icon.png'
   },
   openGraph: {
     type: 'website',
     locale: 'en_IN',
     url: siteUrl,
-    siteName: 'The News Paper',
-    title: 'The News Paper | Latest News, Breaking Stories & Global Coverage',
+    siteName: 'Vartiq',
+    title: 'Vartiq | Latest News, Breaking Stories & Global Coverage',
     description: 'Trusted 24/7 digital news reporting from India and around the world covering politics, business, sports, entertainment, technology, and lifestyle.',
     images: [
       {
-        url: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80',
+        url: '/vartiq-logo.png',
         width: 1200,
         height: 630,
-        alt: 'The News Paper - Leading Digital News Portal'
+        alt: 'Vartiq - Leading Digital News Portal'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'The News Paper | Latest News & Breaking Stories',
-    description: 'Real-time breaking news, geopolitical analysis, cricket scores, and lifestyle trends from The News Paper.',
-    creator: '@TheNewsPaper',
-    images: ['https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&q=80']
+    title: 'Vartiq | Latest News & Breaking Stories',
+    description: 'Real-time breaking news, geopolitical analysis, cricket scores, and lifestyle trends from Vartiq.',
+    creator: '@VartiqNews',
+    images: ['/vartiq-logo.png']
   },
   robots: {
     index: true,
@@ -99,18 +101,18 @@ export default function RootLayout({
   const jsonLdOrg = {
     '@context': 'https://schema.org',
     '@type': 'NewsMediaOrganization',
-    'name': 'The News Paper',
+    'name': 'Vartiq',
     'url': siteUrl,
     'logo': {
       '@type': 'ImageObject',
-      'url': 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=400',
+      'url': `${siteUrl}/vartiq-logo.png`,
       'width': 400,
       'height': 120
     },
     'sameAs': [
-      'https://twitter.com/TheNewsPaper',
-      'https://facebook.com/TheNewsPaper',
-      'https://instagram.com/TheNewsPaper'
+      'https://twitter.com/VartiqNews',
+      'https://facebook.com/VartiqNews',
+      'https://instagram.com/VartiqNews'
     ],
     'publishingPrinciples': `${siteUrl}/editorial-guidelines`,
     'correctionsPolicy': `${siteUrl}/corrections`
@@ -119,7 +121,7 @@ export default function RootLayout({
   const jsonLdWebsite = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    'name': 'The News Paper',
+    'name': 'Vartiq',
     'url': siteUrl,
     'potentialAction': {
       '@type': 'SearchAction',

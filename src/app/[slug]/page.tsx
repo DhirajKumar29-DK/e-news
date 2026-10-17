@@ -126,10 +126,10 @@ export default function CategoryPage() {
 
     if (typeof document !== 'undefined') {
       const catTitle = currentCategoryName;
-      document.title = `${catTitle} News - Latest Breaking Updates | The News Paper`;
+      document.title = `${catTitle} News - Latest Breaking Updates | Vartiq`;
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
-        metaDesc.setAttribute('content', `Read latest ${catTitle} news, analysis, reports, and real-time updates on The News Paper.`);
+        metaDesc.setAttribute('content', `Read latest ${catTitle} news, analysis, reports, and real-time updates on Vartiq.`);
       }
     }
 
@@ -304,7 +304,7 @@ export default function CategoryPage() {
 
         {isLoading ? (
           <div className="space-y-6 animate-pulse py-4">
-            <h1 className="sr-only">{currentCategoryName} - The News Paper</h1>
+            <h1 className="sr-only">{currentCategoryName} - Vartiq</h1>
             <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-4">

@@ -44,7 +44,7 @@ function FullCleanDashboardInner() {
             <div className="space-y-2 relative z-10">
               <div className="inline-flex items-center space-x-2 bg-red-50 border border-red-200 px-3 py-1 rounded-full text-xs font-bold text-red-600">
                 <Sparkles className="w-3.5 h-3.5 text-red-600" />
-                <span>E-News Production Suite</span>
+                <span>Vartiq Production Suite</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black font-serif text-slate-900 tracking-tight">
                 Welcome Back, {user?.name || 'Super Admin'}! 👏

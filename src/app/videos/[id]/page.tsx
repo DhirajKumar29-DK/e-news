@@ -20,9 +20,9 @@ import { buildVideoEmbedUrl, getVideoThumbnail } from '@/utils/videoUtils';
 
 function updateVideoSEO(video: VideoData) {
   if (typeof document === 'undefined') return;
-  const siteTitle = 'The News Paper';
+  const siteTitle = 'Vartiq';
   const pageTitle = video.metaTitle || video.title || 'Latest News Video';
-  const pageDesc = video.metaDescription || video.description || 'Watch latest news videos, breaking bulletins, field reports, and expert analysis on The News Paper.';
+  const pageDesc = video.metaDescription || video.description || 'Watch latest news videos, breaking bulletins, field reports, and expert analysis on Vartiq.';
   const pageImage = video.thumbnailUrl || (video.youtubeId ? `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg` : '');
   const pageUrl = video.canonicalUrl || (typeof window !== 'undefined' ? `${window.location.origin}/videos/${encodeURIComponent(video.slug || video.id || '')}` : '');
 

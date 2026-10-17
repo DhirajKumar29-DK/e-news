@@ -423,7 +423,7 @@ function EditArticleContent() {
                   <div className="flex items-center space-x-1.5 overflow-hidden text-slate-500 font-mono text-xs w-full">
                     <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="text-slate-400 font-medium select-none shrink-0 font-sans">
-                      thenewspaper.com/article/
+                      vartiq.com/article/
                     </span>
                     <input
                       type="text"
@@ -1014,7 +1014,7 @@ function EditArticleContent() {
                       </label>
                       <input
                         type="url"
-                        placeholder="https://thenewspaper.com/article/slug (leave blank for default)"
+                        placeholder="https://vartiq.com/article/slug (leave blank for default)"
                         value={canonicalUrl}
                         onChange={(e) => setCanonicalUrl(e.target.value)}
                         className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -1070,11 +1070,11 @@ function EditArticleContent() {
                         {previewTab === 'google' ? (
                           <div className="p-3 bg-white rounded-xl border border-slate-200 text-left space-y-1">
                             <div className="text-[10px] text-slate-500 truncate flex items-center space-x-1">
-                              <span className="font-semibold text-slate-700">thenewspaper.com</span>
+                              <span className="font-semibold text-slate-700">vartiq.com</span>
                               <span>› article › {slug || 'custom-permalink'}</span>
                             </div>
                             <div className="text-xs font-semibold text-blue-700 line-clamp-1 hover:underline cursor-pointer">
-                              {metaTitle || title} | The News Paper
+                              {metaTitle || title} | Vartiq
                             </div>
                             <div className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
                               {metaDescription || subHeadline || plainTextContent.slice(0, 140) || 'Story description will appear here...'}
@@ -1088,7 +1088,7 @@ function EditArticleContent() {
                               </div>
                             )}
                             <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">
-                              THENEWSPAPER.COM
+                              VARTIQ.COM
                             </div>
                             <div className="text-xs font-bold text-slate-900 line-clamp-1">
                               {metaTitle || title}

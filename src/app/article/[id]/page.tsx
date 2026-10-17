@@ -112,7 +112,7 @@ export default function ArticlePage() {
         if (data) {
           setDynamicArticle(data);
           if (typeof document !== 'undefined') {
-            document.title = `${stripHtml(data.title)} | The News Paper`;
+            document.title = `${stripHtml(data.title)} | Vartiq`;
             let metaDesc = document.querySelector('meta[name="description"]');
             if (!metaDesc) {
               metaDesc = document.createElement('meta');
@@ -229,7 +229,7 @@ export default function ArticlePage() {
         />
 
         <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 pt-4 pb-12 flex-1 space-y-6 animate-pulse">
-          <h1 className="sr-only">Article Details - The News Paper</h1>
+          <h1 className="sr-only">Article Details - Vartiq</h1>
           {/* Breadcrumb Skeleton */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -428,7 +428,7 @@ export default function ArticlePage() {
             }],
             'publisher': {
               '@type': 'NewsMediaOrganization',
-              'name': 'The News Paper',
+              'name': 'Vartiq',
               'url': 'http://localhost:3000'
             },
             'mainEntityOfPage': {

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
-import RichTextEditor from '@/components/admin/RichTextEditor';
+import EPaperRichTextEditor from '@/components/admin/EPaperRichTextEditor';
 
 export interface EPaperSlotData {
   id: string;
@@ -3918,8 +3918,8 @@ function FullStudioInner() {
 
       {/* WORD-STYLE RICH TEXT EDITOR MODAL POPUP */}
       {isRichEditorOpen && richEditingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150">
-          <div className="bg-[#1e2430] text-slate-100 rounded-3xl max-w-5xl w-full max-h-[94vh] shadow-2xl border border-slate-700 flex flex-col font-sans">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 select-text">
+          <div className="bg-[#1e2430] text-slate-100 rounded-3xl max-w-5xl w-full max-h-[94vh] shadow-2xl border border-slate-700 flex flex-col font-sans select-text">
 
             {/* 1. Modal Top Header */}
             <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center justify-between shrink-0 rounded-t-3xl">
@@ -3991,8 +3991,8 @@ function FullStudioInner() {
                   </span>
                 </div>
 
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-700">
-                  <RichTextEditor
+                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-700 select-text">
+                  <EPaperRichTextEditor
                     key={richEditingSlot.id}
                     value={richSummaryHtml}
                     onChange={(html) => setRichSummaryHtml(html)}

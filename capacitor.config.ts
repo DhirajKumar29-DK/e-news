@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.enews.app',
-  appName: 'e-news',
+  appName: 'Vartiq News',
   webDir: 'out',
   server: {
     url: 'https://e-news-ebon.vercel.app',

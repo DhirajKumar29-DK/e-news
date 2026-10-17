@@ -283,7 +283,7 @@ function AdminVideoCreateContent() {
                 <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/90 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-700">
                   <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0 font-sans" />
                   <span className="text-slate-400 font-medium select-none shrink-0 font-sans">
-                    thenewspaper.com/videos/
+                    vartiq.com/videos/
                   </span>
                   <input
                     type="text"

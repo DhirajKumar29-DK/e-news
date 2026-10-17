@@ -38,12 +38,14 @@ export const AdminSidebar: React.FC = () => {
       {/* Brand Logo Header */}
       <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center font-black text-white text-lg font-serif shadow-lg shadow-red-600/30">
-            A
-          </div>
+          <img
+            src="/vartiq-icon.png"
+            alt="Vartiq"
+            className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-red-600/30"
+          />
           <div>
             <h1 className="text-sm font-black font-serif uppercase tracking-wider text-white">
-              ASTR CONTROL
+              VARTIQ CONTROL
             </h1>
             <p className="text-[10px] text-slate-400 font-medium">Newsroom Admin Portal</p>
           </div>

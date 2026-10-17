@@ -10,9 +10,9 @@ import { buildVideoEmbedUrl, getVideoThumbnail, getYouTubeId } from '@/utils/vid
 
 function updateVideoSEO(video: VideoData) {
   if (typeof document === 'undefined') return;
-  const siteTitle = 'The News Paper';
+  const siteTitle = 'Vartiq';
   const pageTitle = video.metaTitle || video.title || 'Latest News Video';
-  const pageDesc = video.metaDescription || video.description || 'Watch latest news videos, breaking bulletins, field reports, and expert analysis on The News Paper.';
+  const pageDesc = video.metaDescription || video.description || 'Watch latest news videos, breaking bulletins, field reports, and expert analysis on Vartiq.';
   const pageImage = video.thumbnailUrl || (video.youtubeId ? `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg` : '');
   const pageUrl = video.canonicalUrl || (typeof window !== 'undefined' ? `${window.location.origin}/videos?v=${encodeURIComponent(video.slug || video.id || '')}` : '');
   const pageKeywords = video.metaKeywords || video.tags || '';
@@ -168,10 +168,10 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.title = 'Latest News Videos, Bulletins & Visual Reports | The News Paper';
+      document.title = 'Latest News Videos, Bulletins & Visual Reports | Vartiq';
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) {
-        metaDesc.setAttribute('content', 'Watch top news videos, breaking bulletins, field reports, and expert analysis on The News Paper.');
+        metaDesc.setAttribute('content', 'Watch top news videos, breaking bulletins, field reports, and expert analysis on Vartiq.');
       }
     }
   }, []);
@@ -482,19 +482,16 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                       </div>
                     </div>
 
-                    {/* Watermark Logo Bottom-Left: The News Paper */}
+                    {/* Watermark Logo Bottom-Left: Vartiq */}
                     <div className="absolute bottom-2.5 left-3 flex items-center space-x-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] pointer-events-none">
-                      <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 flex items-center justify-center shadow-md p-0.5">
-                        <div className="w-2 h-2 bg-yellow-200 rounded-full" />
-                      </div>
-                      <div className="flex flex-col leading-tight">
-                        <span className="text-[7.5px] font-sans font-bold text-white tracking-wider uppercase opacity-95">
-                          THE
-                        </span>
-                        <span className="text-[9.5px] font-serif font-black text-white tracking-wide uppercase">
-                          NEWSPAPER
-                        </span>
-                      </div>
+                      <img
+                        src="/vartiq-icon.png"
+                        alt="Vartiq"
+                        className="w-5 h-5 rounded-md object-cover shadow"
+                      />
+                      <span className="text-[10px] font-black font-serif text-white tracking-wide uppercase">
+                        VARTIQ
+                      </span>
                     </div>
 
                     {/* Duration Badge Bottom-Right */}

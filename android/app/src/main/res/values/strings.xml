@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">e-news</string>
-    <string name="title_activity_main">e-news</string>
+    <string name="app_name">Vartiq News</string>
+    <string name="title_activity_main">Vartiq News</string>
     <string name="package_name">com.enews.app</string>
     <string name="custom_url_scheme">com.enews.app</string>
 </resources>

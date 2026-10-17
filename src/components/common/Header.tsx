@@ -277,8 +277,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
         }`}>
 
         {/* 1. TOP BLACK TIMESTAMP STRIP */}
-        <div className="bg-black text-white text-[11px] py-1.5 hidden lg:block border-b border-slate-800">
-          <div className="max-w-[1440px] mx-auto px-6 sm:px-12 lg:px-16 flex items-center justify-between min-h-[30px]">
+        <div className="bg-black text-white text-[11px] py-0.5 hidden lg:block border-b border-slate-800">
+          <div className="max-w-[1440px] mx-auto px-6 sm:px-12 lg:px-16 flex items-center justify-between min-h-[24px]">
             <span suppressHydrationWarning className="font-sans font-medium tracking-tight text-slate-200 flex items-center my-auto">
               {formattedDate}
             </span>
@@ -303,28 +303,27 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
         </div>
 
         {/* 2. MAIN LOGO & ACTION BAR (3-Column Centered Layout) */}
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 py-3 lg:py-3.5 flex items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-10 py-1.5 sm:py-2 flex items-center justify-between gap-3 sm:gap-4">
 
-          {/* Left Column: Brand Logo with Sun Emblem */}
-          <div className="flex items-center space-x-3 shrink-0">
+          {/* Left Column: Brand Logo */}
+          <div className="flex items-center shrink-0">
             {/* Hamburger hidden on mobile per user request */}
 
             <div
               onClick={() => onSelectCategory('all')}
-              className="flex items-center space-x-2 cursor-pointer group shrink-0"
+              className="flex items-center cursor-pointer shrink-0"
+              title="Vartiq"
             >
-              {/* Sun Emblem (compact on mobile) */}
-              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform shrink-0">
-                <Sun className="w-4 h-4 sm:w-6 sm:h-6 text-white stroke-[2.5]" />
-              </div>
-              <div>
-                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#E43854] block leading-none pb-0.5">
-                  THE
-                </span>
-                <span className="text-xl sm:text-3xl font-black font-serif tracking-tight text-slate-900 dark:text-white group-hover:text-[#E43854] transition-colors leading-none">
-                  NEWSPAPER
-                </span>
-              </div>
+              <img
+                src="/vartiq-logo.png"
+                alt="Vartiq"
+                className="h-[38px] md:h-[52px] w-auto object-contain select-none transform scale-x-[1.12] origin-left dark:hidden"
+              />
+              <img
+                src="/vartiq-logo-dark.png"
+                alt="Vartiq"
+                className="h-[38px] md:h-[52px] w-auto object-contain select-none transform scale-x-[1.12] origin-left hidden dark:block"
+              />
             </div>
           </div>
 
@@ -780,7 +779,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
 
               {/* Drawer Footer */}
               <div className="p-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
-                <span>The News Paper • 2026</span>
+                <span>Vartiq News • 2026</span>
                 <button
                   onClick={() => router.push('/videos')}
                   className="text-jagran-red font-bold hover:underline"

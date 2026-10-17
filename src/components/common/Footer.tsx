@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
         <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center md:text-left">
             <h3 className="text-lg font-bold font-serif text-white">
-              The News Paper Daily Briefing
+              Vartiq Daily Briefing
             </h3>
             <p className="text-xs text-slate-400">
               Top curated headlines delivered straight to your news desk every morning
@@ -45,7 +45,7 @@ export const Footer: React.FC = () => {
             <div>
               <p className="font-bold text-white">Editorial Inquiries &amp; Feedback:</p>
               <p className="text-amber-400 font-mono text-[11px] select-all">
-                contact@thenewspaper.com
+                contact@vartiq.com
               </p>
             </div>
           </div>
@@ -57,11 +57,17 @@ export const Footer: React.FC = () => {
         
         {/* Col 1: Brand Info */}
         <div className="space-y-3">
-          <h2 className="text-xl font-black font-serif text-white uppercase tracking-tight">
-            THE <span className="text-[#E43854]">NEWS PAPER</span>
-          </h2>
+          <div className="flex items-center">
+            <div className="flex items-center shrink-0" title="Vartiq">
+              <img
+                src="/vartiq-logo-dark.png"
+                alt="Vartiq"
+                className="h-[38px] md:h-[52px] w-auto object-contain select-none transform scale-x-[1.12] origin-left"
+              />
+            </div>
+          </div>
           <p className="text-slate-400 leading-relaxed">
-            Official digital news publication of The News Paper Network. Dedicated to fearless, verified, and real-time independent journalism.
+            Official digital news publication of Vartiq Network. Dedicated to fearless, verified, and real-time independent journalism.
           </p>
           <div className="flex items-center space-x-2 text-emerald-400 pt-1 font-medium">
             <ShieldCheck className="w-4 h-4" />
@@ -73,7 +79,7 @@ export const Footer: React.FC = () => {
             <div className="relative rounded-lg overflow-hidden border border-slate-800 h-20">
               <img
                 src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80"
-                alt="The News Paper Digital Edition"
+                alt="Vartiq Digital Edition"
                 className="w-full h-full object-cover brightness-85"
               />
               <div className="absolute inset-0 bg-slate-950/40 p-2 flex items-end justify-between">
@@ -133,7 +139,7 @@ export const Footer: React.FC = () => {
                 <span>LIVE DESK</span>
               </span>
               <p className="text-[11px] font-bold text-white line-clamp-1">
-                The News Paper Digital Studio
+                Vartiq Digital Studio
               </p>
             </div>
           </div>
@@ -148,7 +154,7 @@ export const Footer: React.FC = () => {
       {/* 3. BOTTOM COPYRIGHT STRIP (No Links) */}
       <div className="w-full bg-slate-950 border-t border-slate-900 pt-4 pb-20 md:pb-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-400">
         <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} The News Paper Network. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Vartiq Network. All rights reserved.</p>
           
           <div className="flex items-center space-x-1.5 text-xs text-slate-400">
             <span>Designed &amp; Developed by</span>
@@ -156,7 +162,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-slate-500">
-            The News Paper Digital News Network
+            Vartiq Digital News Network
           </p>
         </div>
       </div>

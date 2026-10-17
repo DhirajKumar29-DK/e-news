@@ -365,7 +365,7 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col bg-jagran-bg dark:bg-brand-dark-bg text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
 
       {/* Accessible & SEO-Optimized Semantic H1 Heading */}
-      <h1 className="sr-only">The News Paper - ताज़ा समाचार, ब्रेकिंग न्यूज़ और मुख्य खबरें | Latest News, India &amp; World Updates</h1>
+      <h1 className="sr-only">Vartiq - ताज़ा समाचार, ब्रेकिंग न्यूज़ और मुख्य खबरें | Latest News, India &amp; World Updates</h1>
 
       {/* 1. Header & Navigation */}
       <Header
@@ -380,7 +380,7 @@ export default function HomePage() {
       {/* 3. DYNAMIC HOMEPAGE SECTIONS: Explainer at #4, Videos at #9, others auto-adjusted in Admin Order */}
       {finalHomeSections}
 
-      {/* 4. The News Paper Dark Footer */}
+      {/* 4. Vartiq Dark Footer */}
       <Footer />
 
       {/* Floating Back To Top Button on Mobile & Desktop */}
