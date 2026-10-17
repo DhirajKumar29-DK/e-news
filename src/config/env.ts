@@ -20,6 +20,36 @@ export const API_BASE_URL: string = (
 ).replace(/\/$/, '');
 
 /**
+ * Automatically resolves the public site URL:
+ * 1. NEXT_PUBLIC_SITE_URL if configured (e.g. https://yourcustomdomain.com)
+ * 2. VERCEL_PROJECT_PRODUCTION_URL or VERCEL_URL provided automatically by Vercel
+ * 3. Client-side browser origin
+ * 4. Production fallback: https://e-news-ebon.vercel.app
+ * 5. Localhost fallback: http://localhost:3000
+ */
+export function getSiteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    const raw = process.env.NEXT_PUBLIC_SITE_URL.trim().replace(/\/$/, '');
+    return raw.startsWith('http') ? raw : `https://${raw}`;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, '')}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`;
+  }
+  if (isClient && window.location.origin && !window.location.origin.includes('localhost')) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://e-news-ebon.vercel.app';
+  }
+  return 'http://localhost:3000';
+}
+
+export const SITE_URL: string = getSiteUrl();
+
+/**
  * Converts any media path (uploaded PDF, generated page WebP, article photo)
  * to a full, valid URL whether running locally or on a custom domain.
  */

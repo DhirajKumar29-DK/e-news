@@ -2348,19 +2348,6 @@ function FullStudioInner() {
         {/* Action Controls & Publish Button */}
         <div className="flex items-center space-x-3">
 
-          {/* Export PDF Button */}
-          <button
-            onClick={handleGenerateBroadsheetPdf}
-            disabled={isGeneratingPdf}
-            className="hidden md:flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
-          >
-            {isGeneratingPdf ? (
-              <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <Download className="w-3.5 h-3.5 text-red-600" />
-            )}
-            <span>{isGeneratingPdf ? 'Generating PDF...' : '🖨️ Export High-Res PDF'}</span>
-          </button>
 
           {/* Publish Paper Main Action Button */}
           <button
@@ -4119,28 +4106,6 @@ function FullStudioInner() {
                 <ExternalLink className="w-3.5 h-3.5 ml-1" />
               </a>
 
-              {/* Button 2: Download / View PDF (if available) */}
-              {publishModal.pdfUrl && (
-                <a
-                  href={publishModal.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-200 flex items-center justify-center space-x-2 transition-all cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-amber-600" />
-                  <span>📄 हाई-रेजोल्यूशन PDF खोलें (Open PDF)</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-1 text-slate-500" />
-                </a>
-              )}
-
-              {/* Close / Dismiss Button */}
-              <button
-                type="button"
-                onClick={() => setPublishModal(null)}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 transition-all cursor-pointer flex items-center justify-center"
-              >
-                बंद करें
-              </button>
             </div>
 
           </div>

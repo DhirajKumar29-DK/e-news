@@ -3,8 +3,9 @@ import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { CapacitorBridge, GlobalMobileBottomNav } from '@/components/common';
+import { SITE_URL } from '@/config/env';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = SITE_URL;
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -17,10 +18,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'The News Paper | Latest News, India, World, Cricket, Tech & Breaking Updates',
+    default: 'The News Paper | Latest News, India & World Updates',
     template: '%s | The News Paper'
   },
-  description: 'Stay ahead with The News Paper. Comprehensive breaking news from India and across the globe, in-depth politics, cricket match coverage, tech breakthroughs, markets, education, and lifestyle reports.',
+  description: 'Stay ahead with The News Paper. Trusted breaking news from India and the world covering politics, cricket, business, tech, and entertainment.',
   keywords: [
     'The News Paper',
     'Latest News',
@@ -45,6 +46,14 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: '/',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '32x32' }
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png'
   },
   openGraph: {
     type: 'website',
@@ -128,6 +137,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Merriweather:wght@400;700;900&family=Mukta:wght@400;500;600;700;800&family=Noto+Serif+Devanagari:wght@400;600;700;900&display=swap"
           rel="stylesheet"
         />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Schema.org NewsMediaOrganization */}
         <script
           type="application/ld+json"

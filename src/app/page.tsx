@@ -365,7 +365,7 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col bg-jagran-bg dark:bg-brand-dark-bg text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
 
       {/* Accessible & SEO-Optimized Semantic H1 Heading */}
-      <h1 className="sr-only">The News Paper - Latest Breaking News, National &amp; Global Updates</h1>
+      <h1 className="sr-only">The News Paper - ताज़ा समाचार, ब्रेकिंग न्यूज़ और मुख्य खबरें | Latest News, India &amp; World Updates</h1>
 
       {/* 1. Header & Navigation */}
       <Header
