@@ -25,22 +25,22 @@ function FullCleanDashboardInner() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans select-none">
-      
+
       {/* 1. LEFT COLLAPSIBLE SIDEBAR */}
       <AdminSidebar />
 
       {/* 2. MAIN DASHBOARD CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        
+
         {/* Top Header */}
         <AdminHeader title="Dashboard Overview" />
 
         {/* Dashboard Main Workspace */}
         <div className="p-6 sm:p-8 space-y-8 flex-1">
-          
+
           {/* WELCOME HERO BANNER */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            
+
             <div className="space-y-2 relative z-10">
               <div className="inline-flex items-center space-x-2 bg-red-50 border border-red-200 px-3 py-1 rounded-full text-xs font-bold text-red-600">
                 <Sparkles className="w-3.5 h-3.5 text-red-600" />
@@ -59,7 +59,7 @@ function FullCleanDashboardInner() {
 
           {/* 4 KPI METRIC STAT CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            
+
             {/* Stat 1 */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-sm hover:border-slate-300 transition-colors">
               <div className="flex items-center justify-between">
