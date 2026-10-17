@@ -283,8 +283,19 @@ function findBestTokenFit(
 
   const lineH = getSummaryLineHeight(fontSize);
   div.style.width = `${targetW}px`;
-  div.style.height = `${targetH}px`;
-  div.style.maxHeight = `${targetH}px`;
+  if (cols > 1) {
+    div.style.height = `${targetH}px`;
+    div.style.maxHeight = `${targetH}px`;
+    div.style.columnCount = `${cols}`;
+    div.style.columnGap = `${colGap}px`;
+    div.style.columnFill = 'auto';
+  } else {
+    div.style.height = 'auto';
+    div.style.maxHeight = 'none';
+    div.style.columnCount = 'unset';
+    div.style.columnGap = 'unset';
+    div.style.columnFill = 'unset';
+  }
   div.style.fontSize = `${fontSize || 14}px`;
   div.style.fontFamily = "'Noto Serif Devanagari', 'Merriweather', serif";
   div.style.lineHeight = `${lineH}px`;
@@ -297,22 +308,12 @@ function findBestTokenFit(
   div.style.margin = '0';
   div.style.whiteSpace = 'pre-line';
 
-  if (cols > 1) {
-    div.style.columnCount = `${cols}`;
-    div.style.columnGap = `${colGap}px`;
-    div.style.columnFill = 'auto';
-  } else {
-    div.style.columnCount = 'unset';
-    div.style.columnGap = 'unset';
-    div.style.columnFill = 'unset';
-  }
-
   // Quick check: does all remaining text fit without overflow?
   const fullHtml = buildHtmlFromTokens(tokens, startTokenIdx, tokens.length);
   div.innerHTML = fullHtml;
   const fitsAll = cols === 1
     ? (div.scrollHeight <= targetH)
-    : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+    : (div.scrollWidth <= targetW && div.scrollHeight <= targetH + 1);
 
   if (fitsAll) {
     return tokens.length;
@@ -327,7 +328,7 @@ function findBestTokenFit(
     div.innerHTML = buildHtmlFromTokens(tokens, startTokenIdx, mid);
     const fits = cols === 1
       ? (div.scrollHeight <= targetH)
-      : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+      : (div.scrollWidth <= targetW && div.scrollHeight <= targetH + 1);
 
     if (fits) {
       bestFit = mid;
@@ -340,6 +341,32 @@ function findBestTokenFit(
   return Math.max(startTokenIdx + 1, bestFit);
 }
 
+function measureSlotHeaderHeight(s: EPaperSlotData, cardContentW: number): number {
+  if (typeof document === 'undefined') return 0;
+  const live = document.getElementById(`slot-header-${s.id}`);
+  if (live && live.offsetHeight > 0) {
+    return live.offsetHeight;
+  }
+  const div = getMeasureDiv();
+  if (!div) return 0;
+
+  const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
+  const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
+  const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 22}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
+  const subHtml = s.subHeadline ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${s.subHeadline}</p>` : '';
+
+  div.style.width = `${cardContentW}px`;
+  div.style.height = 'auto';
+  div.style.maxHeight = 'none';
+  div.style.columnCount = 'unset';
+  div.style.columnGap = 'unset';
+  div.style.padding = '0';
+  div.style.margin = '0';
+  div.innerHTML = `<div style="display:flex;flex-direction:column;gap:2px">${badgeHtml}${hlHtml}${subHtml}</div>`;
+
+  return div.offsetHeight;
+}
+
 function computeSlotSections(s: EPaperSlotData) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
@@ -347,35 +374,29 @@ function computeSlotSections(s: EPaperSlotData) {
   const cardContentW = Math.max(100, s.width - 24);
   const showDivider = s.showColumnDivider || false;
 
-  const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
-  const badgeH = hasBadge ? 18 : 0;
-
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
   const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 13;
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
-  // Strip combining marks/matras for accurate visual character length in Hindi:
-  const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
-  const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
-
-  const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
-  const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
-  const hlH = hlLines * hlFont * 1.25;
-
-  const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
-  const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
-  const subH = subLines * subFont * 1.25;
-
-  // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px
+  // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px (14px baseline)
   const cardFraming = 14;
-  let headerTotalH = Math.ceil(badgeH + hlH + subH + cardFraming);
-  if (typeof document !== 'undefined') {
-    const liveHeader = document.getElementById(`slot-header-${s.id}`);
-    if (liveHeader && liveHeader.offsetHeight > 0) {
-      headerTotalH = Math.ceil(liveHeader.offsetHeight + cardFraming);
-    }
+  let measuredH = measureSlotHeaderHeight(s, cardContentW);
+  if (!measuredH || measuredH === 0) {
+    const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
+    const badgeH = hasBadge ? 18 : 0;
+    const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+    const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+    const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
+    const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
+    const hlH = hlLines * hlFont * 1.25;
+    const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
+    const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
+    const subH = subLines * subFont * 1.25;
+    measuredH = badgeH + hlH + subH;
   }
+
+  const headerTotalH = Math.ceil(measuredH + cardFraming);
 
   // Integer line-height snapping: ensures every column fits complete whole lines without horizontal cutting!
   const rawStoryH = Math.max(lineH, cardH - headerTotalH);
@@ -389,9 +410,13 @@ function computeSlotSections(s: EPaperSlotData) {
   const underPhotoH = Math.max(lineH, Math.floor(rawUnderPhotoH / lineH) * lineH);
 
   if (colsCount === 1 || isFullCardPhoto) {
+    const tokens = sliceHtmlTokens(s.summary || '');
+    const targetH = isFullCardPhoto ? underPhotoH : fullStoryH;
+    const fit1 = findBestTokenFit(tokens, 0, cardContentW, targetH, colsCount, summaryFont, colGap);
+    const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
       isFullWidth: true,
-      text1: s.summary || '',
+      text1,
       text2: '',
       text2b: '',
       text3: '',
@@ -485,14 +510,16 @@ function computeSlotSections(s: EPaperSlotData) {
         text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
         currentTokenIdx = fit2;
       } else {
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-        currentTokenIdx = tokens.length;
+        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+        currentTokenIdx = fit2;
       }
     }
   }
 
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
-    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+    const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
+    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
   }
 
   return {
@@ -1774,7 +1801,7 @@ function FullStudioInner() {
     const nextSlotNumber = slotsOnActivePg.reduce((max, s) => Math.max(max, s.slotNumber || 0), 0) + 1;
     const slotW = 390;
     const slotH = 250;
-    const canvasTopY = 115;
+    const canvasTopY = 158;
     const canvasMaxY = 2000;
 
     // Standard 3 columns across broadsheet canvas (paperWidth = 1344)
@@ -2337,6 +2364,7 @@ function FullStudioInner() {
 
           {/* Publish Paper Main Action Button */}
           <button
+            id="admin-publish-paper-btn"
             onClick={handlePublishPaper}
             disabled={isGeneratingPdf}
             className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md shadow-red-600/25 transition-all cursor-pointer whitespace-nowrap disabled:opacity-60"
@@ -2440,6 +2468,7 @@ function FullStudioInner() {
           {/* Add Page Button at Bottom */}
           <div className="p-3 border-t border-slate-200 bg-slate-50/80 space-y-2">
             <button
+              id="admin-add-page-btn"
               type="button"
               onClick={handleCreatePage}
               className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase rounded-xl shadow-md flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
@@ -3152,6 +3181,7 @@ function FullStudioInner() {
 
             {/* UNLIMITED SLOT ADD BUTTON */}
             <button
+              id="admin-add-slot-btn"
               type="button"
               onClick={handleAddCustomSlot}
               className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-red-600/20 transition-all cursor-pointer text-xs"
@@ -3417,6 +3447,19 @@ function FullStudioInner() {
                   <span className="font-bold text-slate-700 group-hover:text-red-600 truncate">
                     Upload Image
                   </span>
+                </div>
+                <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    value={formImageUrl}
+                    onChange={(e) => {
+                      const url = e.target.value;
+                      setFormImageUrl(url);
+                      handleUpdateSlotField('imageUrl', url);
+                    }}
+                    placeholder="or paste Image URL (https://...)"
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 text-slate-800 p-2 rounded-xl outline-none text-xs transition-colors shadow-xs"
+                  />
                 </div>
               </div>
             </div>
@@ -3829,6 +3872,7 @@ function FullStudioInner() {
           {/* BIG RED ACTION BUTTON AT BOTTOM */}
           <div className="p-4 border-t border-slate-200 bg-slate-50/80">
             <button
+              id="admin-slot-apply-btn"
               onClick={handleApplyChanges}
               className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-red-600/25 transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >

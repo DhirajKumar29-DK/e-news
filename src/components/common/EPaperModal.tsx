@@ -170,7 +170,7 @@ function normalizeSlotData(s: any): any {
   const width = s.width !== undefined && s.width !== null ? Number(s.width) : 400;
   const height = s.height !== undefined && s.height !== null ? Number(s.height) : 250;
   const columnsCount = Number(
-    s.columnsCount ?? s.columnCount ?? s.columns_count ?? s.colsCount ?? (width >= 550 ? 2 : 1)
+    s.columnsCount ?? s.columnCount ?? s.columns_count ?? s.colsCount ?? 1
   );
   const colGap = Number(s.columnGap ?? s.column_gap ?? 14);
   const showColumnDivider = Boolean(
@@ -193,14 +193,14 @@ function normalizeSlotData(s: any): any {
     ...s,
     id: s.id || s.slot_id || `slot-${Math.random().toString(36).substr(2, 9)}`,
     x: s.x !== undefined && s.x !== null ? Number(s.x) : 16,
-    y: s.y !== undefined && s.y !== null ? Number(s.y) : 115,
+    y: s.y !== undefined && s.y !== null ? Number(s.y) : 158,
     width,
     height,
     headline: s.headline || s.content?.headline || '',
     subHeadline: s.subHeadline || s.content?.subHeadline || '',
     categoryBadge: s.categoryBadge || s.categoryTag || s.content?.categoryBadge || s.content?.categoryTag || '',
     categoryTag: s.categoryTag || s.categoryBadge || s.content?.categoryTag || s.content?.categoryBadge || '',
-    summary: s.summary || s.contentText || s.content?.body || s.content?.summary || '',
+    summary: stripHtmlTagsToPlainText(s.summary || s.contentText || s.content?.body || s.content?.summary || ''),
     imageUrl: s.imageUrl || s.content?.imageUrl || '',
     imageAlignment: s.imageAlignment || s.imageAlign || 'Left',
     imageAlign: s.imageAlign || s.imageAlignment || 'Left',
@@ -312,8 +312,19 @@ function findBestTokenFit(
 
   const lineH = getSummaryLineHeight(fontSize);
   div.style.width = `${targetW}px`;
-  div.style.height = `${targetH}px`;
-  div.style.maxHeight = `${targetH}px`;
+  if (cols > 1) {
+    div.style.height = `${targetH}px`;
+    div.style.maxHeight = `${targetH}px`;
+    div.style.columnCount = `${cols}`;
+    div.style.columnGap = `${colGap}px`;
+    div.style.columnFill = 'auto';
+  } else {
+    div.style.height = 'auto';
+    div.style.maxHeight = 'none';
+    div.style.columnCount = 'unset';
+    div.style.columnGap = 'unset';
+    div.style.columnFill = 'unset';
+  }
   div.style.fontSize = `${fontSize || 14}px`;
   div.style.fontFamily = "'Noto Serif Devanagari', 'Merriweather', serif";
   div.style.lineHeight = `${lineH}px`;
@@ -326,21 +337,11 @@ function findBestTokenFit(
   div.style.margin = '0';
   div.style.whiteSpace = 'pre-line';
 
-  if (cols > 1) {
-    div.style.columnCount = `${cols}`;
-    div.style.columnGap = `${colGap}px`;
-    div.style.columnFill = 'auto';
-  } else {
-    div.style.columnCount = 'unset';
-    div.style.columnGap = 'unset';
-    div.style.columnFill = 'unset';
-  }
-
   const fullHtml = buildHtmlFromTokens(tokens, startTokenIdx, tokens.length);
   div.innerHTML = fullHtml;
   const fitsAll = cols === 1
     ? (div.scrollHeight <= targetH)
-    : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+    : (div.scrollWidth <= targetW && div.scrollHeight <= targetH + 1);
 
   if (fitsAll) {
     return tokens.length;
@@ -355,7 +356,7 @@ function findBestTokenFit(
     div.innerHTML = buildHtmlFromTokens(tokens, startTokenIdx, mid);
     const fits = cols === 1
       ? (div.scrollHeight <= targetH)
-      : (div.scrollWidth <= targetW && div.scrollHeight <= targetH);
+      : (div.scrollWidth <= targetW && div.scrollHeight <= targetH + 1);
 
     if (fits) {
       bestFit = mid;
@@ -368,6 +369,32 @@ function findBestTokenFit(
   return Math.max(startTokenIdx + 1, bestFit);
 }
 
+function measureSlotHeaderHeight(s: any, cardContentW: number): number {
+  if (typeof document === 'undefined') return 0;
+  const live = document.getElementById(`reader-slot-header-${s.id}`) || document.getElementById(`slot-header-${s.id}`);
+  if (live && live.offsetHeight > 0) {
+    return live.offsetHeight;
+  }
+  const div = getReaderMeasureDiv();
+  if (!div) return 0;
+
+  const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
+  const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
+  const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 22}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
+  const subHtml = s.subHeadline ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${s.subHeadline}</p>` : '';
+
+  div.style.width = `${cardContentW}px`;
+  div.style.height = 'auto';
+  div.style.maxHeight = 'none';
+  div.style.columnCount = 'unset';
+  div.style.columnGap = 'unset';
+  div.style.padding = '0';
+  div.style.margin = '0';
+  div.innerHTML = `<div style="display:flex;flex-direction:column;gap:2px">${badgeHtml}${hlHtml}${subHtml}</div>`;
+
+  return div.offsetHeight;
+}
+
 function computeSlotSections(s: any) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
@@ -375,35 +402,31 @@ function computeSlotSections(s: any) {
   const cardContentW = Math.max(100, s.width - 24);
   const showDivider = s.showColumnDivider || false;
 
-  const hasBadge = Boolean((s.categoryBadge || s.categoryTag)?.trim());
-  const badgeH = hasBadge ? 18 : 0;
-
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
   const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 13;
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
-  // Strip combining marks/matras for accurate visual character length in Hindi:
-  const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
-  const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
-
-  const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
-  const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
-  const hlH = hlLines * hlFont * 1.25;
-
-  const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
-  const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
-  const subH = subLines * subFont * 1.25;
-
+  // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px (14px baseline in Admin)
   const cardFraming = 14;
-  let headerTotalH = Math.ceil(badgeH + hlH + subH + cardFraming);
-  if (typeof document !== 'undefined') {
-    const liveHeader = document.getElementById(`reader-slot-header-${s.id}`);
-    if (liveHeader && liveHeader.offsetHeight > 0) {
-      headerTotalH = Math.ceil(liveHeader.offsetHeight + cardFraming);
-    }
+  let measuredH = measureSlotHeaderHeight(s, cardContentW);
+  if (!measuredH || measuredH === 0) {
+    const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
+    const badgeH = hasBadge ? 18 : 0;
+    const hlVisual = (s.headline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+    const subVisual = (s.subHeadline || '').replace(/[\u093E-\u094F\u0901-\u0903\u0951-\u0954]/g, '');
+    const hlCharsPerLine = Math.max(12, Math.floor(cardContentW / (hlFont * 0.52)));
+    const hlLines = hlVisual ? Math.max(1, Math.ceil(hlVisual.length / hlCharsPerLine)) : 0;
+    const hlH = hlLines * hlFont * 1.25;
+    const subCharsPerLine = Math.max(18, Math.floor(cardContentW / (subFont * 0.52)));
+    const subLines = subVisual ? Math.max(1, Math.ceil(subVisual.length / subCharsPerLine)) : 0;
+    const subH = subLines * subFont * 1.25;
+    measuredH = badgeH + hlH + subH;
   }
 
+  const headerTotalH = Math.ceil(measuredH + cardFraming);
+
+  // Integer line-height snapping: ensures every column fits complete whole lines without horizontal cutting!
   const rawStoryH = Math.max(lineH, cardH - headerTotalH);
   const fullStoryH = Math.max(lineH, Math.floor(rawStoryH / lineH) * lineH);
 
@@ -415,9 +438,13 @@ function computeSlotSections(s: any) {
   const underPhotoH = Math.max(lineH, Math.floor(rawUnderPhotoH / lineH) * lineH);
 
   if (colsCount === 1 || isFullCardPhoto) {
+    const tokens = sliceHtmlTokens(s.summary || '');
+    const targetH = isFullCardPhoto ? underPhotoH : fullStoryH;
+    const fit1 = findBestTokenFit(tokens, 0, cardContentW, targetH, colsCount, summaryFont, colGap);
+    const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
       isFullWidth: true,
-      text1: s.summary || '',
+      text1,
       text2: '',
       text2b: '',
       text3: '',
@@ -511,16 +538,16 @@ function computeSlotSections(s: any) {
         text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
         currentTokenIdx = fit2;
       } else {
-        // If there are no right columns, photo column is the final column! Give it all remaining tokens!
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-        currentTokenIdx = tokens.length;
+        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+        currentTokenIdx = fit2;
       }
     }
   }
 
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
-    // Right section is the final section of the article! Give it ALL remaining text so nothing is ever dropped!
-    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
+    const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
+    text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
   }
 
   return {
@@ -544,6 +571,476 @@ function computeSlotSections(s: any) {
     startCol
   };
 }
+
+// -------------------------------------------------------------
+// REUSABLE BROADSHEET CANVAS CONTENT COMPONENT
+// Used for both on-screen broadsheet reader & high-res PDF multi-page print compilation
+// -------------------------------------------------------------
+interface BroadsheetCanvasContentProps {
+  page?: EPaperPage;
+  pageIndex: number;
+  totalPages: number;
+  activeEdition: EditionItem;
+  selectedDate: string;
+  isPrintMode?: boolean;
+  onSlotClick?: (slot: any) => void;
+  imageLoadError?: boolean;
+  hasImageLoaded?: boolean;
+  onImageLoad?: () => void;
+  onImageError?: () => void;
+}
+
+const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
+  page,
+  pageIndex,
+  totalPages,
+  activeEdition,
+  selectedDate,
+  isPrintMode = false,
+  onSlotClick,
+  imageLoadError = false,
+  hasImageLoaded = true,
+  onImageLoad,
+  onImageError,
+}) => {
+  const [, setSettleTick] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettleTick(prev => prev + 1), 60);
+    return () => clearTimeout(timer);
+  }, [page?.id, pageIndex, selectedDate]);
+
+  const currentSlots = (page && Array.isArray(page.slots)) ? page.slots : [];
+  const rawPageImage = page?.pageImage || page?.pageImageUrl;
+  const canvasImageUrl = rawPageImage ? getFullMediaUrl(rawPageImage) : null;
+  const formattedPage = String(pageIndex + 1).padStart(2, '0');
+
+  return (
+    <>
+      {/* Top Date Line Bar */}
+      <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-xs font-sans font-bold text-slate-800">
+        <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
+        <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
+        <span>पेज {formattedPage}</span>
+      </div>
+
+      {/* BIG RED BROADSHEET MASTHEAD (Exact Match to Admin Broadsheet Canvas) */}
+      <div className="text-center border-b-4 border-double border-slate-900 pb-1.5 space-y-0.5">
+        <h1
+          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
+          className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight select-none"
+        >
+          {activeEdition.title || 'अपना पटना'}
+        </h1>
+        <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-0.5">
+          <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black">
+            Free-Form Canvas
+          </span>
+          <span>•</span>
+          <span>{(activeEdition as any).state || 'बिहार'}</span>
+          <span>•</span>
+          <span>{activeEdition.name || 'पटना'}</span>
+        </div>
+      </div>
+
+      {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
+      {currentSlots.map((rawSlot, sIdx) => {
+        const s = normalizeSlotData(rawSlot);
+        const comp = computeSlotSections(s);
+        const cardContentW = Math.max(100, s.width - 24);
+        const vertAlign: 'top' | 'middle' | 'bottom' = s.imageVertAlign || 'top';
+        const normAlign = (s.imageAlignment || s.imageAlign || 'Center').toLowerCase();
+        const isLeft = normAlign === 'left';
+        const isRight = normAlign === 'right';
+        const hasImage = Boolean(s.imageUrl);
+
+        const slotStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${s.x}px`,
+          top: `${s.y}px`,
+          width: `${s.width}px`,
+          height: `${s.height}px`,
+        };
+
+        if (s.isAd) {
+          return (
+            <div
+              key={`slot-ad-${s.id || sIdx}`}
+              style={slotStyle}
+              className="p-3.5 bg-amber-100/90 rounded-xl border-2 border-amber-400 text-center space-y-1 relative overflow-hidden select-none z-0"
+            >
+              <h4 className="text-lg font-black text-blue-900 font-sans tracking-wide break-words">{s.headline}</h4>
+              {s.subHeadline && <p className="text-[11px] font-bold text-red-700 font-sans leading-tight block break-words">{s.subHeadline}</p>}
+              {s.summary && <p className="text-[10px] font-semibold text-slate-700 font-mono break-words">{s.summary}</p>}
+            </div>
+          );
+        }
+
+        const headerContent = (
+          <div id={`reader-slot-header-${s.id}`} className="space-y-0.5 shrink-0">
+            {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
+              <div className="mb-1 flex items-center">
+                <span
+                  style={{ fontFamily: "'Inter', 'Mukta', sans-serif" }}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide leading-none shadow-xs select-none"
+                >
+                  {(s.categoryBadge || (s as any).categoryTag).trim()}
+                </span>
+              </div>
+            )}
+
+            <h2
+              style={{
+                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                fontSize: `${s.headlineFontSize || 22}px`,
+                color: s.headlineColor || '#020617'
+              }}
+              className="font-black text-slate-950 leading-tight break-words"
+              dangerouslySetInnerHTML={{ __html: s.headline || '' }}
+            />
+
+            {s.subHeadline && (
+              <p
+                style={{
+                  fontFamily: "'Mukta', 'Inter', sans-serif",
+                  fontSize: `${s.subHeadlineFontSize || 13}px`,
+                  color: s.subHeadlineColor || '#b91c1c'
+                }}
+                className="font-bold text-red-700 leading-tight block break-words text-justify my-0.5"
+                dangerouslySetInnerHTML={{ __html: s.subHeadline || '' }}
+              />
+            )}
+          </div>
+        );
+
+        let bodyContent = null;
+        const lineH = getSummaryLineHeight(s.summaryFontSize || 14);
+
+        if (!hasImage) {
+          bodyContent = (
+            <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full overflow-hidden shrink-0">
+              <div
+                style={{
+                  fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                  lineHeight: `${lineH}px`,
+                  columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
+                  columnGap: `${comp.colGap}px`,
+                  columnFill: 'auto',
+                  height: `${comp.fullStoryH}px`,
+                  maxHeight: `${comp.fullStoryH}px`,
+                  overflow: 'hidden',
+                  columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                  textAlign: 'justify',
+                  textJustify: 'inter-word',
+                  fontSize: `${s.summaryFontSize || 14}px`,
+                  color: s.summaryColor || undefined,
+                  whiteSpace: 'pre-line',
+                  boxSizing: 'border-box',
+                  paddingRight: '2px'
+                }}
+                className="leading-normal h-full overflow-hidden whitespace-pre-line text-justify"
+                dangerouslySetInnerHTML={{ __html: s.summary || '' }}
+              />
+            </div>
+          );
+        } else if (comp.isFullWidth) {
+          const bannerTextH = comp.underPhotoH;
+          const isTopSpanPhoto = s.imageWrapMode === 'top-span' || (s.imageWidth && s.imageWidth >= cardContentW - 30);
+          const currentImgW = isTopSpanPhoto ? cardContentW : Math.min(s.imageWidth || 180, cardContentW);
+          const maxPxX = Math.max(0, cardContentW - currentImgW);
+
+          let photoPxX = 0;
+          if (isTopSpanPhoto) {
+            photoPxX = 0;
+          } else if (s.imgPxX !== undefined) {
+            photoPxX = Math.max(0, Math.min(maxPxX, s.imgPxX));
+          } else {
+            if (isLeft) photoPxX = 0;
+            else if (isRight) photoPxX = maxPxX;
+            else photoPxX = Math.round(maxPxX / 2);
+          }
+
+          const singleColPhoto = (
+            <div className="w-full mb-1.5 shrink-0 relative select-none">
+              <div
+                style={{
+                  width: isTopSpanPhoto ? '100%' : `${currentImgW}px`,
+                  height: `${s.imageHeight || 140}px`,
+                  marginLeft: isTopSpanPhoto ? '0px' : `${photoPxX}px`,
+                }}
+                className="overflow-hidden rounded-[4px] relative bg-slate-100 shadow-xs border border-slate-300"
+              >
+                <img
+                  src={getFullMediaUrl(s.imageUrl)}
+                  alt="Slot photo"
+                  className="w-full h-full object-cover block"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+              </div>
+            </div>
+          );
+
+          const textDiv = (
+            <div
+              style={{
+                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+                lineHeight: `${lineH}px`,
+                columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
+                columnGap: `${comp.colGap}px`,
+                columnFill: 'auto',
+                height: `${bannerTextH}px`,
+                maxHeight: `${bannerTextH}px`,
+                overflow: 'hidden',
+                columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+                textAlign: 'justify',
+                textJustify: 'inter-word',
+                fontSize: `${s.summaryFontSize || 14}px`,
+                color: s.summaryColor || undefined,
+                whiteSpace: 'pre-line',
+                boxSizing: 'border-box',
+                paddingRight: '2px'
+              }}
+              className="leading-[1.35] flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+              dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
+            />
+          );
+
+          bodyContent = (
+            <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full flex flex-col overflow-hidden shrink-0">
+              {vertAlign === 'bottom' ? (
+                <>
+                  {textDiv}
+                  {singleColPhoto}
+                </>
+              ) : (
+                <>
+                  {singleColPhoto}
+                  {textDiv}
+                </>
+              )}
+            </div>
+          );
+        } else {
+          const colStyleLeft: React.CSSProperties = {
+            fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+            lineHeight: `${lineH}px`,
+            columnCount: comp.leftCols > 1 ? comp.leftCols : undefined,
+            columnGap: `${comp.colGap}px`,
+            columnFill: 'auto',
+            height: `${comp.fullStoryH}px`,
+            maxHeight: `${comp.fullStoryH}px`,
+            overflow: 'hidden',
+            columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+            textAlign: 'justify',
+            textJustify: 'inter-word',
+            fontSize: `${s.summaryFontSize || 14}px`,
+            color: s.summaryColor || undefined,
+            whiteSpace: 'pre-line',
+            boxSizing: 'border-box',
+            paddingRight: '2px'
+          };
+
+          const colStylePhoto: React.CSSProperties = {
+            fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+            lineHeight: `${lineH}px`,
+            columnCount: comp.photoCols > 1 ? comp.photoCols : undefined,
+            columnGap: `${comp.colGap}px`,
+            columnFill: 'auto',
+            height: `${comp.underPhotoH}px`,
+            maxHeight: `${comp.underPhotoH}px`,
+            overflow: 'hidden',
+            columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+            textAlign: 'justify',
+            textJustify: 'inter-word',
+            fontSize: `${s.summaryFontSize || 14}px`,
+            color: s.summaryColor || undefined,
+            whiteSpace: 'pre-line',
+            boxSizing: 'border-box',
+            paddingRight: '2px'
+          };
+
+          const colStyleRight: React.CSSProperties = {
+            fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
+            lineHeight: `${lineH}px`,
+            columnCount: comp.rightCols > 1 ? comp.rightCols : undefined,
+            columnGap: `${comp.colGap}px`,
+            columnFill: 'auto',
+            height: `${comp.fullStoryH}px`,
+            maxHeight: `${comp.fullStoryH}px`,
+            overflow: 'hidden',
+            columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
+            textAlign: 'justify',
+            textJustify: 'inter-word',
+            fontSize: `${s.summaryFontSize || 14}px`,
+            color: s.summaryColor || undefined,
+            whiteSpace: 'pre-line',
+            boxSizing: 'border-box',
+            paddingRight: '2px'
+          };
+
+          const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
+          const localMaxPxX = Math.max(0, comp.photoSectionW - displayImgW);
+          let localPhotoPxX = 0;
+          if (s.imgPxX !== undefined) {
+            const sectionStartX = comp.leftCols > 0 ? (comp.leftCols * comp.singleColW) + (comp.leftCols * comp.colGap) : 0;
+            localPhotoPxX = Math.max(0, Math.min(localMaxPxX, s.imgPxX - sectionStartX));
+          } else {
+            if (isLeft) localPhotoPxX = 0;
+            else if (isRight) localPhotoPxX = localMaxPxX;
+            else localPhotoPxX = Math.round(localMaxPxX / 2);
+          }
+
+          const photoBlock = (
+            <div className="w-full mb-1.5 shrink-0 relative select-none">
+              <div
+                style={{
+                  width: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${displayImgW}px` : '100%',
+                  height: `${s.imageHeight || 140}px`,
+                  marginLeft: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${localPhotoPxX}px` : '0px',
+                }}
+                className="overflow-hidden rounded-[4px] relative bg-slate-100 shadow-xs border border-slate-300"
+              >
+                <img
+                  src={getFullMediaUrl(s.imageUrl)}
+                  alt="Slot photo"
+                  className="w-full h-full object-cover block"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+              </div>
+            </div>
+          );
+
+          bodyContent = (
+            <div
+              style={{ gap: `${comp.colGap}px` }}
+              className="flex-1 min-h-0 font-serif text-slate-800 leading-normal select-none w-full flex items-start overflow-hidden shrink-0"
+            >
+              {comp.leftCols > 0 && (
+                <>
+                  <div
+                    style={{ width: `${comp.leftSectionW}px`, height: '100%' }}
+                    className="flex flex-col shrink-0 overflow-hidden"
+                  >
+                    <div
+                      style={colStyleLeft}
+                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text1 }}
+                    />
+                  </div>
+                  {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
+                </>
+              )}
+
+              <div
+                style={{ width: `${comp.photoSectionW}px`, height: '100%' }}
+                className="flex flex-col shrink-0 overflow-hidden"
+              >
+                {vertAlign === 'top' && (
+                  <>
+                    {photoBlock}
+                    <div
+                      style={colStylePhoto}
+                      className="leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                    />
+                  </>
+                )}
+
+                {vertAlign === 'bottom' && (
+                  <>
+                    <div
+                      style={colStylePhoto}
+                      className="leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                    />
+                    {photoBlock}
+                  </>
+                )}
+
+                {vertAlign === 'middle' && (
+                  <>
+                    <div
+                      style={{ ...colStylePhoto, height: `${Math.floor(comp.underPhotoH / 2)}px`, maxHeight: `${Math.floor(comp.underPhotoH / 2)}px`, flex: 'none' }}
+                      className="leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text2 }}
+                    />
+                    {photoBlock}
+                    <div
+                      style={{ ...colStylePhoto, height: `${Math.ceil(comp.underPhotoH / 2)}px`, maxHeight: `${Math.ceil(comp.underPhotoH / 2)}px`, flex: '1' }}
+                      className="leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text2b }}
+                    />
+                  </>
+                )}
+              </div>
+
+              {comp.rightCols > 0 && (
+                <>
+                  {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
+                  <div
+                    style={{ width: `${comp.rightSectionW}px`, height: '100%' }}
+                    className="flex flex-col flex-1 overflow-hidden"
+                  >
+                    <div
+                      style={colStyleRight}
+                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                      dangerouslySetInnerHTML={{ __html: comp.text3 }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={`rendered-slot-${s.id || sIdx}`}
+            style={slotStyle}
+            className="relative z-0 select-none overflow-hidden"
+          >
+            <div className="w-full h-full p-2 flex flex-col overflow-hidden space-y-1">
+              {headerContent}
+              {bodyContent}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* High-Res Compiled WebP Photo Layer (Only when no digital slots exist on page e.g. scanned print edition) */}
+      {currentSlots.length === 0 && !imageLoadError && canvasImageUrl && (
+        <img
+          key={canvasImageUrl}
+          src={canvasImageUrl}
+          crossOrigin="anonymous"
+          alt={`${activeEdition.name} - Page ${pageIndex + 1}`}
+          onLoad={onImageLoad}
+          onError={onImageError}
+          className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10 transition-opacity duration-300 ${hasImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+
+      {/* Interactive Hotspot Overlay Boxes (Only in live interactive reading mode, omitted in print mode) */}
+      {!isPrintMode && currentSlots.map((rawSlot, sIdx) => {
+        const slot = normalizeSlotData(rawSlot);
+        return (
+          <div
+            key={slot.id || `slot-${pageIndex}-${sIdx}`}
+            onClick={() => onSlotClick && onSlotClick(slot)}
+            title={slot.headline || ''}
+            className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-20 select-none"
+            style={{
+              position: 'absolute',
+              left: `${slot.x}px`,
+              top: `${slot.y}px`,
+              width: `${slot.width}px`,
+              height: `${slot.height}px`
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
 
 export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => {
   // Dynamic States & Editions Data
@@ -585,13 +1082,11 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
     const todayStr = getTodayDateString();
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('epaper_selected_date');
         const urlParams = new URLSearchParams(window.location.search);
         const urlDate = urlParams.get('date');
-        const userPicked = sessionStorage.getItem('epaper_user_picked_date');
-        // Only accept a past date if it was intentionally chosen by user in this active session
-        if (urlDate && urlDate === userPicked) {
-          return urlDate;
+        // Always respect date from URL if it's a valid YYYY-MM-DD string
+        if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate.trim())) {
+          return urlDate.trim();
         }
       } catch {
         // ignore storage access errors
@@ -615,6 +1110,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
 
   // Data state
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const pdfUrlRef = useRef<string | null>(null);
   const [pages, setPages] = useState<EPaperPage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -657,6 +1153,9 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   const [articleCopiedToast, setArticleCopiedToast] = useState<boolean>(false);
   const [isDownloadingArticle, setIsDownloadingArticle] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
+  const [pdfCompileStatus, setPdfCompileStatus] = useState<string>('');
+  const [pdfSuccessToast, setPdfSuccessToast] = useState<boolean>(false);
+  const printPagesRef = useRef<(HTMLDivElement | null)[]>([]);
   const [articleDownloadedToast, setArticleDownloadedToast] = useState<string>('');
   const [readerViewMode, setReaderViewMode] = useState<'newspaper' | 'pdf'>('newspaper');
   const [canvasZoom, setCanvasZoom] = useState<number>(1.0);
@@ -681,16 +1180,31 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const urlDate = urlParams.get('date');
-      const userPicked = sessionStorage.getItem('epaper_user_picked_date');
-      if (urlDate && urlDate === userPicked) {
-        setSelectedDate(urlDate);
-      } else {
-        setSelectedDate(getTodayDateString());
+      if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate.trim())) {
+        setSelectedDate(urlDate.trim());
+      }
+      const urlPage = urlParams.get('page');
+      if (urlPage && !isNaN(Number(urlPage))) {
+        setCurrentPageIndex(Math.max(0, Number(urlPage) - 1));
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Sync current edition, date, and page into URL search params so browser URL always reflects current state
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('edition', activeEdition?.slug || 'patna-main');
+      url.searchParams.set('date', selectedDate);
+      url.searchParams.set('page', String(currentPageIndex + 1));
+      window.history.replaceState(null, '', url.pathname + url.search);
+    } catch {
+      // ignore
+    }
+  }, [selectedDate, activeEdition?.slug, currentPageIndex]);
 
   // Re-measure after initial DOM paint so live headers are 100% pixel-perfect immediately on load
   const [, setHeaderMeasureTick] = useState<number>(0);
@@ -1330,8 +1844,10 @@ ${rawBody}
           const hasContent = Array.isArray(rawPages) && rawPages.length > 0 && rawPages.some((p: any) => (p.slots && p.slots.length > 0) || p.pageImage || p.pageImageUrl);
 
           if (isPublished && hasContent) {
-            if (issue && issue.broadsheetPdfUrl) {
-              setPdfUrl(issue.broadsheetPdfUrl);
+            const foundPdf = issue?.broadsheetPdfUrl || issue?.pdfUrl || null;
+            if (foundPdf) {
+              setPdfUrl(foundPdf);
+              pdfUrlRef.current = foundPdf;
             }
             setPages(rawPages);
             setTotalPagesCount(rawPages.length);
@@ -1376,9 +1892,9 @@ ${rawBody}
 
   if (!isOpen) return null;
 
-  const activePdfPath = pdfUrl || `/uploads/pdfs/epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`;
+  const activePdfPath = pdfUrl || null;
   const proxyPdfUrl = activePdfPath ? activePdfPath.replace('/uploads/', '/backend-uploads/') : null;
-  const directFullUrl = getFullMediaUrl(activePdfPath);
+  const directFullUrl = activePdfPath ? getFullMediaUrl(activePdfPath) : null;
 
   // Single Page PDF URL with Toolbar Hidden (#toolbar=0&navpanes=0&scrollbar=0)
   const singlePagePdfUrl = proxyPdfUrl
@@ -1493,50 +2009,177 @@ ${rawBody}
     }
   }
 
+  // Generate exact shareable URL including edition, date, and page
+  const getShareableEpaperUrl = () => {
+    const origin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+      ? window.location.origin
+      : 'https://e-news-ebon.vercel.app';
+    const ed = activeEdition?.slug || 'patna-main';
+    const pg = currentPageIndex + 1;
+    return `${origin}/epaper?edition=${encodeURIComponent(ed)}&date=${encodeURIComponent(selectedDate)}&page=${pg}`;
+  };
+
   // Download complete multi-page PDF with all pages compiled
   const handleDownloadFullPdf = async () => {
     setIsDownloadingPdf(true);
-    const fileName = `epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`;
+    setPdfCompileStatus('PDF तैयार हो रहा है...');
+    const editionSlug = activeEdition?.slug || 'patna-main';
+    const fileName = `epaper-${editionSlug}-${selectedDate}.pdf`;
+
+    let currentPdf = pdfUrlRef.current || pdfUrl;
+
+    // If pdfUrl is not yet in state, fetch fresh from DB
+    if (!currentPdf) {
+      try {
+        const issueData = await fetchEpaperIssue(editionSlug, selectedDate);
+        const issue = issueData?.issue || issueData;
+        currentPdf = issue?.broadsheetPdfUrl || issue?.pdfUrl || null;
+        if (currentPdf) {
+          setPdfUrl(currentPdf);
+          pdfUrlRef.current = currentPdf;
+        }
+      } catch (err) {
+        console.warn('Error fetching issue in download:', err);
+      }
+    }
 
     const backendBase = 'https://e-news-backend.onrender.com';
-    const directPdf = (pdfUrl && pdfUrl.startsWith('http'))
-      ? pdfUrl
-      : `${backendBase}${pdfUrl ? (pdfUrl.startsWith('/') ? '' : '/') + pdfUrl : `/uploads/pdfs/epaper-${activeEdition?.slug || 'patna-main'}-${selectedDate}.pdf`}`;
 
+    // 1. If direct pre-compiled PDF exists in DB, fetch as Blob to trigger authentic .pdf download
+    if (currentPdf) {
+      try {
+        setPdfCompileStatus('PDF डाउनलोड हो रहा है...');
+        const cleanPath = currentPdf.startsWith('/') ? currentPdf : `/${currentPdf}`;
+        const directPdf = currentPdf.startsWith('http')
+          ? currentPdf
+          : `${backendBase}${cleanPath}`;
+
+        const resp = await fetch(directPdf);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+          setIsDownloadingPdf(false);
+          setPdfCompileStatus('');
+          setPdfSuccessToast(true);
+          setTimeout(() => setPdfSuccessToast(false), 3000);
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct PDF download failed, compiling digital pages into multi-page PDF:', err);
+      }
+    }
+
+    // 2. Multi-Page Digital Broadsheet PDF Compilation (for canvas issues like 7 October)
     try {
-      if (isMobileScreen) {
-        // Direct browser/system download for mobile
-        const link = document.createElement('a');
-        link.href = directPdf;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      const { jsPDF } = await import('jspdf');
+      const targetPages = pages && pages.length > 0 ? pages : [currentPage].filter(Boolean);
+
+      if (targetPages.length === 0) {
+        alert('डाउनलोड के लिए कोई पृष्ठ उपलब्ध नहीं है।');
         setIsDownloadingPdf(false);
+        setPdfCompileStatus('');
         return;
       }
 
-      // Desktop: fetch blob for clean named download
-      const res = await fetch(directPdf);
-      if (!res.ok) throw new Error('Direct fetch failed');
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl);
-        document.body.removeChild(a);
-      }, 1200);
-    } catch {
-      // Fallback: open in new tab/download
-      window.open(directPdf, '_blank');
+      // Allow React to mount the hidden print stages and settle fonts
+      await new Promise(r => setTimeout(r, 450));
+
+      // Broadsheet 1344 x 2112 pt proportions (standard newspaper broadsheet aspect ratio: 0.636)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [595.28, 935.43],
+        compress: true,
+      });
+
+      const totalTargetPages = targetPages.length;
+
+      for (let pIdx = 0; pIdx < totalTargetPages; pIdx++) {
+        setPdfCompileStatus(`पृष्ठ ${pIdx + 1} / ${totalTargetPages} तैयार हो रहा है...`);
+
+        const pageEl = printPagesRef.current[pIdx];
+        if (!pageEl) {
+          console.warn(`Print page element for index ${pIdx} not found`);
+          continue;
+        }
+
+        // Wait for all images in this page container to complete loading
+        const imgs = Array.from(pageEl.querySelectorAll('img'));
+        if (imgs.length > 0) {
+          await Promise.all(
+            imgs.map(img => {
+              if (img.complete) return Promise.resolve();
+              return new Promise<void>(res => {
+                img.onload = () => res();
+                img.onerror = () => res();
+                setTimeout(res, 2500);
+              });
+            })
+          );
+        }
+
+        // Capture full unscaled 1344 x 2112 broadsheet page cleanly at high definition (1.5x scale)
+        const canvas = await html2canvas(pageEl, {
+          scale: 1.5,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          width: 1344,
+          height: 2112,
+          windowWidth: 1344,
+          windowHeight: 2112,
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0,
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.94);
+        if (pIdx > 0) {
+          pdf.addPage([595.28, 935.43], 'portrait');
+        }
+        pdf.addImage(imgData, 'JPEG', 0, 0, 595.28, 935.43, undefined, 'FAST');
+      }
+
+      setPdfCompileStatus('PDF फ़ाइल सेव हो रही है...');
+      const pdfBlob = pdf.output('blob');
+      if (typeof window !== 'undefined') {
+        const base64Data = pdf.output('datauristring');
+        (window as any).__lastGeneratedPdfBlob = pdfBlob;
+        (window as any).__lastGeneratedPdfBase64 = base64Data;
+        if (process.env.NODE_ENV === 'development') {
+          fetch('/debug-pdf-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: fileName, base64: base64Data }),
+          }).catch(e => console.warn('Debug pdf save error:', e));
+        }
+      }
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+
+      setPdfSuccessToast(true);
+      setTimeout(() => setPdfSuccessToast(false), 3000);
+    } catch (err: any) {
+      console.error('PDF generation error:', err);
+      alert('PDF तैयार करने में त्रुटि आई: ' + (err?.message || 'Error'));
     } finally {
       setIsDownloadingPdf(false);
+      setPdfCompileStatus('');
     }
   };
 
@@ -1544,9 +2187,9 @@ ${rawBody}
 
   const handleHeaderCopy = async () => {
     try {
-      const url = typeof window !== 'undefined' ? (window.location.origin + '/epaper') : 'https://e-news-ebon.vercel.app/epaper';
+      const shareUrl = getShareableEpaperUrl();
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(shareUrl);
       }
       setHeaderCopiedToast(true);
       setTimeout(() => setHeaderCopiedToast(false), 2500);
@@ -1557,16 +2200,18 @@ ${rawBody}
   };
 
   const handleHeaderShare = async () => {
-    const url = typeof window !== 'undefined' ? (window.location.origin + '/epaper') : 'https://e-news-ebon.vercel.app/epaper';
-    const shareTitle = `डिजिटल ई-पेपर - ${activeEdition?.name || 'दैनिक समाचार'}`;
-    const shareText = `आज का डिजिटल ई-पेपर पढ़ें (${formatHindiDate(selectedDate)}): ${url}`;
+    const shareUrl = getShareableEpaperUrl();
+    const edName = activeEdition?.name || 'पटना';
+    const formattedDate = formatHindiDate(selectedDate);
+    const shareTitle = `डिजिटल ई-पेपर - ${edName}`;
+    const shareText = `दैनिक समाचार डिजिटल ई-पेपर (${edName} संस्करण • ${formattedDate}):\n${shareUrl}`;
 
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
           title: shareTitle,
           text: shareText,
-          url: url,
+          url: shareUrl,
         });
         return;
       } catch (err: any) {
@@ -1577,7 +2222,7 @@ ${rawBody}
     // Fallback: Copy to clipboard with Toast and open WhatsApp share option
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(`${shareText}\n${url}`);
+        await navigator.clipboard.writeText(shareText);
       }
       setHeaderCopiedToast(true);
       setTimeout(() => setHeaderCopiedToast(false), 2500);
@@ -1585,8 +2230,8 @@ ${rawBody}
       // ignore
     }
 
-    // Direct WhatsApp share fallback for mobile
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText}\n${url}`)}`;
+    // Direct WhatsApp share fallback for mobile & desktop
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -1804,158 +2449,158 @@ ${rawBody}
                   className="fixed inset-x-3 z-50 sm:inset-auto sm:absolute sm:top-full sm:left-0 sm:mt-2 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 w-auto sm:w-80 max-w-[calc(100vw-24px)] mx-auto animate-in slide-in-from-top-3 duration-150"
                 >
                   {/* 1. Top Header Navigation Bar */}
-                <div className="flex items-center justify-between mb-3 px-0.5">
-                  {/* Previous Month Arrow Button */}
-                  <button
-                    type="button"
-                    onClick={handlePrevMonth}
-                    className="w-8 h-8 rounded-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
-                    aria-label="Previous Month"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-between mb-3 px-0.5">
+                    {/* Previous Month Arrow Button */}
+                    <button
+                      type="button"
+                      onClick={handlePrevMonth}
+                      className="w-8 h-8 rounded-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                      aria-label="Previous Month"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
 
-                  {/* Center Month & Year Dropdowns */}
-                  <div className="flex items-center space-x-1.5">
-                    {/* Month Dropdown */}
-                    <div className="relative">
-                      <select
-                        value={viewMonth}
-                        onChange={(e) => setViewMonth(Number(e.target.value))}
-                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-3 pr-6 py-1 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#ba1228]"
-                      >
-                        {MONTH_NAMES.map((name, idx) => (
-                          <option key={name} value={idx}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    {/* Center Month & Year Dropdowns */}
+                    <div className="flex items-center space-x-1.5">
+                      {/* Month Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={viewMonth}
+                          onChange={(e) => setViewMonth(Number(e.target.value))}
+                          className="appearance-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-3 pr-6 py-1 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#ba1228]"
+                        >
+                          {MONTH_NAMES.map((name, idx) => (
+                            <option key={name} value={idx}>{name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+
+                      {/* Year Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={viewYear}
+                          onChange={(e) => setViewYear(Number(e.target.value))}
+                          className="appearance-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-3 pr-6 py-1 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#ba1228]"
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
 
-                    {/* Year Dropdown */}
-                    <div className="relative">
-                      <select
-                        value={viewYear}
-                        onChange={(e) => setViewYear(Number(e.target.value))}
-                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-3 pr-6 py-1 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#ba1228]"
-                      >
-                        {YEAR_OPTIONS.map((year) => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
+                    {/* Next Month Arrow Button */}
+                    <button
+                      type="button"
+                      onClick={handleNextMonth}
+                      disabled={isCurrentOrFutureMonth}
+                      className={`w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 transition-colors ${isCurrentOrFutureMonth
+                        ? 'opacity-40 cursor-not-allowed bg-slate-50 text-slate-300'
+                        : 'hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                      aria-label="Next Month"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  {/* Next Month Arrow Button */}
-                  <button
-                    type="button"
-                    onClick={handleNextMonth}
-                    disabled={isCurrentOrFutureMonth}
-                    className={`w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 transition-colors ${isCurrentOrFutureMonth
-                      ? 'opacity-40 cursor-not-allowed bg-slate-50 text-slate-300'
-                      : 'hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                      }`}
-                    aria-label="Next Month"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                  {/* 2. Days of Week Header */}
+                  <div className="grid grid-cols-7 mb-1 text-center">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                      <div key={idx} className="text-[11px] font-bold text-slate-400 py-1 uppercase">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
 
-                {/* 2. Days of Week Header */}
-                <div className="grid grid-cols-7 mb-1 text-center">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-                    <div key={idx} className="text-[11px] font-bold text-slate-400 py-1 uppercase">
-                      {day}
-                    </div>
-                  ))}
-                </div>
+                  {/* 3. 7-Column Date Grid Cells */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarCells.map((cell, idx) => {
+                      if (!cell.isCurrentMonth) {
+                        return (
+                          <div
+                            key={`other-${idx}`}
+                            className="h-8 flex items-center justify-center text-xs font-normal text-slate-300 select-none"
+                          >
+                            {cell.dayNum}
+                          </div>
+                        );
+                      }
 
-                {/* 3. 7-Column Date Grid Cells */}
-                <div className="grid grid-cols-7 gap-1">
-                  {calendarCells.map((cell, idx) => {
-                    if (!cell.isCurrentMonth) {
+                      if (cell.isFuture) {
+                        return (
+                          <div
+                            key={`future-${cell.dateStr}`}
+                            className="h-8 flex items-center justify-center text-xs font-medium text-slate-300 cursor-not-allowed select-none"
+                            title="Future date not available"
+                          >
+                            {cell.dayNum}
+                          </div>
+                        );
+                      }
+
+                      const isSelected = tempSelectedDate === cell.dateStr;
+
                       return (
-                        <div
-                          key={`other-${idx}`}
-                          className="h-8 flex items-center justify-center text-xs font-normal text-slate-300 select-none"
+                        <button
+                          key={`cell-${cell.dateStr}`}
+                          type="button"
+                          onClick={() => setTempSelectedDate(cell.dateStr)}
+                          className={`h-8 rounded-xl flex flex-col items-center justify-center text-xs transition-all relative cursor-pointer ${isSelected
+                            ? 'bg-[#ba1228] text-white font-bold shadow-sm'
+                            : 'text-slate-700 font-semibold hover:bg-slate-100 hover:text-slate-900'
+                            }`}
                         >
-                          {cell.dayNum}
-                        </div>
+                          <span>{cell.dayNum}</span>
+                          {cell.hasArchive && (
+                            <span
+                              className={`w-1 h-1 rounded-full absolute bottom-0.5 ${isSelected ? 'bg-amber-300' : 'bg-emerald-500'
+                                }`}
+                              title="अंक उपलब्ध (Edition available)"
+                            />
+                          )}
+                        </button>
                       );
-                    }
+                    })}
+                  </div>
 
-                    if (cell.isFuture) {
-                      return (
-                        <div
-                          key={`future-${cell.dateStr}`}
-                          className="h-8 flex items-center justify-center text-xs font-medium text-slate-300 cursor-not-allowed select-none"
-                          title="Future date not available"
-                        >
-                          {cell.dayNum}
-                        </div>
-                      );
-                    }
-
-                    const isSelected = tempSelectedDate === cell.dateStr;
-
-                    return (
+                  {/* 4. Bottom Action Footer Bar */}
+                  <div className="border-t border-slate-100 flex items-center justify-between pt-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = getTodayDateString();
+                        setTempSelectedDate(today);
+                        const now = new Date();
+                        setViewYear(now.getFullYear());
+                        setViewMonth(now.getMonth());
+                      }}
+                      className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      आज (Today)
+                    </button>
+                    <div className="flex items-center space-x-2">
                       <button
-                        key={`cell-${cell.dateStr}`}
                         type="button"
-                        onClick={() => setTempSelectedDate(cell.dateStr)}
-                        className={`h-8 rounded-xl flex flex-col items-center justify-center text-xs transition-all relative cursor-pointer ${isSelected
-                          ? 'bg-[#ba1228] text-white font-bold shadow-sm'
-                          : 'text-slate-700 font-semibold hover:bg-slate-100 hover:text-slate-900'
-                          }`}
+                        onClick={() => setIsDatePickerOpen(false)}
+                        className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                       >
-                        <span>{cell.dayNum}</span>
-                        {cell.hasArchive && (
-                          <span
-                            className={`w-1 h-1 rounded-full absolute bottom-0.5 ${isSelected ? 'bg-amber-300' : 'bg-emerald-500'
-                              }`}
-                            title="अंक उपलब्ध (Edition available)"
-                          />
-                        )}
+                        Cancel
                       </button>
-                    );
-                  })}
-                </div>
-
-                {/* 4. Bottom Action Footer Bar */}
-                <div className="border-t border-slate-100 flex items-center justify-between pt-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const today = getTodayDateString();
-                      setTempSelectedDate(today);
-                      const now = new Date();
-                      setViewYear(now.getFullYear());
-                      setViewMonth(now.getMonth());
-                    }}
-                    className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    आज (Today)
-                  </button>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsDatePickerOpen(false)}
-                      className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyDate}
-                      className="rounded-xl bg-[#ba1228] hover:bg-[#9b0f21] px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors cursor-pointer"
-                    >
-                      Apply
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyDate}
+                        className="rounded-xl bg-[#ba1228] hover:bg-[#9b0f21] px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
           </div>
 
         </div>
@@ -1984,6 +2629,7 @@ ${rawBody}
 
           {/* 3. Download Full PDF Button */}
           <button
+            id="epaper-download-pdf-btn"
             type="button"
             onClick={handleDownloadFullPdf}
             disabled={isDownloadingPdf}
@@ -2130,7 +2776,7 @@ ${rawBody}
                     minHeight: `${Math.round(2112 * effectiveCanvasScale)}px`,
                   }}
                 >
-                                    <div
+                  <div
                     ref={pageContainerRef}
                     style={{
                       width: '1344px',
@@ -2144,428 +2790,22 @@ ${rawBody}
                     }}
                     className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 p-6 sm:p-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
                   >
-                    {/* Top Date Line Bar */}
-                    <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-xs font-sans font-bold text-slate-800">
-                      <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
-                      <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
-                      <span>पेज {formattedCurrentPage}</span>
-                    </div>
-
-                    {/* BIG RED BROADSHEET MASTHEAD (Exact Match to Admin Broadsheet Canvas) */}
-                    <div className="text-center border-b-4 border-double border-slate-900 pb-1.5 space-y-0.5">
-                      <h1
-                        style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 0.95 }}
-                        className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight select-none"
-                      >
-                        {activeEdition.title || 'डिजिटल ई-पेपर'}
-                      </h1>
-                      <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-0.5">
-                        <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black">Free-Form Canvas</span>
-                        <span>•</span>
-                        <span>{(activeEdition as any).state || 'बिहार'}</span>
-                        <span>•</span>
-                        <span>{activeEdition.name || 'पटना'}</span>
-                      </div>
-                    </div>
-
-                    {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
-                    {currentSlots.map((rawSlot, sIdx) => {
-                      const s = normalizeSlotData(rawSlot);
-                      const comp = computeSlotSections(s);
-                      const cardContentW = Math.max(100, s.width - 24);
-                      const vertAlign: 'top' | 'middle' | 'bottom' = s.imageVertAlign || 'top';
-                      const normAlign = (s.imageAlignment || s.imageAlign || 'Center').toLowerCase();
-                      const isLeft = normAlign === 'left';
-                      const isRight = normAlign === 'right';
-                      const hasImage = Boolean(s.imageUrl);
-
-                      const slotStyle: React.CSSProperties = {
-                        position: 'absolute',
-                        left: `${s.x}px`,
-                        top: `${s.y}px`,
-                        width: `${s.width}px`,
-                        height: `${s.height}px`,
-                      };
-
-                      if (s.isAd) {
-                        return (
-                          <div
-                            key={`slot-ad-${s.id || sIdx}`}
-                            style={slotStyle}
-                            className="p-3.5 bg-amber-100/90 rounded-xl border-2 border-amber-400 text-center space-y-1 relative overflow-hidden select-none z-0"
-                          >
-                            <h4 className="text-lg font-black text-blue-900 font-sans tracking-wide break-words">{s.headline}</h4>
-                            {s.subHeadline && <p className="text-[11px] font-bold text-red-700 font-sans leading-tight block break-words">{s.subHeadline}</p>}
-                            {s.summary && <p className="text-[10px] font-semibold text-slate-700 font-mono break-words">{s.summary}</p>}
-                          </div>
-                        );
-                      }
-
-                      const headerContent = (
-                        <div id={`reader-slot-header-${s.id}`} className="space-y-0.5">
-                          {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
-                            <div className="mb-1 flex items-center">
-                              <span
-                                style={{ fontFamily: "'Inter', 'Mukta', sans-serif" }}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-600 text-white text-[9.5px] font-bold uppercase tracking-wide leading-none shadow-xs"
-                              >
-                                {(s.categoryBadge || (s as any).categoryTag).trim()}
-                              </span>
-                            </div>
-                          )}
-
-                          <h2
-                            style={{
-                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                              fontSize: `${s.headlineFontSize || 22}px`,
-                              color: s.headlineColor || '#020617'
-                            }}
-                            className="font-black text-slate-950 leading-tight break-words"
-                            dangerouslySetInnerHTML={{ __html: s.headline || '' }}
-                          />
-
-                          {s.subHeadline && (
-                            <p
-                              style={{
-                                fontFamily: "'Mukta', 'Inter', sans-serif",
-                                fontSize: `${s.subHeadlineFontSize || 13}px`,
-                                color: s.subHeadlineColor || '#b91c1c'
-                              }}
-                              className="font-bold text-red-700 leading-tight block break-words text-justify my-0.5"
-                              dangerouslySetInnerHTML={{ __html: s.subHeadline || '' }}
-                            />
-                          )}
-                        </div>
-                      );
-
-                      let bodyContent = null;
-                      const lineH = getSummaryLineHeight(s.summaryFontSize || 14);
-
-                      if (!hasImage) {
-                        bodyContent = (
-                          <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full overflow-hidden shrink-0">
-                            <div
-                              style={{
-                                fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                                lineHeight: `${lineH}px`,
-                                columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
-                                columnGap: `${comp.colGap}px`,
-                                columnFill: 'auto',
-                                height: `${comp.fullStoryH}px`,
-                                maxHeight: `${comp.fullStoryH}px`,
-                                overflow: 'hidden',
-                                columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
-                                textAlign: 'justify',
-                                textJustify: 'inter-word',
-                                fontSize: `${s.summaryFontSize || 14}px`,
-                                color: s.summaryColor || undefined,
-                                whiteSpace: 'pre-line',
-                                boxSizing: 'border-box',
-                                paddingRight: '2px'
-                              }}
-                              className="leading-normal h-full overflow-hidden whitespace-pre-line text-justify"
-                              dangerouslySetInnerHTML={{ __html: s.summary || '' }}
-                            />
-                          </div>
-                        );
-                      } else if (comp.isFullWidth) {
-                        const bannerTextH = comp.underPhotoH;
-                        const isTopSpanPhoto = s.imageWrapMode === 'top-span' || (s.imageWidth && s.imageWidth >= cardContentW - 30);
-                        const currentImgW = isTopSpanPhoto ? cardContentW : Math.min(s.imageWidth || 180, cardContentW);
-                        const maxPxX = Math.max(0, cardContentW - currentImgW);
-
-                        let photoPxX = 0;
-                        if (isTopSpanPhoto) {
-                          photoPxX = 0;
-                        } else if (s.imgPxX !== undefined) {
-                          photoPxX = Math.max(0, Math.min(maxPxX, s.imgPxX));
-                        } else {
-                          if (isLeft) photoPxX = 0;
-                          else if (isRight) photoPxX = maxPxX;
-                          else photoPxX = Math.round(maxPxX / 2);
-                        }
-
-                        const singleColPhoto = (
-                          <div className="w-full mb-1.5 shrink-0 relative select-none">
-                            <div
-                              style={{
-                                width: isTopSpanPhoto ? '100%' : `${currentImgW}px`,
-                                height: `${s.imageHeight || 140}px`,
-                                marginLeft: isTopSpanPhoto ? '0px' : `${photoPxX}px`,
-                              }}
-                              className="overflow-hidden rounded-[4px] relative bg-slate-900 shadow-xs border border-slate-300"
-                            >
-                              <img
-                                src={getFullMediaUrl(s.imageUrl)}
-                                alt="Slot photo"
-                                className="w-full h-full object-cover block"
-                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                              />
-                            </div>
-                          </div>
-                        );
-
-                        const textDiv = (
-                          <div
-                            style={{
-                              fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                              lineHeight: `${lineH}px`,
-                              columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
-                              columnGap: `${comp.colGap}px`,
-                              columnFill: 'auto',
-                              height: `${bannerTextH}px`,
-                              maxHeight: `${bannerTextH}px`,
-                              overflow: 'hidden',
-                              columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
-                              textAlign: 'justify',
-                              textJustify: 'inter-word',
-                              fontSize: `${s.summaryFontSize || 14}px`,
-                              color: s.summaryColor || undefined,
-                              whiteSpace: 'pre-line',
-                              boxSizing: 'border-box',
-                              paddingRight: '2px'
-                            }}
-                            className="leading-[1.35] flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
-                            dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
-                          />
-                        );
-
-                        bodyContent = (
-                          <div className="flex-1 min-h-0 text-slate-800 leading-normal select-none w-full flex flex-col overflow-hidden shrink-0">
-                            {vertAlign === 'bottom' ? (
-                              <>
-                                {textDiv}
-                                {singleColPhoto}
-                              </>
-                            ) : (
-                              <>
-                                {singleColPhoto}
-                                {textDiv}
-                              </>
-                            )}
-                          </div>
-                        );
-                      } else {
-                        const colStyleLeft: React.CSSProperties = {
-                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                          lineHeight: `${lineH}px`,
-                          columnCount: comp.leftCols > 1 ? comp.leftCols : undefined,
-                          columnGap: `${comp.colGap}px`,
-                          columnFill: 'auto',
-                          height: `${comp.fullStoryH}px`,
-                          maxHeight: `${comp.fullStoryH}px`,
-                          overflow: 'hidden',
-                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          fontSize: `${s.summaryFontSize || 14}px`,
-                          color: s.summaryColor || undefined,
-                          whiteSpace: 'pre-line',
-                          boxSizing: 'border-box',
-                          paddingRight: '2px'
-                        };
-
-                        const colStylePhoto: React.CSSProperties = {
-                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                          lineHeight: `${lineH}px`,
-                          columnCount: comp.photoCols > 1 ? comp.photoCols : undefined,
-                          columnGap: `${comp.colGap}px`,
-                          columnFill: 'auto',
-                          height: `${comp.underPhotoH}px`,
-                          maxHeight: `${comp.underPhotoH}px`,
-                          overflow: 'hidden',
-                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          fontSize: `${s.summaryFontSize || 14}px`,
-                          color: s.summaryColor || undefined,
-                          whiteSpace: 'pre-line',
-                          boxSizing: 'border-box',
-                          paddingRight: '2px'
-                        };
-
-                        const colStyleRight: React.CSSProperties = {
-                          fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                          lineHeight: `${lineH}px`,
-                          columnCount: comp.rightCols > 1 ? comp.rightCols : undefined,
-                          columnGap: `${comp.colGap}px`,
-                          columnFill: 'auto',
-                          height: `${comp.fullStoryH}px`,
-                          maxHeight: `${comp.fullStoryH}px`,
-                          overflow: 'hidden',
-                          columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
-                          textAlign: 'justify',
-                          textJustify: 'inter-word',
-                          fontSize: `${s.summaryFontSize || 14}px`,
-                          color: s.summaryColor || undefined,
-                          whiteSpace: 'pre-line',
-                          boxSizing: 'border-box',
-                          paddingRight: '2px'
-                        };
-
-                        const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
-                        const localMaxPxX = Math.max(0, comp.photoSectionW - displayImgW);
-                        let localPhotoPxX = 0;
-                        if (s.imgPxX !== undefined) {
-                          const sectionStartX = comp.leftCols > 0 ? (comp.leftCols * comp.singleColW) + (comp.leftCols * comp.colGap) : 0;
-                          localPhotoPxX = Math.max(0, Math.min(localMaxPxX, s.imgPxX - sectionStartX));
-                        } else {
-                          if (isLeft) localPhotoPxX = 0;
-                          else if (isRight) localPhotoPxX = localMaxPxX;
-                          else localPhotoPxX = Math.round(localMaxPxX / 2);
-                        }
-
-                        const photoBlock = (
-                          <div className="w-full mb-1.5 shrink-0 relative select-none">
-                            <div
-                              style={{
-                                width: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${displayImgW}px` : '100%',
-                                height: `${s.imageHeight || 140}px`,
-                                marginLeft: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${localPhotoPxX}px` : '0px',
-                              }}
-                              className="overflow-hidden rounded-[4px] relative bg-slate-900 shadow-xs border border-slate-300"
-                            >
-                              <img
-                                src={getFullMediaUrl(s.imageUrl)}
-                                alt="Slot photo"
-                                className="w-full h-full object-cover block"
-                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                              />
-                            </div>
-                          </div>
-                        );
-
-                        bodyContent = (
-                          <div
-                            style={{ gap: `${comp.colGap}px` }}
-                            className="flex-1 min-h-0 font-serif text-slate-800 leading-normal select-none w-full flex items-start overflow-hidden shrink-0"
-                          >
-                            {comp.leftCols > 0 && (
-                              <>
-                                <div
-                                  style={{ width: `${comp.leftSectionW}px`, height: '100%' }}
-                                  className="flex flex-col shrink-0 overflow-hidden"
-                                >
-                                  <div
-                                    style={colStyleLeft}
-                                    className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text1 }}
-                                  />
-                                </div>
-                                {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
-                              </>
-                            )}
-
-                            <div
-                              style={{ width: `${comp.photoSectionW}px`, height: '100%' }}
-                              className="flex flex-col shrink-0 overflow-hidden"
-                            >
-                              {vertAlign === 'top' && (
-                                <>
-                                  {photoBlock}
-                                  <div
-                                    style={colStylePhoto}
-                                    className="leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
-                                  />
-                                </>
-                              )}
-
-                              {vertAlign === 'bottom' && (
-                                <>
-                                  <div
-                                    style={colStylePhoto}
-                                    className="leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
-                                  />
-                                  {photoBlock}
-                                </>
-                              )}
-
-                              {vertAlign === 'middle' && (
-                                <>
-                                  <div
-                                    style={{ ...colStylePhoto, height: `${Math.floor(comp.underPhotoH / 2)}px`, maxHeight: `${Math.floor(comp.underPhotoH / 2)}px`, flex: 'none' }}
-                                    className="leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text2 }}
-                                  />
-                                  {photoBlock}
-                                  <div
-                                    style={{ ...colStylePhoto, height: `${Math.ceil(comp.underPhotoH / 2)}px`, maxHeight: `${Math.ceil(comp.underPhotoH / 2)}px`, flex: '1' }}
-                                    className="leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text2b }}
-                                  />
-                                </>
-                              )}
-                            </div>
-
-                            {comp.rightCols > 0 && (
-                              <>
-                                {comp.showDivider && <div className="self-stretch w-px min-w-[1px] bg-slate-300 border-l border-slate-300 shrink-0" />}
-                                <div
-                                  style={{ width: `${comp.rightSectionW}px`, height: '100%' }}
-                                  className="flex flex-col flex-1 overflow-hidden"
-                                >
-                                  <div
-                                    style={colStyleRight}
-                                    className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
-                                    dangerouslySetInnerHTML={{ __html: comp.text3 }}
-                                  />
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={`rendered-slot-${s.id || sIdx}`}
-                          style={slotStyle}
-                          className="relative z-0 select-none overflow-hidden"
-                        >
-                          <div className="w-full h-full p-2 flex flex-col overflow-hidden space-y-1">
-                            {headerContent}
-                            {bodyContent}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* High-Res Compiled WebP Photo Layer (Only when no digital slots exist on page e.g. scanned print edition) */}
-                    {currentSlots.length === 0 && !imageLoadError && canvasImageUrl && (
-                      <img
-                        key={canvasImageUrl}
-                        src={canvasImageUrl}
-                        alt={`${activeEdition.name} - Page ${currentPageIndex + 1}`}
-                        onLoad={() => setHasImageLoaded(true)}
-                        onError={() => setImageLoadError(true)}
-                        className={`absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-10 transition-opacity duration-300 ${hasImageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                      />
-                    )}
-
-                    {/* Interactive Hotspot Overlay Boxes with Light Red Border & Red Overlay Tint */}
-                    {currentSlots.map((rawSlot, sIdx) => {
-                      const slot = normalizeSlotData(rawSlot);
-                      return (
-                        <div
-                          key={slot.id || `slot-${currentPageIndex}-${sIdx}`}
-                          onClick={() => {
-                            setSelectedArticle(slot);
-                            setIsArticleModalOpen(true);
-                          }}
-                          title={slot.headline || ''}
-                          className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-20 select-none"
-                          style={{
-                            position: 'absolute',
-                            left: `${slot.x}px`,
-                            top: `${slot.y}px`,
-                            width: `${slot.width}px`,
-                            height: `${slot.height}px`
-                          }}
-                        />
-                      );
-                    })}
+                    <BroadsheetCanvasContent
+                      page={currentPage}
+                      pageIndex={currentPageIndex}
+                      totalPages={totalPages}
+                      activeEdition={activeEdition}
+                      selectedDate={selectedDate}
+                      isPrintMode={false}
+                      onSlotClick={(slot) => {
+                        setSelectedArticle(slot);
+                        setIsArticleModalOpen(true);
+                      }}
+                      imageLoadError={imageLoadError}
+                      hasImageLoaded={hasImageLoaded}
+                      onImageLoad={() => setHasImageLoaded(true)}
+                      onImageError={() => setImageLoadError(true)}
+                    />
                   </div>
                 </div>
               </div>
@@ -2716,11 +2956,10 @@ ${rawBody}
               type="button"
               disabled={currentPageIndex === 0}
               onClick={() => setCurrentPageIndex(prev => Math.max(0, prev - 1))}
-              className={`hidden sm:flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${
-                currentPageIndex === 0
+              className={`hidden sm:flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${currentPageIndex === 0
                   ? 'opacity-0 pointer-events-none'
                   : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
-              }`}
+                }`}
               title="पिछला पृष्ठ (Previous Page)"
               aria-label="Previous Page"
             >
@@ -2732,11 +2971,10 @@ ${rawBody}
               type="button"
               disabled={currentPageIndex >= totalPages - 1}
               onClick={() => setCurrentPageIndex(prev => Math.min(totalPages - 1, prev + 1))}
-              className={`hidden sm:flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${
-                currentPageIndex >= totalPages - 1
+              className={`hidden sm:flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 w-9 h-9 rounded-xl shadow-lg shadow-black/30 items-center justify-center text-white transition-all border border-white/20 select-none group ${currentPageIndex >= totalPages - 1
                   ? 'opacity-0 pointer-events-none'
                   : 'bg-[#ba1228] hover:bg-[#9b0f21] active:scale-95 cursor-pointer opacity-90 hover:opacity-100 hover:scale-105'
-              }`}
+                }`}
               title="अगला पृष्ठ (Next Page)"
               aria-label="Next Page"
             >
@@ -2830,11 +3068,10 @@ ${rawBody}
                   <button
                     type="button"
                     onClick={handleToggleSpeech}
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer ${
-                      isSpeaking
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer ${isSpeaking
                         ? 'bg-amber-600 text-white animate-pulse'
                         : 'bg-[#0088cc] active:bg-[#0077b5] text-white'
-                    }`}
+                      }`}
                     title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
                   >
                     {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -2907,11 +3144,10 @@ ${rawBody}
                   <button
                     type="button"
                     onClick={() => setActiveViewTab('text')}
-                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${
-                      activeViewTab === 'text'
+                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
                         ? 'bg-[#ba1228] text-white font-bold shadow-xs'
                         : 'text-slate-600 font-semibold'
-                    }`}
+                      }`}
                   >
                     <FileText className="w-3.5 h-3.5" />
                     <span>Text View</span>
@@ -2919,11 +3155,10 @@ ${rawBody}
                   <button
                     type="button"
                     onClick={() => setActiveViewTab('image')}
-                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${
-                      activeViewTab === 'image'
+                    className={`px-3 py-1 text-xs flex items-center gap-1 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
                         ? 'bg-[#ba1228] text-white font-bold shadow-xs'
                         : 'text-slate-600 font-semibold'
-                    }`}
+                      }`}
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
                     <span>Image View</span>
@@ -2995,11 +3230,10 @@ ${rawBody}
                 <button
                   type="button"
                   onClick={() => setActiveViewTab('text')}
-                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${
-                    activeViewTab === 'text'
+                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'text'
                       ? 'bg-[#ba1228] text-white font-bold shadow-sm'
                       : 'text-slate-600 font-semibold hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Text View</span>
@@ -3007,11 +3241,10 @@ ${rawBody}
                 <button
                   type="button"
                   onClick={() => setActiveViewTab('image')}
-                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${
-                    activeViewTab === 'image'
+                  className={`px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg transition-all cursor-pointer ${activeViewTab === 'image'
                       ? 'bg-[#ba1228] text-white font-bold shadow-sm'
                       : 'text-slate-600 font-semibold hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
                   <span>Image View</span>
@@ -3079,11 +3312,10 @@ ${rawBody}
                 <button
                   type="button"
                   onClick={handleToggleSpeech}
-                  className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${
-                    isSpeaking
+                  className={`rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${isSpeaking
                       ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
                       : 'bg-[#0088cc] hover:bg-[#0077b5] text-white'
-                  }`}
+                    }`}
                   title={isSpeaking ? 'ऑडियो रोकें (Stop)' : 'समाचार सुनें (Listen)'}
                 >
                   {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -3290,6 +3522,64 @@ ${rawBody}
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* 4. HIDDEN MULTI-PAGE PRINT STAGE (FOR REAL BROADSHEET PDF GENERATION) */}
+      {isDownloadingPdf && !pdfUrl && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-99999px',
+            top: 0,
+            width: '1344px',
+            zIndex: -99999,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+          }}
+        >
+          {pages.map((p, pIdx) => (
+            <div
+              key={`print-page-${p.id || pIdx}`}
+              ref={(el) => { printPagesRef.current[pIdx] = el; }}
+              style={{
+                width: '1344px',
+                minWidth: '1344px',
+                maxWidth: '1344px',
+                height: '2112px',
+                minHeight: '2112px',
+                maxHeight: '2112px',
+                backgroundColor: '#ffffff',
+              }}
+              className="bg-white text-slate-950 p-6 sm:p-10 font-serif relative overflow-hidden select-none border border-slate-300"
+            >
+              <BroadsheetCanvasContent
+                page={p}
+                pageIndex={pIdx}
+                totalPages={pages.length}
+                activeEdition={activeEdition}
+                selectedDate={selectedDate}
+                isPrintMode={true}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Floating PDF Compiling Progress Pill */}
+      {isDownloadingPdf && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[120] bg-slate-900/95 text-white text-xs font-bold px-5 py-2.5 rounded-full shadow-2xl flex items-center space-x-2.5 animate-in fade-in zoom-in-95 duration-150 border border-amber-400/40">
+          <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
+          <span>{pdfCompileStatus || 'पूरा ई-पेपर PDF तैयार हो रहा है...'}</span>
+        </div>
+      )}
+
+      {/* PDF Download Complete Toast */}
+      {pdfSuccessToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[120] bg-emerald-900/95 text-white text-xs font-bold px-5 py-2.5 rounded-full shadow-2xl flex items-center space-x-2.5 animate-in fade-in zoom-in-95 duration-150 border border-emerald-400/40">
+          <Check className="w-4 h-4 text-emerald-300 shrink-0" />
+          <span>ई-पेपर PDF सफलतापूर्वक डाउनलोड हो गया!</span>
         </div>
       )}
 
