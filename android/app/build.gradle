@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.enews.app"
+    namespace = "com.nighwantech.vartiqnews"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.enews.app"
+        applicationId "com.nighwantech.vartiqnews"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -16,8 +16,17 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file('vartiq-release-key.jks')
+            storePassword 'Vartiq@2026Secure'
+            keyAlias 'vartiq-key'
+            keyPassword 'Vartiq@2026Secure'
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

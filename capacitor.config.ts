@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.enews.app',
+  appId: 'com.nighwantech.vartiqnews',
   appName: 'Vartiq News',
   webDir: 'out',
   server: {

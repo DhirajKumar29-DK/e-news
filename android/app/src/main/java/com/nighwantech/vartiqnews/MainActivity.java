@@ -1,4 +1,4 @@
-package com.enews.app;
+package com.nighwantech.vartiqnews;
 
 import android.os.Bundle;
 import androidx.core.view.WindowCompat;
