@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind:wght@700&family=Mukta:wght@600;700;800&family=Noto+Sans+Devanagari:wght@700;800;900&family=Noto+Serif+Devanagari:wght@700;900&family=Poppins:wght@700;800;900&family=Rozha+One&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -135,14 +137,15 @@ strong {
 /* Website E-Paper Hotspot Card Hover */
 .epaper-slot-hotspot {
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.15s ease-in-out;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .epaper-slot-hotspot:hover {
-  border-color: rgba(220, 38, 38, 0.65) !important;
-  background-color: rgba(220, 38, 38, 0.12) !important;
-  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+  border-color: #ba1228 !important;
+  background-color: rgba(186, 18, 40, 0.08) !important;
+  box-shadow: none !important;
 }
 
 /* Rich Text Editor Styling, High-Contrast Caret & List Enforcements */

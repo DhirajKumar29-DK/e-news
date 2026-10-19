@@ -617,30 +617,88 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
 
   return (
     <>
-      {/* Top Date Line Bar */}
-      <div className="flex items-center justify-between border-b border-slate-900 pb-1 text-xs font-sans font-bold text-slate-800">
-        <span>{(activeEdition.city || 'पटना')} • {formatHindiDateString(selectedDate)}</span>
-        <span className="font-serif italic text-slate-600">डिजिटल संस्करण • epaper</span>
-        <span>पेज {formattedPage}</span>
-      </div>
+      {/* OUTER MASTHEAD FRAME (Clean open broadsheet top without horizontal bounding line) */}
+      <div className="border-0 bg-white select-none">
+        
+        {/* 3-COLUMN BROADSHEET MASTHEAD (Spacious layout: Logo+Date on Left, Stats in Top-Right, Grand Title+Tagline in Center) */}
+        <div className="flex items-center justify-between h-[168px] bg-white">
+          
+          {/* LEFT COLUMN: DIGITAL & TEMP (TOP) + BRAND LOGO + LOCATION & DATE (BOTTOM) */}
+          <div className="w-[290px] h-full shrink-0 flex flex-col items-center justify-center px-3 select-none">
+            {/* Digital & Temperature directly above logo */}
+            <div className="font-sans text-[11px] font-bold text-slate-700 tracking-wide flex items-center justify-center gap-1.5 whitespace-nowrap mb-1">
+              <span>डिजिटल संस्करण</span>
+              <span>•</span>
+              <span>तापमान 31°C</span>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/vartiq-logo.png" alt="Vartiq" className="h-[80px] max-w-[235px] object-contain drop-shadow-xs" />
+            {/* Location & Date directly under logo */}
+            <div className="font-sans text-[11.5px] font-bold text-slate-800 tracking-wide mt-1.5 flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <span className="text-[#b31e21] font-black">{activeEdition.city ? `अपना ${activeEdition.city}` : 'अपना पटना'}</span>
+              <span>•</span>
+              <span>{formatHindiDateString(selectedDate)}</span>
+            </div>
+          </div>
 
-      {/* BIG RED BROADSHEET MASTHEAD (Exact Match to Admin Broadsheet Canvas) */}
-      <div className="text-center border-b-4 border-double border-slate-900 pb-1 space-y-0.5">
-        <h1
-          style={{ fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif", lineHeight: 1.15, padding: '2px 0' }}
-          className="text-5xl sm:text-6xl font-black text-red-700 tracking-tight select-none"
-        >
-          {activeEdition.title || 'अपना पटना'}
-        </h1>
-        <div className="flex items-center justify-center space-x-3 text-[10px] font-sans font-bold uppercase tracking-wider text-slate-700 pt-0.5">
-          <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black">
-            Free-Form Canvas
-          </span>
-          <span>•</span>
-          <span>{(activeEdition as any).state || 'बिहार'}</span>
-          <span>•</span>
-          <span>{activeEdition.name || 'पटना'}</span>
+          {/* CENTER COLUMN: GRAND "वार्तिक" (NO CLIPPING) + EXACT LOGO TAGLINE & RED SWOOSH */}
+          <div className="flex-1 h-full flex flex-col items-center justify-center text-center px-4 relative select-none">
+            {/* Red Accent Horizontal Bars flanking "वार्तिक" exactly like Logo */}
+            <div className="flex items-center justify-center gap-4 w-full">
+              <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
+              <h1
+                style={{
+                  fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif",
+                  fontWeight: 800,
+                  lineHeight: 1.15,
+                  letterSpacing: '-0.01em',
+                  background: 'linear-gradient(180deg, #ea1d25 0%, #c40c14 55%, #88050a 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25))'
+                }}
+                className="text-[88px] text-[#c51c24] select-none m-0 p-0 pt-1"
+              >
+                वार्तिक
+              </h1>
+              <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
+            </div>
+
+            {/* Tagline: Exact Color & Design matching Logo (with dynamic red swoosh curve) */}
+            <div className="flex flex-col items-center justify-center -mt-1 select-none">
+              <div
+                style={{ fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif" }}
+                className="text-[16px] font-black text-[#0f172a] tracking-wider drop-shadow-xs"
+              >
+                खबर समझो, दुनिया समझो।
+              </div>
+              {/* Signature Dynamic Red Swoosh Crescent from Logo */}
+              <svg width="240" height="8" viewBox="0 0 240 8" className="mt-0.5 overflow-visible">
+                <defs>
+                  <linearGradient id="readerLogoSwooshGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#e51d27" />
+                    <stop offset="50%" stopColor="#b80d15" />
+                    <stop offset="100%" stopColor="#e51d27" />
+                  </linearGradient>
+                </defs>
+                <path d="M 4,1.5 Q 120,7.5 236,1.5 Q 120,4.5 4,1.5 Z" fill="url(#readerLogoSwooshGrad)" />
+              </svg>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: PAGE NUMBER IN TOP RIGHT CORNER */}
+          <div className="w-[290px] h-full shrink-0 flex flex-col items-end justify-between pt-3.5 pb-3 px-4 select-none pointer-events-none">
+            <div className="font-sans text-[12px] font-bold text-slate-800 tracking-wide flex items-center justify-end whitespace-nowrap">
+              <span>पेज {formattedPage}</span>
+            </div>
+            <div />
+          </div>
+
         </div>
+
+        {/* DOUBLE LINE BOTTOM BORDER (Classic Broadsheet Rule) */}
+        <div className="border-t-[1px] border-b-[2.5px] border-slate-900 h-[3.5px] bg-white" />
+
       </div>
 
       {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
@@ -654,10 +712,11 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
         const isRight = normAlign === 'right';
         const hasImage = Boolean(s.imageUrl);
 
+        const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : 188, 188);
         const slotStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${s.x}px`,
-          top: `${s.y}px`,
+          top: `${safeSlotY}px`,
           width: `${s.width}px`,
           height: `${s.height}px`,
         };
@@ -1023,16 +1082,17 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
       {/* Interactive Hotspot Overlay Boxes (Only in live interactive reading mode, omitted in print mode) */}
       {!isPrintMode && currentSlots.map((rawSlot, sIdx) => {
         const slot = normalizeSlotData(rawSlot);
+        const safeSlotY = Math.max(slot.y !== undefined && slot.y !== null ? Number(slot.y) : 188, 188);
         return (
           <div
             key={slot.id || `slot-${pageIndex}-${sIdx}`}
             onClick={() => onSlotClick && onSlotClick(slot)}
             title={slot.headline || ''}
-            className="absolute cursor-pointer border border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/15 hover:ring-2 hover:ring-[#ba1228]/20 transition-all duration-150 rounded-xs z-20 select-none"
+            className="absolute cursor-pointer box-border border-2 border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/10 transition-colors duration-150 rounded-sm z-20 select-none"
             style={{
               position: 'absolute',
               left: `${slot.x}px`,
-              top: `${slot.y}px`,
+              top: `${safeSlotY}px`,
               width: `${slot.width}px`,
               height: `${slot.height}px`
             }}
@@ -2832,8 +2892,8 @@ ${rawBody}
                       transform: `scale(${effectiveCanvasScale})`,
                       transformOrigin: 'top left',
                     }}
-                    className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 p-6 sm:p-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
-                  >
+                    className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 pt-2 px-6 sm:px-10 pb-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
+                    >
                     <BroadsheetCanvasContent
                       page={currentPage}
                       pageIndex={currentPageIndex}
@@ -2860,12 +2920,12 @@ ${rawBody}
                   key={singlePagePdfUrl}
                   data={singlePagePdfUrl}
                   type="application/pdf"
-                  className="w-full h-full border-0 bg-[#fffdf7]"
+                  className="w-full h-full border-0 bg-white"
                 >
                   <iframe
                     src={singlePagePdfUrl}
                     title={'Broadsheet E-Paper Page ' + (currentPageIndex + 1)}
-                    className="w-full h-full border-0 bg-[#fffdf7]"
+                    className="w-full h-full border-0 bg-white"
                   />
                 </object>
               </div>
