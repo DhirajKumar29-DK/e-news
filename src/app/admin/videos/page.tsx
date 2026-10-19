@@ -28,6 +28,52 @@ function AdminVideosListContent() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // YouTube Auto-Sync States
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [channelInput, setChannelInput] = useState('');
+  const [channelTitle, setChannelTitle] = useState<string | null>(null);
+
+  // Load configured channel from localStorage if exists
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('custom_yt_channel');
+      if (saved) setChannelInput(saved);
+    }
+  }, []);
+
+  const handleSync = async (customChannel?: string) => {
+    try {
+      setIsSyncing(true);
+      setSyncNotice(null);
+      const targetChannel = customChannel !== undefined ? customChannel : (channelInput.trim() || undefined);
+      
+      const res = await videoService.syncYouTube(targetChannel);
+      
+      setChannelTitle(res.channelTitle);
+      if (targetChannel && typeof window !== 'undefined') {
+        localStorage.setItem('custom_yt_channel', targetChannel);
+      }
+
+      setSyncNotice({
+        type: 'success',
+        text: `✅ Synced from "${res.channelTitle}": ${res.newVideosAdded} new video(s) added, ${res.alreadyExisted} already up-to-date.`
+      });
+
+      // Refresh list so new videos appear immediately at top
+      await fetchVideos();
+      setSyncModalOpen(false);
+    } catch (err: any) {
+      setSyncNotice({
+        type: 'error',
+        text: `❌ Sync failed: ${err.message || 'Please check the channel link'}`
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -115,14 +161,54 @@ function AdminVideosListContent() {
               </p>
             </div>
 
-            <Link
-              href="/admin/videos/create"
-              className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Publish New Video</span>
-            </Link>
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleSync()}
+                disabled={isSyncing}
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                title="Sync latest videos from YouTube"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync YouTube'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(true)}
+                className="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+                title="Configure YouTube Channel"
+              >
+                <Video className="w-4 h-4 text-red-600" />
+              </button>
+
+              <Link
+                href="/admin/videos/create"
+                className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Publish New Video</span>
+              </Link>
+            </div>
           </div>
+
+          {/* YouTube Sync Notification */}
+          {syncNotice && (
+            <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-3 ${
+              syncNotice.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              <span>{syncNotice.text}</span>
+              <button
+                type="button"
+                onClick={() => setSyncNotice(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Filter and Search Bar */}
           <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
@@ -427,6 +513,65 @@ function AdminVideosListContent() {
           </div>
         </div>
       )}
+      {/* YouTube Channel Settings Modal */}
+      {syncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-600">
+                  <Video className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">YouTube Channel Sync</h3>
+                  <p className="text-[11px] text-slate-500">Auto-import newly uploaded videos</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSyncModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                YouTube Channel Link, Handle, or Channel ID
+              </label>
+              <input
+                type="text"
+                value={channelInput}
+                onChange={(e) => setChannelInput(e.target.value)}
+                placeholder="e.g. @aajtak or https://youtube.com/@channel or UC..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-red-500 focus:bg-white"
+              />
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Paste your news channel handle (e.g. <code>@news24</code>) or channel URL. New videos will automatically sync into the website without manual entry.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSync(channelInput)}
+                disabled={isSyncing}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 cursor-pointer disabled:opacity-50"
+              >
+                {isSyncing ? 'Syncing...' : 'Save & Sync Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

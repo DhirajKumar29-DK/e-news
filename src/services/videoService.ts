@@ -183,5 +183,45 @@ export const videoService = {
     return {
       thumbnailUrl: data.data.thumbnailUrl
     };
+  },
+  // 10. Sync YouTube Channel Videos
+  async syncYouTube(channelInput?: string, category = 'news'): Promise<{
+    success: boolean;
+    channelId: string;
+    channelTitle: string;
+    newVideosAdded: number;
+    alreadyExisted: number;
+    totalFetched: number;
+    lastSyncTime: string;
+  }> {
+    const res = await apiRequest<{
+      success: boolean;
+      data: {
+        success: boolean;
+        channelId: string;
+        channelTitle: string;
+        newVideosAdded: number;
+        alreadyExisted: number;
+        totalFetched: number;
+        lastSyncTime: string;
+      };
+    }>('/videos/sync-youtube', {
+      method: 'POST',
+      body: JSON.stringify({ channelInput, category })
+    });
+    return res.data;
+  },
+
+  // 11. Get YouTube Sync Status
+  async getYoutubeSyncStatus(): Promise<{
+    lastSyncTime: string | null;
+    lastSyncCount: number;
+    channelId: string | null;
+    channelTitle: string | null;
+    status: string;
+    configuredChannel: string;
+  }> {
+    const res = await apiRequest<{ success: boolean; data: any }>('/videos/sync-status');
+    return res.data;
   }
 };
