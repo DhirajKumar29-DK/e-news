@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -686,15 +687,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             <div className="relative w-[85vw] max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col shadow-2xl z-10 overflow-hidden border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
               {/* Drawer Header */}
               <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-xs">
-                    <Sun className="w-4 h-4 text-white stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black uppercase text-[#E43854] block leading-none">THE</span>
-                    <span className="text-base font-black font-serif text-slate-900 dark:text-white leading-none">NEWSPAPER</span>
-                  </div>
-                </div>
+                <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center shrink-0" title="Vartiq">
+                  <img
+                    src="/vartiq-logo.png"
+                    alt="Vartiq"
+                    className="h-9 sm:h-10 w-auto object-contain select-none transform scale-x-[1.15] origin-left dark:hidden"
+                  />
+                  <img
+                    src="/vartiq-logo-dark.png"
+                    alt="Vartiq"
+                    className="h-9 sm:h-10 w-auto object-contain select-none transform scale-x-[1.15] origin-left hidden dark:block"
+                  />
+                </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800"

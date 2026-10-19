@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sun, LogOut, X, FileText, Trophy } from 'lucide-react';
+import { LogOut, X, FileText, Trophy } from 'lucide-react';
 
 interface ExitConfirmationModalProps {
   isOpen: boolean;
@@ -81,17 +81,17 @@ export const ExitConfirmationModal: React.FC<ExitConfirmationModalProps> = ({
         {/* Brand Icon & Heading */}
         <div className="text-center relative pt-2">
           {/* Logo Badge */}
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 via-jagran-red to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/30 mx-auto mb-3">
-            <Sun className="w-7 h-7 text-white stroke-[2.5]" />
-          </div>
-
-          <div className="flex items-center justify-center gap-1 mb-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#E43854]">
-              THE
-            </span>
-            <span className="text-sm font-black font-serif tracking-tight text-slate-900 dark:text-white">
-              NEWSPAPER
-            </span>
+          <div className="flex items-center justify-center mb-3">
+            <img
+              src="/vartiq-logo.png"
+              alt="Vartiq"
+              className="h-10 w-auto object-contain select-none dark:hidden"
+            />
+            <img
+              src="/vartiq-logo-dark.png"
+              alt="Vartiq"
+              className="h-10 w-auto object-contain select-none hidden dark:block"
+            />
           </div>
 
           <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">

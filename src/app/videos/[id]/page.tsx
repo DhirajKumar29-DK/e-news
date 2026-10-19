@@ -190,38 +190,41 @@ export default function VideoDetailPage() {
       {/* 2. Mobile Clean Light Sticky Header */}
       <header
         style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 0px))' }}
-        className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800/90 px-3.5 py-2.5 flex items-center justify-between shadow-xs"
+        className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800/90 px-3.5 py-2.5 flex items-center justify-between shadow-xs relative"
       >
         {/* Back to Videos List Button */}
         <button
           type="button"
           onClick={() => router.push('/videos')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
         >
           <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
           <span>Videos</span>
         </button>
 
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center space-x-1.5">
-          <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 flex items-center justify-center shadow-md p-0.5">
-            <div className="w-2 h-2 bg-yellow-200 rounded-full" />
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-[7.5px] font-sans font-bold text-slate-700 dark:text-slate-300 tracking-wider uppercase opacity-95">
-              THE
-            </span>
-            <span className="text-[9.5px] font-serif font-black text-slate-900 dark:text-white tracking-wide uppercase">
-              NEWSPAPER
-            </span>
-          </div>
+        {/* Brand Logo - Perfectly Centered in Header */}
+        <Link
+          href="/"
+          className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto"
+          title="Vartiq"
+        >
+          <img
+            src="/vartiq-logo.png"
+            alt="Vartiq"
+            className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] dark:hidden"
+          />
+          <img
+            src="/vartiq-logo-dark.png"
+            alt="Vartiq"
+            className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] hidden dark:block"
+          />
         </Link>
 
         {/* Share Button */}
         <button
           type="button"
           onClick={handleShare}
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
           title="Share Video"
         >
           {isCopied ? (
