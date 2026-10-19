@@ -190,49 +190,51 @@ export default function VideoDetailPage() {
       {/* 2. Mobile Clean Light Sticky Header */}
       <header
         style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 0px))' }}
-        className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800/90 px-3.5 py-2.5 flex items-center justify-between shadow-xs relative"
+        className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800/90 px-3.5 py-2 shadow-xs"
       >
-        {/* Back to Videos List Button */}
-        <button
-          type="button"
-          onClick={() => router.push('/videos')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
-        >
-          <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-          <span>Videos</span>
-        </button>
+        <div className="relative flex items-center justify-between w-full min-h-[38px]">
+          {/* Back to Videos List Button */}
+          <button
+            type="button"
+            onClick={() => router.push('/videos')}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
+          >
+            <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
+            <span>Videos</span>
+          </button>
 
-        {/* Brand Logo - Perfectly Centered in Header */}
-        <Link
-          href="/"
-          className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto"
-          title="Vartiq"
-        >
-          <img
-            src="/vartiq-logo.png"
-            alt="Vartiq"
-            className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] dark:hidden"
-          />
-          <img
-            src="/vartiq-logo-dark.png"
-            alt="Vartiq"
-            className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] hidden dark:block"
-          />
-        </Link>
+          {/* Brand Logo - Perfectly Centered in Button Row */}
+          <Link
+            href="/"
+            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto"
+            title="Vartiq"
+          >
+            <img
+              src="/vartiq-logo.png"
+              alt="Vartiq"
+              className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] dark:hidden"
+            />
+            <img
+              src="/vartiq-logo-dark.png"
+              alt="Vartiq"
+              className="h-8 sm:h-9 w-auto object-contain select-none transform scale-x-[1.15] hidden dark:block"
+            />
+          </Link>
 
-        {/* Share Button */}
-        <button
-          type="button"
-          onClick={handleShare}
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
-          title="Share Video"
-        >
-          {isCopied ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          ) : (
-            <Share2 className="w-4 h-4 stroke-[2.2]" />
-          )}
-        </button>
+          {/* Share Button */}
+          <button
+            type="button"
+            onClick={handleShare}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 relative z-10"
+            title="Share Video"
+          >
+            {isCopied ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Share2 className="w-4 h-4 stroke-[2.2]" />
+            )}
+          </button>
+        </div>
       </header>
 
       {/* 3. MAIN UNIFIED CONTENT: ONLY ONE VIDEO PLAYER IN THE ENTIRE DOM */}
