@@ -210,5 +210,130 @@ export const weatherService = {
       console.warn(`Failed to fetch forecast for ${citySlug}:`, err);
       return null;
     }
+  },
+
+  // 5. Get live temperature string for city & optional date (e.g. "32°C")
+  async getCityTemperature(cityName?: string, dateStr?: string): Promise<string> {
+    try {
+      const slug = resolveCitySlug(cityName);
+      const forecast = await this.getCityForecast(slug);
+      if (!forecast) return '31°C';
+
+      // Clean date string to YYYY-MM-DD
+      const targetDate = dateStr
+        ? (dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.trim())
+        : new Date().toISOString().split('T')[0];
+
+      let tempVal: string | number | undefined;
+
+      // Match exact date if provided in weeklyForecast
+      if (forecast.weeklyForecast && Array.isArray(forecast.weeklyForecast)) {
+        const match = forecast.weeklyForecast.find((d) => d.date === targetDate || d.date.startsWith(targetDate));
+        if (match) {
+          tempVal = match.temp || match.maxTemp;
+        }
+      }
+
+      // Fallback to current live temperature
+      if (!tempVal && forecast.current) {
+        tempVal = forecast.current.temp;
+      }
+
+      if (tempVal !== undefined && tempVal !== null && tempVal !== '') {
+        const num = Math.round(Number(tempVal));
+        if (!isNaN(num)) return `${num}°C`;
+      }
+      return '31°C';
+    } catch {
+      return '31°C';
+    }
   }
 };
+
+export const POPULAR_WEATHER_CITIES: string[] = [
+  'पटना',
+  'दिल्ली NCR',
+  'आगरा',
+  'लखनऊ',
+  'मुजफ्फरपुर',
+  'गया',
+  'भागलपुर',
+  'राँची',
+  'जयपुर',
+  'भोपाल',
+  'इंदौर',
+  'वाराणसी',
+  'कानपुर',
+  'गोरखपुर',
+  'मेरठ',
+  'प्रयागराज',
+  'बरेली',
+  'अयोध्या',
+  'देहरादून',
+  'रायपुर',
+  'चंडीगढ़',
+  'मुंबई',
+  'कोलकाता'
+];
+
+const HINDI_CITY_TO_SLUG: Record<string, string> = {
+  'आगरा': 'agra', 'agra': 'agra',
+  'पटना': 'patna', 'patna': 'patna', 'patna-main': 'patna',
+  'दिल्ली': 'delhi', 'दिल्ली ncr': 'delhi', 'दिल्ली एनसीआर': 'delhi', 'delhi': 'delhi', 'delhi ncr': 'delhi', 'delhi-ncr': 'delhi', 'नई दिल्ली': 'delhi', 'new delhi': 'delhi', 'new-delhi': 'delhi',
+  'लखनऊ': 'lucknow', 'lucknow': 'lucknow',
+  'वाराणसी': 'varanasi', 'बनारस': 'varanasi', 'varanasi': 'varanasi', 'काशी': 'varanasi',
+  'कानपुर': 'kanpur', 'kanpur': 'kanpur',
+  'प्रयागराज': 'prayagraj', 'इलाहाबाद': 'prayagraj', 'prayagraj': 'prayagraj',
+  'मेरठ': 'meerut', 'meerut': 'meerut',
+  'गोरखपुर': 'gorakhpur', 'gorakhpur': 'gorakhpur',
+  'बरेली': 'bareilly', 'bareilly': 'bareilly',
+  'अलीगढ़': 'aligarh', 'aligarh': 'aligarh',
+  'अयोध्या': 'ayodhya', 'ayodhya': 'ayodhya', 'फैजाबाद': 'ayodhya',
+  'मुजफ्फरपुर': 'muzaffarpur', 'muzaffarpur': 'muzaffarpur',
+  'गया': 'gaya', 'gaya': 'gaya',
+  'भागलपुर': 'bhagalpur', 'bhagalpur': 'bhagalpur',
+  'राँची': 'ranchi', 'रांची': 'ranchi', 'ranchi': 'ranchi',
+  'जयपुर': 'jaipur', 'jaipur': 'jaipur',
+  'भोपाल': 'bhopal', 'bhopal': 'bhopal',
+  'इंदौर': 'indore', 'indore': 'indore',
+  'रायपुर': 'raipur', 'raipur': 'raipur',
+  'देहरादून': 'dehradun', 'dehradun': 'dehradun',
+  'चंडीगढ़': 'chandigarh', 'chandigarh': 'chandigarh',
+  'कोलकाता': 'kolkata', 'kolkata': 'kolkata',
+  'मुंबई': 'mumbai', 'mumbai': 'mumbai',
+  'अहमदाबाद': 'ahmedabad', 'ahmedabad': 'ahmedabad',
+  'पुणे': 'pune', 'pune': 'pune',
+  'दरभंगा': 'darbhanga', 'darbhanga': 'darbhanga',
+  'पूर्णिया': 'purnia', 'purnia': 'purnia',
+  'बेगूसराय': 'begusarai', 'begusarai': 'begusarai',
+  'कटिहार': 'katihar', 'katihar': 'katihar',
+  'मोतिहारी': 'motihari', 'motihari': 'motihari',
+  'सीवान': 'siwan', 'siwan': 'siwan',
+  'समस्तीपुर': 'samastipur', 'samastipur': 'samastipur',
+  'छपरा': 'chhapra', 'chhapra': 'chhapra',
+  'आरा': 'arrah', 'arrah': 'arrah',
+  'नोएडा': 'noida', 'noida': 'noida',
+  'गाजियाबाद': 'ghaziabad', 'ghaziabad': 'ghaziabad',
+  'हरिद्वार': 'haridwar', 'haridwar': 'haridwar',
+  'मथुरा': 'mathura', 'mathura': 'mathura',
+  'ग्वालियर': 'gwalior', 'gwalior': 'gwalior',
+  'जबलपुर': 'jabalpur', 'jabalpur': 'jabalpur',
+  'उज्जैन': 'ujjain', 'ujjain': 'ujjain'
+};
+
+export function resolveCitySlug(cityName?: string): string {
+  if (!cityName) return 'patna';
+  let clean = cityName
+    .toLowerCase()
+    .trim()
+    .replace(/^(अपना|shahar|city)\s+/i, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/मुख्य|संस्करण|सिटी|bulletin|news/g, '')
+    .trim();
+
+  if (HINDI_CITY_TO_SLUG[clean]) return HINDI_CITY_TO_SLUG[clean];
+  for (const [key, slug] of Object.entries(HINDI_CITY_TO_SLUG)) {
+    if (clean === key || clean.includes(key)) return slug;
+  }
+  return clean.replace(/\s+/g, '-');
+}

@@ -12,7 +12,10 @@ import {
   Play,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  RotateCcw,
+  Scale
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
@@ -292,6 +295,63 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                   </button>
                 );
               })}
+
+              {/* Privacy Policy & Compliance */}
+              <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  onClick={() => {
+                    router.push('/privacy-policy');
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer ${
+                    pathname === '/privacy-policy'
+                      ? 'bg-red-50 dark:bg-red-950/50 text-jagran-red font-black border border-red-200 dark:border-red-900/40'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center space-x-2.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span>Privacy Policy</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    router.push('/refund-policy');
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer mt-1 ${
+                    pathname === '/refund-policy'
+                      ? 'bg-red-50 dark:bg-red-950/50 text-jagran-red font-black border border-red-200 dark:border-red-900/40'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center space-x-2.5">
+                    <RotateCcw className="w-4 h-4 text-blue-500" />
+                    <span>Refund Policy</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    router.push('/terms');
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer mt-1 ${
+                    pathname === '/terms'
+                      ? 'bg-red-50 dark:bg-red-950/50 text-jagran-red font-black border border-red-200 dark:border-red-900/40'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center space-x-2.5">
+                    <Scale className="w-4 h-4 text-amber-500" />
+                    <span>Terms of Service</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -317,7 +317,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (confirm('क्या आप चैट हिस्ट्री साफ़ करना चाहते हैं?')) {
+                if (confirm('Are you sure you want to clear chat history?')) {
                   setMessages([]);
                 }
               }}
@@ -347,7 +347,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                 <div className="flex items-center space-x-1.5 min-w-0">
                   <span className="w-2 h-2 rounded-full shrink-0 bg-red-600 animate-pulse"></span>
                   <span className="font-bold text-red-800 text-xs truncate">
-                    चयनित: Slot #{activeSlot.slotNumber}
+                    Active: Slot #{activeSlot.slotNumber}
                   </span>
                 </div>
 
@@ -355,7 +355,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                   type="button"
                   onClick={handleLoadCurrentSlotText}
                   className="text-[10.5px] font-bold text-red-700 hover:text-red-900 bg-white hover:bg-red-100/70 px-2 py-0.5 rounded-lg border border-red-300 shadow-xs flex items-center space-x-1 transition-all cursor-pointer shrink-0"
-                  title="इस स्लॉट का टेक्स्ट चैट में भरें"
+                  title="Load current slot text into chat"
                 >
                   <FileText className="w-3 h-3 text-red-600 shrink-0" />
                   <span>Load Content</span>
@@ -371,7 +371,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
           ) : (
             <div className="flex items-center space-x-1.5 text-amber-800 font-medium text-[11px]">
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-              <span className="truncate">⚠️ कोई स्लॉट सिलेक्ट नहीं (कैनवास पर स्लॉट चुनें)</span>
+              <span className="truncate">⚠️ No slot selected (Select a slot on canvas)</span>
             </div>
           )}
         </div>
@@ -380,7 +380,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
         {appliedToast && (
           <div className="mx-4 mt-2 p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl flex items-center space-x-2 animate-in fade-in duration-150">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>समाचार सफलतापूर्वक स्लॉट पर लागू (Applied) हो गया!</span>
+            <span>News successfully applied to slot!</span>
           </div>
         )}
 
@@ -410,7 +410,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                 {/* Sender badge & timestamp */}
                 <div className="flex items-center space-x-1.5 text-[10px] text-slate-600 px-1">
                   <span className="font-bold">
-                    {isUser ? 'आप (Editor)' : '🤖 AI'}
+                    {isUser ? 'You (Editor)' : '🤖 AI'}
                   </span>
                   <span>•</span>
                   <span>{msg.timestamp}</span>
@@ -481,7 +481,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                       {/* Headline */}
                       {msg.parsedNews.headline && (
                         <div>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">शीर्षक (Headline):</span>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Headline:</span>
                           <h4 className="text-sm font-black text-slate-950 font-serif leading-snug">
                             {msg.parsedNews.headline}
                           </h4>
@@ -491,7 +491,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                       {/* Sub-headline */}
                       {msg.parsedNews.subHeadline && (
                         <div>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">उप-शीर्षक (Sub-Headline):</span>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Sub-Headline:</span>
                           <p className="text-xs font-bold text-red-700 font-serif leading-tight">
                             {msg.parsedNews.subHeadline}
                           </p>
@@ -501,7 +501,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                       {/* Content summary with bold & highlights */}
                       {msg.parsedNews.content && (
                         <div>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">समाचार विवरण (Body with Formatting):</span>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Story Body:</span>
                           <div
                             className="text-[11px] text-slate-800 font-serif line-clamp-5 leading-normal bg-white/80 p-2.5 rounded-xl border border-amber-200/60"
                             dangerouslySetInnerHTML={{ __html: msg.parsedNews.content }}
@@ -525,7 +525,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                           <span>
                             {activeSlot
                               ? `🚀 Apply to Slot #${activeSlot.slotNumber}`
-                              : '⚠️ पहले कैनवास पर स्लॉट सिलेक्ट करें'}
+                              : '⚠️ Select a slot on canvas first'}
                           </span>
                         </button>
 
@@ -533,7 +533,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                           type="button"
                           onClick={() => handleCopyText(msg.id, `${msg.parsedNews?.headline || ''}\n${msg.parsedNews?.subHeadline || ''}\n\n${msg.parsedNews?.content || ''}`)}
                           className="p-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl cursor-pointer"
-                          title="कॉपी करें"
+                          title="Copy Text"
                         >
                           {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-700" />}
                         </button>
@@ -549,7 +549,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
           {isLoading && (
             <div className="flex items-center space-x-2 text-xs text-slate-600 p-2 bg-white rounded-xl border border-slate-200 w-max shadow-xs">
               <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
-              <span>AI समाचार तैयार कर रहा है...</span>
+              <span>AI is preparing news...</span>
             </div>
           )}
 
@@ -574,7 +574,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
               disabled={!prompt.trim() || isLoading}
               onClick={() => handleSendMessage()}
               className="ml-2 p-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-300 text-white rounded-xl shadow-md transition-all cursor-pointer shrink-0 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
-              title="भेजें (Enter)"
+              title="Send (Enter)"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

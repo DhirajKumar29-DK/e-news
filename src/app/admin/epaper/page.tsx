@@ -20,6 +20,11 @@ import {
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
 import EPaperRichTextEditor from '@/components/admin/EPaperRichTextEditor';
+import { EPaperHeaderConfig } from '@/types/epaper';
+import { getEffectiveHeaderConfig, getPageHeaderMetrics } from '@/utils/epaperHeader';
+import BroadsheetHeader from '@/components/common/BroadsheetHeader';
+import BroadsheetFooter from '@/components/common/BroadsheetFooter';
+import HeaderSettingsModal from '@/components/admin/HeaderSettingsModal';
 
 export interface EPaperSlotData {
   id: string;
@@ -64,6 +69,7 @@ interface EPaperPageData {
   title: string;
   templateKey: string;
   slots: EPaperSlotData[];
+  headerConfig?: EPaperHeaderConfig;
 }
 
 function cleanPagesForStorage(pagesList: any[]) {
@@ -1084,6 +1090,7 @@ function FullStudioInner() {
   const [showSlotGuides, setShowSlotGuides] = useState<boolean>(true);
   const [showPagesSidebar, setShowPagesSidebar] = useState<boolean>(true);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
+  const [isHeaderSettingsOpen, setIsHeaderSettingsOpen] = useState<boolean>(false);
   const [publishModal, setPublishModal] = useState<{
     isOpen: boolean;
     type: 'success' | 'already-published' | 'error';
@@ -1098,12 +1105,14 @@ function FullStudioInner() {
 
   // Active page & slot calculations (Directly resolved from activePageId so empty pages switch instantly)
   const activePage = pages.find(p => p.id === activePageId) || pages[0];
+  const activeHeaderMetrics = getPageHeaderMetrics(activePage, currentEditionInfo.city, archiveDate);
+
   const activeSlot = (activePage.slots && activePage.slots.find(s => s.id === activeSlotId)) || (activePage.slots && activePage.slots[0]) || {
     id: 'temp',
     slotNumber: 1,
     slotBadge: 'Slot 1',
     x: 16,
-    y: 188,
+    y: activeHeaderMetrics.totalTopOffset,
     width: 400,
     height: 250,
     categoryBadge: '',
@@ -1120,7 +1129,7 @@ function FullStudioInner() {
   const [formSubHeadline, setFormSubHeadline] = useState(activeSlot.subHeadline || '');
   const [formSummary, setFormSummary] = useState(activeSlot.summary || '');
   const [formX, setFormX] = useState(activeSlot.x || 16);
-  const [formY, setFormY] = useState(activeSlot.y ? Math.max(activeSlot.y, 188) : 188);
+  const [formY, setFormY] = useState(activeSlot.y ? Math.max(activeSlot.y, activeHeaderMetrics.totalTopOffset) : activeHeaderMetrics.totalTopOffset);
   const [formW, setFormW] = useState(activeSlot.width || 400);
   const [formH, setFormH] = useState(activeSlot.height || 250);
   const [formImageUrl, setFormImageUrl] = useState(activeSlot.imageUrl || '');
@@ -1154,7 +1163,7 @@ function FullStudioInner() {
       setFormSubHeadline(activeSlot.subHeadline || '');
       setFormSummary(activeSlot.summary || '');
       setFormX(activeSlot.x !== undefined ? activeSlot.x : 16);
-      setFormY(activeSlot.y !== undefined ? Math.max(activeSlot.y, 188) : 188);
+      setFormY(activeSlot.y !== undefined ? Math.max(activeSlot.y, activeHeaderMetrics.totalTopOffset) : activeHeaderMetrics.totalTopOffset);
       setFormW(activeSlot.width || 400);
       setFormH(activeSlot.height || 250);
       setFormImageUrl(activeSlot.imageUrl || '');
@@ -1543,10 +1552,11 @@ function FullStudioInner() {
                 let updatedW = s.width;
                 let updatedH = s.height;
 
-                // Mode 1: FREE POSITION MOVE (Drag slot anywhere X, Y)
+                // Mode 1: FREE POSITION MOVE (Drag slot anywhere X, Y with header clearance)
                 if (dragState.mode === 'move') {
+                  const pgMetrics = getPageHeaderMetrics(pg, currentEditionInfo.city, archiveDate);
                   updatedX = Math.max(0, dragState.startX + deltaX);
-                  updatedY = Math.max(0, dragState.startY + deltaY);
+                  updatedY = Math.max(pgMetrics.totalTopOffset, dragState.startY + deltaY);
                 }
 
                 // Mode 2: RESIZE WIDTH (1px to Npx)
@@ -1801,7 +1811,7 @@ function FullStudioInner() {
     const nextSlotNumber = slotsOnActivePg.reduce((max, s) => Math.max(max, s.slotNumber || 0), 0) + 1;
     const slotW = 390;
     const slotH = 250;
-    const canvasTopY = 188;
+    const canvasTopY = activeHeaderMetrics.totalTopOffset;
     const canvasMaxY = 2000;
 
     // Standard 3 columns across broadsheet canvas (paperWidth = 1344)
@@ -1819,7 +1829,7 @@ function FullStudioInner() {
         // Include a 15px gap margin to keep slots cleanly separated
         const overlappingSlot = slotsOnActivePg.find(s => {
           const sx = s.x ?? 16;
-          const sy = s.y ?? 188;
+          const sy = s.y ?? canvasTopY;
           const sw = s.width ?? 390;
           const sh = s.height ?? 250;
 
@@ -1836,7 +1846,7 @@ function FullStudioInner() {
         }
 
         // Advance testY below the overlapping slot
-        testY = (overlappingSlot.y ?? 188) + (overlappingSlot.height ?? 250) + 15;
+        testY = (overlappingSlot.y ?? canvasTopY) + (overlappingSlot.height ?? 250) + 15;
       }
     }
 
@@ -2039,16 +2049,60 @@ function FullStudioInner() {
     }
   };
 
-  // Create Page
+  // Save Dynamic Header Configuration for Current Page (or propagate to all inside pages)
+  const handleSaveHeaderConfig = (newConfig: EPaperHeaderConfig, applyToAllInsidePages?: boolean) => {
+    setPages(prevPages => prevPages.map(pg => {
+      if (pg.id === activePage.id) {
+        return {
+          ...pg,
+          headerConfig: { ...newConfig }
+        };
+      }
+      if (applyToAllInsidePages && pg.pageNumber > 1) {
+        return {
+          ...pg,
+          headerConfig: {
+            ...newConfig,
+            pageBadgeText: String(pg.pageNumber).padStart(2, '0')
+          }
+        };
+      }
+      return pg;
+    }));
+    triggerToast(`🎉 पेज ${activePage.pageNumber} का हेडर सफलतापूर्वक अपडेट हो गया!`);
+  };
+
+  // Create Page with Smart Real Newspaper Header Preset
   const handleCreatePage = () => {
     const nextPgNum = pages.length + 1;
     const title = newPageTitle.trim() || `Page ${nextPgNum} (City Updates)`;
+
+    const smartHeader: EPaperHeaderConfig = {
+      mode: nextPgNum === 1 ? 'default' : 'custom',
+      headerType: nextPgNum === 1 ? 'masthead' : 'section',
+      title: nextPgNum === 1 ? 'वार्तिक' : (nextPgNum === 2 ? `अपना ${currentEditionInfo.city || 'पटना'}` : (nextPgNum === 3 ? 'प्रादेशिक राज्य' : (nextPgNum === 4 ? 'देश विदेश' : (nextPgNum === 5 ? 'खेल जगत' : 'कारोबार')))),
+      titlePrefix: nextPgNum === 1 ? '' : (nextPgNum === 2 ? 'अपना' : (nextPgNum === 3 ? 'प्रादेशिक' : (nextPgNum === 4 ? 'राष्ट्रीय' : (nextPgNum === 5 ? 'विशेष' : 'बाज़ार')))),
+      titleMain: nextPgNum === 1 ? 'वार्तिक' : (nextPgNum === 2 ? (currentEditionInfo.city || 'पटना') : (nextPgNum === 3 ? 'राज्य' : (nextPgNum === 4 ? 'देश विदेश' : (nextPgNum === 5 ? 'खेल जगत' : 'कारोबार')))),
+      titleColorPrefix: '#475569',
+      titleColorMain: nextPgNum === 5 ? '#1d4ed8' : (nextPgNum === 4 ? '#0f172a' : (nextPgNum === 6 ? '#047857' : '#c51c24')),
+      titleFontSize: nextPgNum === 1 ? 88 : 38,
+      bgColor: '#ffffff',
+      borderColor: nextPgNum === 1 ? '#0f172a' : (nextPgNum === 5 ? '#1d4ed8' : (nextPgNum === 4 ? '#0f172a' : (nextPgNum === 6 ? '#047857' : '#c51c24'))),
+      borderWidth: nextPgNum === 1 ? 3.5 : 2.5,
+      borderStyle: nextPgNum === 1 ? 'double' : 'single',
+      height: nextPgNum === 1 ? 168 : 56,
+      bottomMargin: nextPgNum === 1 ? 20 : 18,
+      cityText: currentEditionInfo.city || 'पटना',
+      pageBadgeText: String(nextPgNum).padStart(2, '0')
+    };
+
     const newPage: EPaperPageData = {
       id: `page-${Date.now()}`,
       pageNumber: nextPgNum,
       title,
       templateKey: 'Free-Form Drag & Scale Canvas',
-      slots: []
+      slots: [],
+      headerConfig: smartHeader
     };
 
     setPages([...pages, newPage]);
@@ -2056,27 +2110,49 @@ function FullStudioInner() {
     setActiveSlotId('');
     setShowAddPageModal(false);
     setNewPageTitle('');
-    triggerToast(`Created Page ${nextPgNum} (Blank Sheet)!`);
+    triggerToast(`Created Page ${nextPgNum} (Blank Sheet with Header)!`);
   };
 
-  // Delete Page
+  // Delete Page & Re-index Remaining Pages Sequentially (e.g. Page 3 becomes Page 1)
   const handleDeletePage = (pageId: string) => {
     if (pages.length <= 1) {
       alert('Cannot delete the only remaining page in edition!');
       return;
     }
 
+    const deletedIdx = pages.findIndex(p => p.id === pageId);
     const filtered = pages.filter(p => p.id !== pageId);
-    const updated = filtered.map((p, idx) => ({
-      ...p,
-      pageNumber: idx + 1,
-      title: p.title.startsWith('Page ') ? `Page ${idx + 1}` : p.title
-    }));
+    const updated = filtered.map((p, idx) => {
+      const newPageNum = idx + 1;
+      let newTitle = p.title;
+      if (/page\s*\d+/i.test(newTitle)) {
+        newTitle = newTitle.replace(/page\s*\d+/i, `Page ${newPageNum}`);
+      } else if (/पेज\s*\d+/i.test(newTitle)) {
+        newTitle = newTitle.replace(/पेज\s*\d+/i, `पेज ${newPageNum}`);
+      } else if (!newTitle.trim()) {
+        newTitle = `Page ${newPageNum}`;
+      }
+
+      const updatedHeaderConfig: EPaperHeaderConfig | undefined = p.headerConfig
+        ? {
+            ...p.headerConfig,
+            pageBadgeText: String(newPageNum).padStart(2, '0')
+          }
+        : undefined;
+
+      return {
+        ...p,
+        pageNumber: newPageNum,
+        title: newTitle,
+        headerConfig: updatedHeaderConfig
+      };
+    });
 
     setPages(updated);
-    setActivePageId(updated[0].id);
-    setActiveSlotId(updated[0].slots[0]?.id || '');
-    triggerToast('Page deleted & re-indexed!');
+    const nextActive = updated.find(p => p.id === activePageId) || updated[Math.min(deletedIdx >= 0 ? deletedIdx : 0, updated.length - 1)];
+    setActivePageId(nextActive.id);
+    setActiveSlotId(nextActive.slots[0]?.id || '');
+    triggerToast(`🗑️ पेज डिलीट हो गया! अब कुल ${updated.length} पेज हैं (पेज 1 से ${updated.length})।`);
   };
 
   // Publish Paper with Smart Publish & Duplicate Guard and Modern Rich Modal
@@ -2275,10 +2351,10 @@ function FullStudioInner() {
           <a
             href="/admin/dashboard"
             className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold transition-all cursor-pointer shadow-xs hover:border-slate-300"
-            title="मुख्य एडमिन डैशबोर्ड पर वापस जाएं"
+            title="Return to Main Admin Dashboard"
           >
             <ArrowLeft className="w-4 h-4 text-amber-600" />
-            <span>डैशबोर्ड</span>
+            <span>Dashboard</span>
           </a>
 
           {/* Toggle Pages Stack Sidebar (Hamburger Menu Icon) */}
@@ -2289,7 +2365,7 @@ function FullStudioInner() {
               ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 hover:border-slate-300'
               : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 hover:border-red-300'
               }`}
-            title={showPagesSidebar ? 'पेज स्टैक छुपाएं (Hide Pages Stack for More Canvas Space)' : 'पेज स्टैक दिखाएं (Show Pages Stack)'}
+            title={showPagesSidebar ? 'Hide Pages Stack' : 'Show Pages Stack'}
           >
             <Menu className="w-4 h-4 shrink-0 text-red-600" />
             <span className="hidden sm:inline font-mono text-[11px]">{showPagesSidebar ? 'Hide Pages' : 'Show Pages'}</span>
@@ -2308,6 +2384,21 @@ function FullStudioInner() {
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('epaper_studio_active_edition', val);
                 }
+                const newEd = getEditionInfo(val, editionsList);
+                setPages((prev) =>
+                  prev.map((pg) => {
+                    if (pg.headerConfig && pg.headerConfig.mode === 'default') {
+                      return {
+                        ...pg,
+                        headerConfig: {
+                          ...pg.headerConfig,
+                          cityText: newEd.city
+                        }
+                      };
+                    }
+                    return pg;
+                  })
+                );
                 triggerToast(`Loaded Edition: ${val}`);
               }}
               className="bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 font-bold px-3 py-1.5 rounded-xl outline-none text-xs cursor-pointer focus:border-red-500 focus:bg-white shadow-xs"
@@ -2339,7 +2430,7 @@ function FullStudioInner() {
             {isPastUncreatedDate && (
               <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
                 <AlertCircle className="w-3 h-3 text-amber-600" />
-                <span>अंक नहीं बना (Not Created)</span>
+                <span>Not Created</span>
               </span>
             )}
           </div>
@@ -2387,7 +2478,7 @@ function FullStudioInner() {
               type="button"
               onClick={() => setShowPagesSidebar(false)}
               className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-              title="पेज लिस्ट छुपाएं (Hide Pages Stack)"
+              title="Hide Pages Stack"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -2435,7 +2526,7 @@ function FullStudioInner() {
                     </div>
                   </div>
 
-                  {/* Miniature Broadsheet Print Replica Box */}
+                  {/* Miniature Print Replica Box */}
                   <div className="bg-[#fcfbf7] rounded p-2 text-[6px] text-slate-900 font-serif leading-none space-y-1 shadow-xs h-28 overflow-hidden border border-slate-200">
                     <div className="text-center font-black text-red-700 text-[9px] border-b border-slate-200 pb-0.5">
                       अपना पटना
@@ -2475,7 +2566,7 @@ function FullStudioInner() {
               type="button"
               onClick={() => setShowPagesSidebar(true)}
               className="fixed left-4 bottom-6 z-50 flex items-center space-x-2 px-3.5 py-2 bg-white hover:bg-slate-50 border-2 border-red-500 text-slate-800 rounded-xl shadow-2xl text-xs font-bold transition-all cursor-pointer backdrop-blur group"
-              title="पेज स्टैक खोलें (Show Pages Stack)"
+              title="Open Pages Stack"
             >
               <Menu className="w-4 h-4 text-red-400 group-hover:scale-110 transition-transform" />
               <span>Pages ({pages.length})</span>
@@ -2486,9 +2577,19 @@ function FullStudioInner() {
           <div className="bg-white border-b border-slate-300/80 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20 shadow-xs">
             <div className="flex items-center space-x-2 text-xs font-mono text-slate-700 font-bold uppercase">
               <Newspaper className="w-4 h-4 text-red-600 animate-pulse" />
-              <span>FIXED BROADSHEET CANVAS (14" x 22" • ~35cm x 56cm • FIXED {paperWidth}px x {FIXED_BROADSHEET_HEIGHT}px)</span>
+              <span>CANVAS (14" x 22" • ~35cm x 56cm • {paperWidth}px x {FIXED_BROADSHEET_HEIGHT}px)</span>
             </div>
             <div className="flex items-center space-x-3">
+              {/* 🎨 Header Settings Button */}
+              <button
+                type="button"
+                onClick={() => setIsHeaderSettingsOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer bg-slate-900 hover:bg-slate-800 text-white shadow-xs border border-slate-700 hover:border-slate-500"
+                title="Customize header title, colors, font size & borders"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                <span>🎨 Header Settings</span>
+              </button>
               {/* ⚡ AI News Editor Agent (Gemini Powered) */}
               <button
                 type="button"
@@ -2506,10 +2607,10 @@ function FullStudioInner() {
                   ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-xs'
                   }`}
-                title="स्लॉट की सीमा रेखाएं (Slot Boundaries Outline) चालू / बंद करें"
+                title="Toggle Slot Boundaries Outline"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>Slot Borders: {showSlotGuides ? 'VISIBLE (दिख रहे हैं)' : 'HIDDEN (छिपे हैं)'}</span>
+                <span>Slot Borders: {showSlotGuides ? 'VISIBLE' : 'HIDDEN'}</span>
               </button>
             </div>
           </div>
@@ -2531,89 +2632,19 @@ function FullStudioInner() {
                 className="bg-white text-slate-950 border border-slate-300/80 shadow-2xl ring-1 ring-slate-900/5 pt-2.5 px-6 sm:px-10 pb-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden"
               >
 
-                {/* OUTER MASTHEAD FRAME (Clean open broadsheet top without horizontal bounding line) */}
-                <div className="border-0 bg-white select-none">
-                  
-                  {/* 3-COLUMN BROADSHEET MASTHEAD (Spacious layout: Logo+Date on Left, Stats in Top-Right, Grand Title+Tagline in Center) */}
-                  <div className="flex items-center justify-between h-[168px] bg-white">
-                    
-                    {/* LEFT COLUMN: DIGITAL & TEMP (TOP) + BRAND LOGO + LOCATION & DATE (BOTTOM) */}
-                    <div className="w-[290px] h-full shrink-0 flex flex-col items-center justify-center px-3 select-none">
-                      {/* Digital & Temperature directly above logo */}
-                      <div className="font-sans text-[11px] font-bold text-slate-700 tracking-wide flex items-center justify-center gap-1.5 whitespace-nowrap mb-1">
-                        <span>डिजिटल संस्करण</span>
-                        <span>•</span>
-                        <span>तापमान 31°C</span>
-                      </div>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/vartiq-logo.png" alt="Vartiq" className="h-[80px] max-w-[235px] object-contain drop-shadow-xs" />
-                      {/* Location & Date directly under logo */}
-                      <div className="font-sans text-[11.5px] font-bold text-slate-800 tracking-wide mt-1.5 flex items-center justify-center gap-1.5 whitespace-nowrap">
-                        <span className="text-[#b31e21] font-black">{currentEditionInfo.city ? `अपना ${currentEditionInfo.city}` : 'अपना पटना'}</span>
-                        <span>•</span>
-                        <span>{formatHindiDateString(archiveDate)}</span>
-                      </div>
-                    </div>
-
-                    {/* CENTER COLUMN: GRAND "वार्तिक" (NO CLIPPING) + EXACT LOGO TAGLINE & RED SWOOSH */}
-                    <div className="flex-1 h-full flex flex-col items-center justify-center text-center px-4 relative select-none">
-                      {/* Red Accent Horizontal Bars flanking "वार्तिक" exactly like Logo */}
-                      <div className="flex items-center justify-center gap-4 w-full">
-                        <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
-                        <h1
-                          style={{
-                            fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif",
-                            fontWeight: 800,
-                            lineHeight: 1.15,
-                            letterSpacing: '-0.01em',
-                            background: 'linear-gradient(180deg, #ea1d25 0%, #c40c14 55%, #88050a 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25))'
-                          }}
-                          className="text-[88px] text-[#c51c24] select-none m-0 p-0 pt-1"
-                        >
-                          वार्तिक
-                        </h1>
-                        <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
-                      </div>
-
-                      {/* Tagline: Exact Color & Design matching Logo (with dynamic red swoosh curve) */}
-                      <div className="flex flex-col items-center justify-center -mt-1 select-none">
-                        <div
-                          style={{ fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif" }}
-                          className="text-[16px] font-black text-[#0f172a] tracking-wider drop-shadow-xs"
-                        >
-                          खबर समझो, दुनिया समझो।
-                        </div>
-                        {/* Signature Dynamic Red Swoosh Crescent from Logo */}
-                        <svg width="240" height="8" viewBox="0 0 240 8" className="mt-0.5 overflow-visible">
-                          <defs>
-                            <linearGradient id="adminLogoSwooshGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#e51d27" />
-                              <stop offset="50%" stopColor="#b80d15" />
-                              <stop offset="100%" stopColor="#e51d27" />
-                            </linearGradient>
-                          </defs>
-                          <path d="M 4,1.5 Q 120,7.5 236,1.5 Q 120,4.5 4,1.5 Z" fill="url(#adminLogoSwooshGrad)" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: PAGE NUMBER IN TOP RIGHT CORNER */}
-                    <div className="w-[290px] h-full shrink-0 flex flex-col items-end justify-between pt-3.5 pb-3 px-4 select-none pointer-events-none">
-                      <div className="font-sans text-[12px] font-bold text-slate-800 tracking-wide flex items-center justify-end whitespace-nowrap">
-                        <span>पेज 0{activePage.pageNumber}</span>
-                      </div>
-                      <div />
-                    </div>
-
-                  </div>
-
-                  {/* DOUBLE LINE BOTTOM BORDER (Classic Broadsheet Rule) */}
-                  <div className="border-t-[1px] border-b-[2.5px] border-slate-900 h-[3.5px] bg-white" />
-
-                </div>
+                {/* DYNAMIC BROADSHEET HEADER (Page 1 Grand Masthead OR Page 2+ Sleek Section Header with customizable text, colors, font size, border & margin) */}
+                <BroadsheetHeader
+                  page={activePage}
+                  editionCity={currentEditionInfo.city}
+                  dateStr={archiveDate}
+                  onEditHeader={() => setIsHeaderSettingsOpen(true)}
+                  style={{
+                    marginLeft: '-30px',
+                    marginRight: '-30px',
+                    width: 'calc(100% + 60px)',
+                    maxWidth: 'calc(100% + 60px)'
+                  }}
+                />
 
 
                 {/* IF PAGE IS 100% BLANK (0 SLOTS) */}
@@ -2643,7 +2674,7 @@ function FullStudioInner() {
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-105"
                       >
                         <PlusCircle className="w-4 h-4" />
-                        <span>+ इस तारीख के लिए नया अंक बनाएं (+ Create Paper)</span>
+                        <span>+ Create Paper for this Date</span>
                       </button>
                     </div>
                   ) : (
@@ -2653,10 +2684,10 @@ function FullStudioInner() {
                       </div>
                       <div>
                         <h3 className="text-xl font-bold font-serif text-slate-900">
-                          पेज 0{activePage.pageNumber} अभी पूरी तरह खाली (Blank Page) है
+                          Page 0{activePage.pageNumber} is currently blank
                         </h3>
                         <p className="text-xs text-slate-600 font-sans mt-1">
-                          इस नए पन्ने पर समाचार प्रकाशित करने के लिए पहला News Slot जोड़ें।
+                          Add the first news slot to start publishing stories on this page.
                         </p>
                       </div>
                       <button
@@ -2665,7 +2696,7 @@ function FullStudioInner() {
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-105"
                       >
                         <PlusCircle className="w-4 h-4" />
-                        <span>+ नया News Slot जोड़ें (Add First Slot)</span>
+                        <span>+ Add First News Slot</span>
                       </button>
                     </div>
                   )
@@ -2676,7 +2707,7 @@ function FullStudioInner() {
                   const isSelected = s.id === activeSlotId;
                   const isBeingDragged = dragState?.slotId === s.id;
 
-                  const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : 188, 188);
+                  const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : activeHeaderMetrics.totalTopOffset, activeHeaderMetrics.totalTopOffset);
                   const slotStyle: React.CSSProperties = {
                     position: 'absolute',
                     left: `${s.x}px`,
@@ -3195,11 +3226,26 @@ function FullStudioInner() {
                   );
                 })}
 
+                {/* AUTHENTIC PRINT BROADSHEET FOOTER & CMYK REGISTRATION STRIP */}
+                <div
+                  className="absolute bottom-10 left-0 right-0 z-20 pointer-events-none"
+                  style={{
+                    width: '100%'
+                  }}
+                >
+                  <BroadsheetFooter
+                    pageNumber={activePage.pageNumber}
+                    totalPages={pages.length}
+                    editionCity={currentEditionInfo.city}
+                    dateStr={archiveDate}
+                  />
+                </div>
+
                 {/* BOTTOM PAGE BOUNDARY LIMIT LINE (Fixed Height: 2112px) */}
                 <div className="absolute bottom-0 left-0 right-0 h-10 border-t-2 border-dashed border-red-600 bg-red-50/95 px-6 flex items-center justify-between font-sans text-xs font-black text-red-700 z-30 select-none shadow-md">
                   <span className="flex items-center space-x-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-                    <span>🛑 PAGE 0{activePage.pageNumber} BOTTOM BOUNDARY (Fixed Height: 2112px • ~56cm Broadsheet)</span>
+                    <span>🛑 PAGE 0{activePage.pageNumber} BOTTOM BOUNDARY (Fixed Height: 2112px • ~56cm Canvas)</span>
                   </span>
                   <span className="hidden sm:inline bg-red-600 text-white px-3 py-1 rounded-full text-[11px] font-bold">
                     Space Full? Click "+ Add Page" for Page 0{activePage.pageNumber + 1}
@@ -3274,7 +3320,7 @@ function FullStudioInner() {
                 className="w-full mt-2 py-2 px-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs rounded-xl shadow-md shadow-red-600/20 flex items-center justify-center space-x-1.5 transition-all cursor-pointer transform hover:scale-[1.01]"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" style={{ animationDuration: '4s' }} />
-                <span>⚡ AI News Editor से लिखवाएं / सुधारें</span>
+                <span>⚡ AI News Editor</span>
               </button>
 
             </div>
@@ -3398,7 +3444,7 @@ function FullStudioInner() {
             {/* Category / Tag Input */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                Category / Tag (ट्रेंडिंग / श्रेणी)
+                Category / Tag
               </label>
               <input
                 type="text"
@@ -3408,7 +3454,7 @@ function FullStudioInner() {
                   setFormCategory(val);
                   handleUpdateSlotField('categoryBadge', val);
                 }}
-                placeholder="ट्रेंडिंग / नगर निगम / स्वास्थ्य"
+                placeholder="Trending / Politics / Sports"
                 className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 text-slate-900 font-bold p-2.5 rounded-xl outline-none text-xs transition-colors shadow-xs"
               />
               {/* Quick Preset Tags */}
@@ -3437,9 +3483,9 @@ function FullStudioInner() {
                       handleUpdateSlotField('categoryBadge', '');
                     }}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-red-600 hover:bg-red-50 border border-slate-200 cursor-pointer"
-                    title="हटाएं"
+                    title="Remove"
                   >
-                    ✕ हटाएं
+                    ✕ Remove
                   </button>
                 )}
               </div>
@@ -3558,10 +3604,10 @@ function FullStudioInner() {
                 type="button"
                 onClick={handleFitImageFullWidth}
                 className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 rounded-lg text-[10px] font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-xs"
-                title="फोटो को कार्ड की पूरी चौड़ाई (100% Full Width) में सेट करें"
+                title="Fit image to full card width (100%)"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
-                <span>Fit 100% Full Width (पूरी चौड़ाई में सेट करें)</span>
+                <span>Fit 100% Full Width</span>
               </button>
             </div>
 
@@ -3824,7 +3870,7 @@ function FullStudioInner() {
               {/* 3. Image Auto-Wrap Mode (When Image exists) */}
               {formImageUrl && (
                 <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-600 block">Photo Wrap Flow (फोटो और टेक्स्ट एडजस्टमेंट):</span>
+                  <span className="text-[10px] font-bold text-slate-600 block">Photo Wrap Flow:</span>
                   <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold">
                     <button
                       type="button"
@@ -3839,7 +3885,6 @@ function FullStudioInner() {
                       title="Text wraps around photo inside column or with float"
                     >
                       <span>Auto Wrap Flow</span>
-                      <span className="block text-[8px] font-mono text-slate-500 mt-0.5">चारों तरफ टेक्स्ट</span>
                     </button>
 
                     <button
@@ -3855,7 +3900,6 @@ function FullStudioInner() {
                       title="Image spans on top across all columns, columns flow below"
                     >
                       <span>Top Banner Span</span>
-                      <span className="block text-[8px] font-mono text-slate-500 mt-0.5">फोटो ऊपर, कॉलम नीचे</span>
                     </button>
                   </div>
                 </div>
@@ -3877,10 +3921,10 @@ function FullStudioInner() {
                           const plain = stripHtmlTagsToPlainText(formSummary);
                           setFormSummary(plain);
                           handleUpdateSlotField('summary', plain);
-                          triggerToast('✨ HTML टैग हटाकर साफ़ टेक्स्ट कर दिया गया!');
+                          triggerToast('✨ Cleaned HTML tags from text!');
                         }}
                         className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg border border-slate-300 flex items-center space-x-1 cursor-pointer transition-all"
-                        title="सभी <p>, <mark> टैग्स हटाकर साफ़ टेक्स्ट करें"
+                        title="Remove HTML tags and clean text"
                       >
                         <span>✨ Clean Tags</span>
                       </button>
@@ -3889,7 +3933,7 @@ function FullStudioInner() {
                       type="button"
                       onClick={() => handleOpenRichEditor(activeSlot)}
                       className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[10px] rounded-lg shadow-sm flex items-center space-x-1 cursor-pointer transition-all hover:scale-105"
-                      title="Word-Style Text Editor & Word Highlighter (शब्द हाइलाइट करें)"
+                      title="Word-Style Text Editor & Word Highlighter"
                     >
                       <Edit3 className="w-3 h-3" />
                       <span>Word-Style Edit</span>
@@ -3939,7 +3983,7 @@ function FullStudioInner() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-base font-black text-slate-800 font-serif uppercase">Add New Broadsheet Page</h3>
+              <h3 className="text-base font-black text-slate-800 font-serif uppercase">Add New Page</h3>
               <button onClick={() => setShowAddPageModal(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-4 h-4" />
               </button>
@@ -3980,64 +4024,64 @@ function FullStudioInner() {
 
       {/* WORD-STYLE RICH TEXT EDITOR MODAL POPUP */}
       {isRichEditorOpen && richEditingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 select-text">
-          <div className="bg-[#1e2430] text-slate-100 rounded-3xl max-w-5xl w-full max-h-[94vh] shadow-2xl border border-slate-700 flex flex-col font-sans select-text">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 select-text">
+          <div className="bg-white text-slate-800 rounded-3xl max-w-5xl w-full max-h-[94vh] shadow-2xl border border-slate-200 flex flex-col font-sans select-text">
 
             {/* 1. Modal Top Header */}
-            <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center justify-between shrink-0 rounded-t-3xl">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 rounded-t-3xl">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-white font-serif tracking-wide flex items-center space-x-2">
+                  <h2 className="text-base font-black text-slate-900 font-serif tracking-wide flex items-center space-x-2">
                     <span>e-Paper Slot Story & Rich Text Editor</span>
-                    <span className="bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold shadow-xs">
+                    <span className="bg-amber-100 border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold shadow-xs">
                       Slot #{richEditingSlot.slotNumber}
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-400 font-sans">
-                    शीर्षक, उप-शीर्षक और वर्ड-स्टाइल रिच फॉर्मेटिंग (टेबल्स, हाइलाइटर, कार्ड्स) संपादित करें
+                  <p className="text-xs text-slate-500 font-sans">
+                    Edit headline, sub-headline, and word-style rich formatting (tables, highlights, cards)
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsRichEditorOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                title="बंद करें (Close)"
+                className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition-colors cursor-pointer shadow-xs"
+                title="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 2. Modal Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/60">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/60">
               {/* Slot Headline & Sub-Headline Quick Edit Inputs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    मुख्य शीर्षक (Headline)
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Headline
                   </label>
                   <input
                     type="text"
                     value={richHeadline}
                     onChange={(e) => setRichHeadline(e.target.value)}
-                    placeholder="मुख्य शीर्षक दर्ज करें..."
-                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-serif font-black text-sm outline-none focus:border-amber-400 shadow-inner"
+                    placeholder="Enter main headline..."
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-serif font-black text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 shadow-xs transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    उप-शीर्षक (Sub-Headline)
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Sub-Headline
                   </label>
                   <input
                     type="text"
                     value={richSubHeadline}
                     onChange={(e) => setRichSubHeadline(e.target.value)}
-                    placeholder="उप-शीर्षक यहाँ लिखें..."
-                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-red-400 font-bold text-xs outline-none focus:border-amber-400 shadow-inner"
+                    placeholder="Enter sub-headline..."
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-red-700 font-bold text-xs outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 shadow-xs transition-all"
                   />
                 </div>
               </div>
@@ -4045,15 +4089,15 @@ function FullStudioInner() {
               {/* Advanced Rich Text Editor Component */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-300 uppercase tracking-wider">
-                    स्टोरी कंटेंट बॉडी (Rich Text Editor)
+                  <span className="font-bold text-slate-700 uppercase tracking-wider">
+                    Story Content Body (Rich Text Editor)
                   </span>
-                  <span className="text-[11px] text-amber-400 font-medium">
-                    💡 टेबल्स, हाइलाइटर, समरी कार्ड्स और फुल-स्क्रीन एडिटर सपोर्टेड
+                  <span className="text-[11px] text-amber-800 font-medium bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                    💡 Tables, Highlighter, Summary Cards &amp; Fullscreen Supported
                   </span>
                 </div>
 
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-700 select-text">
+                <div className="bg-white rounded-2xl overflow-hidden shadow-xs border border-slate-200 select-text">
                   <EPaperRichTextEditor
                     key={richEditingSlot.id}
                     value={richSummaryHtml}
@@ -4065,25 +4109,25 @@ function FullStudioInner() {
             </div>
 
             {/* 3. Bottom Footer Action Bar */}
-            <div className="bg-slate-900 px-6 py-4 border-t border-slate-700 flex items-center justify-between shrink-0 rounded-b-3xl">
-              <span className="text-xs text-slate-400 hidden sm:inline">
-                ✨ स्लॉट में सभी बदलाव सीधे कैनवास और ई-पेपर में लाइव रिफ्लेक्ट होंगे
+            <div className="bg-white px-6 py-4 border-t border-slate-200 flex items-center justify-between shrink-0 rounded-b-3xl">
+              <span className="text-xs text-slate-500 hidden sm:inline">
+                ✨ Changes will be reflected directly on the canvas and ePaper
               </span>
               <div className="flex items-center space-x-3 ml-auto">
                 <button
                   type="button"
                   onClick={() => setIsRichEditorOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer shadow-xs"
                 >
-                  रद्द करें (Cancel)
+                  Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveRichEditor}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-105"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-2 transition-all cursor-pointer transform hover:scale-[1.02]"
                 >
                   <Check className="w-4 h-4" />
-                  <span>कैनवास पर सेव करें (Save to Canvas)</span>
+                  <span>Save to Canvas</span>
                 </button>
               </div>
             </div>
@@ -4134,19 +4178,19 @@ function FullStudioInner() {
             {/* Edition & Publishing Meta Details Card */}
             <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">संस्करण (Edition):</span>
+                <span className="text-slate-500 font-medium">Edition:</span>
                 <span className="font-bold text-slate-800">{publishModal.editionName}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">प्रकाशन दिनांक (Date):</span>
+                <span className="text-slate-500 font-medium">Publish Date:</span>
                 <span className="font-mono font-bold text-red-700">{publishModal.publishDate}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">कुल पृष्ठ (Pages):</span>
+                <span className="text-slate-500 font-medium">Total Pages:</span>
                 <span className="font-bold text-slate-800">{publishModal.totalPages} Pages</span>
               </div>
               <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
-                <span className="text-slate-500 font-medium">स्थिति (Status):</span>
+                <span className="text-slate-500 font-medium">Status:</span>
                 <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[11px] border border-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span>LIVE ON PORTAL</span>
@@ -4164,7 +4208,7 @@ function FullStudioInner() {
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-red-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer transform hover:scale-[1.01]"
               >
                 <Newspaper className="w-4 h-4" />
-                <span>📰 लाइव पाठक ई-पेपर देखें (Open Reader View)</span>
+                <span>📰 Open Reader View</span>
                 <ExternalLink className="w-3.5 h-3.5 ml-1" />
               </a>
 
@@ -4180,6 +4224,18 @@ function FullStudioInner() {
         onClose={() => setIsAiDrawerOpen(false)}
         activeSlot={activeSlot && activeSlot.id !== 'temp' ? activeSlot : null}
         onApplyToSlot={handleApplyAiNewsToActiveSlot}
+      />
+
+      {/* 5. DYNAMIC BROADSHEET HEADER SETTINGS MODAL */}
+      <HeaderSettingsModal
+        isOpen={isHeaderSettingsOpen}
+        onClose={() => setIsHeaderSettingsOpen(false)}
+        currentPage={activePage}
+        totalPagesCount={pages.length}
+        editionCity={currentEditionInfo.city}
+        dateStr={archiveDate}
+        onSaveHeader={handleSaveHeaderConfig}
+        availableEditions={editionsList}
       />
 
     </div>

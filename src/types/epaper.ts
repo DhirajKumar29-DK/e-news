@@ -24,11 +24,40 @@ export interface EpaperIssue {
   is_published?: boolean;
 }
 
+export interface EPaperHeaderConfig {
+  mode?: 'default' | 'custom';
+  headerType?: 'masthead' | 'section';
+  title?: string;
+  titlePrefix?: string;
+  titleMain?: string;
+  titleColor?: string;
+  titleColorPrefix?: string;
+  titleColorMain?: string;
+  titleFontSize?: number;
+  bgColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderStyle?: 'single' | 'double';
+  height?: number;
+  bottomMargin?: number;
+  cityText?: string;
+  dayText?: string;
+  dateText?: string;
+  temperatureText?: string;
+  pageBadgeBg?: string;
+  pageBadgeColor?: string;
+  pageBadgeText?: string;
+  showLogo?: boolean;
+  subWebsiteText?: string;
+  twoToneTitle?: boolean;
+}
+
 export interface EpaperPage {
   page_number: number;
   image_url?: string;
   pdf_url?: string;
   slots?: EpaperSlot[];
+  headerConfig?: EPaperHeaderConfig;
 }
 
 export interface EpaperSlot {

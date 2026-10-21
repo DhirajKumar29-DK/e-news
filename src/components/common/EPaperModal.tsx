@@ -16,6 +16,10 @@ import {
   getTtsAudioUrl,
   generatePdf,
 } from '@/services/epaperService';
+import { EPaperHeaderConfig } from '@/types/epaper';
+import { getPageHeaderMetrics } from '@/utils/epaperHeader';
+import BroadsheetHeader from '@/components/common/BroadsheetHeader';
+import BroadsheetFooter from '@/components/common/BroadsheetFooter';
 
 // Utility to decode HTML entities and format paragraphs properly
 function cleanAndFormatHtml(htmlOrText: string): string {
@@ -78,6 +82,7 @@ interface EPaperPage {
   pageImageUrl?: string;
   pageImage?: string;
   slots?: EPaperSlot[];
+  headerConfig?: EPaperHeaderConfig;
 }
 
 export interface EditionItem {
@@ -617,89 +622,21 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
 
   return (
     <>
-      {/* OUTER MASTHEAD FRAME (Clean open broadsheet top without horizontal bounding line) */}
-      <div className="border-0 bg-white select-none">
-        
-        {/* 3-COLUMN BROADSHEET MASTHEAD (Spacious layout: Logo+Date on Left, Stats in Top-Right, Grand Title+Tagline in Center) */}
-        <div className="flex items-center justify-between h-[168px] bg-white">
-          
-          {/* LEFT COLUMN: DIGITAL & TEMP (TOP) + BRAND LOGO + LOCATION & DATE (BOTTOM) */}
-          <div className="w-[290px] h-full shrink-0 flex flex-col items-center justify-center px-3 select-none">
-            {/* Digital & Temperature directly above logo */}
-            <div className="font-sans text-[11px] font-bold text-slate-700 tracking-wide flex items-center justify-center gap-1.5 whitespace-nowrap mb-1">
-              <span>डिजिटल संस्करण</span>
-              <span>•</span>
-              <span>तापमान 31°C</span>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/vartiq-logo.png" alt="Vartiq" className="h-[80px] max-w-[235px] object-contain drop-shadow-xs" />
-            {/* Location & Date directly under logo */}
-            <div className="font-sans text-[11.5px] font-bold text-slate-800 tracking-wide mt-1.5 flex items-center justify-center gap-1.5 whitespace-nowrap">
-              <span className="text-[#b31e21] font-black">{activeEdition.city ? `अपना ${activeEdition.city}` : 'अपना पटना'}</span>
-              <span>•</span>
-              <span>{formatHindiDateString(selectedDate)}</span>
-            </div>
-          </div>
-
-          {/* CENTER COLUMN: GRAND "वार्तिक" (NO CLIPPING) + EXACT LOGO TAGLINE & RED SWOOSH */}
-          <div className="flex-1 h-full flex flex-col items-center justify-center text-center px-4 relative select-none">
-            {/* Red Accent Horizontal Bars flanking "वार्तिक" exactly like Logo */}
-            <div className="flex items-center justify-center gap-4 w-full">
-              <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
-              <h1
-                style={{
-                  fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif",
-                  fontWeight: 800,
-                  lineHeight: 1.15,
-                  letterSpacing: '-0.01em',
-                  background: 'linear-gradient(180deg, #ea1d25 0%, #c40c14 55%, #88050a 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25))'
-                }}
-                className="text-[88px] text-[#c51c24] select-none m-0 p-0 pt-1"
-              >
-                वार्तिक
-              </h1>
-              <div className="h-[3px] w-14 sm:w-24 bg-[#c51c24] rounded-full shadow-xs opacity-90" />
-            </div>
-
-            {/* Tagline: Exact Color & Design matching Logo (with dynamic red swoosh curve) */}
-            <div className="flex flex-col items-center justify-center -mt-1 select-none">
-              <div
-                style={{ fontFamily: "'Mukta', 'Hind', 'Noto Sans Devanagari', sans-serif" }}
-                className="text-[16px] font-black text-[#0f172a] tracking-wider drop-shadow-xs"
-              >
-                खबर समझो, दुनिया समझो।
-              </div>
-              {/* Signature Dynamic Red Swoosh Crescent from Logo */}
-              <svg width="240" height="8" viewBox="0 0 240 8" className="mt-0.5 overflow-visible">
-                <defs>
-                  <linearGradient id="readerLogoSwooshGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#e51d27" />
-                    <stop offset="50%" stopColor="#b80d15" />
-                    <stop offset="100%" stopColor="#e51d27" />
-                  </linearGradient>
-                </defs>
-                <path d="M 4,1.5 Q 120,7.5 236,1.5 Q 120,4.5 4,1.5 Z" fill="url(#readerLogoSwooshGrad)" />
-              </svg>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: PAGE NUMBER IN TOP RIGHT CORNER */}
-          <div className="w-[290px] h-full shrink-0 flex flex-col items-end justify-between pt-3.5 pb-3 px-4 select-none pointer-events-none">
-            <div className="font-sans text-[12px] font-bold text-slate-800 tracking-wide flex items-center justify-end whitespace-nowrap">
-              <span>पेज {formattedPage}</span>
-            </div>
-            <div />
-          </div>
-
-        </div>
-
-        {/* DOUBLE LINE BOTTOM BORDER (Classic Broadsheet Rule) */}
-        <div className="border-t-[1px] border-b-[2.5px] border-slate-900 h-[3.5px] bg-white" />
-
-      </div>
+      {/* DYNAMIC BROADSHEET HEADER (Page 1 Grand Masthead OR Page 2+ Sleek Section Header) */}
+      <BroadsheetHeader
+        page={{
+          pageNumber: pageIndex + 1,
+          headerConfig: page?.headerConfig
+        }}
+        editionCity={activeEdition?.city}
+        dateStr={selectedDate}
+        style={{
+          marginLeft: '-30px',
+          marginRight: '-30px',
+          width: 'calc(100% + 60px)',
+          maxWidth: 'calc(100% + 60px)'
+        }}
+      />
 
       {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
       {currentSlots.map((rawSlot, sIdx) => {
@@ -712,7 +649,12 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
         const isRight = normAlign === 'right';
         const hasImage = Boolean(s.imageUrl);
 
-        const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : 188, 188);
+        const headerMetrics = getPageHeaderMetrics(
+          { pageNumber: pageIndex + 1, headerConfig: page?.headerConfig },
+          activeEdition?.city,
+          selectedDate
+        );
+        const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : headerMetrics.totalTopOffset, headerMetrics.totalTopOffset);
         const slotStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${s.x}px`,
@@ -1099,6 +1041,21 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
           />
         );
       })}
+
+      {/* AUTHENTIC PRINT BROADSHEET FOOTER & CMYK REGISTRATION STRIP */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
+        style={{
+          width: '100%'
+        }}
+      >
+        <BroadsheetFooter
+          pageNumber={pageIndex + 1}
+          totalPages={totalPages}
+          editionCity={activeEdition?.city}
+          dateStr={selectedDate}
+        />
+      </div>
     </>
   );
 };

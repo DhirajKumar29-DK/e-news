@@ -43,7 +43,7 @@ export default function EPaperRichTextEditor({
   value,
   onChange,
   label = 'e-Paper Story Content',
-  placeholder = 'यहाँ खबर का मुख्य विवरण लिखें... शब्दों को सेलेक्ट करके बोल्ड, इटैलिक, कलर या हाइलाइटर लगा सकते हैं।'
+  placeholder = 'Write news body text here... select words to apply bold, italic, font colors, or highlighter.'
 }: EPaperRichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const modalEditorRef = useRef<HTMLDivElement>(null);

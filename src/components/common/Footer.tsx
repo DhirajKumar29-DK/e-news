@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { ShieldCheck, Mail, CheckCircle2 } from 'lucide-react';
 
@@ -45,7 +46,7 @@ export const Footer: React.FC = () => {
             <div>
               <p className="font-bold text-white">Editorial Inquiries &amp; Feedback:</p>
               <p className="text-amber-400 font-mono text-[11px] select-all">
-                contact@vartiq.com
+                support@nighwantech.com
               </p>
             </div>
           </div>
@@ -115,7 +116,13 @@ export const Footer: React.FC = () => {
             {editorialStandards.map((std) => (
               <li key={std} className="flex items-center space-x-2 text-slate-300">
                 <CheckCircle2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span>{std}</span>
+                {std === 'Reader Privacy & Security' ? (
+                  <Link href="/privacy-policy" className="hover:text-amber-400 transition-colors underline decoration-slate-600 underline-offset-2">
+                    {std}
+                  </Link>
+                ) : (
+                  <span>{std}</span>
+                )}
               </li>
             ))}
           </ul>
@@ -151,19 +158,36 @@ export const Footer: React.FC = () => {
 
       </div>
 
-      {/* 3. BOTTOM COPYRIGHT STRIP (No Links) */}
-      <div className="w-full bg-slate-950 border-t border-slate-900 pt-4 pb-20 md:pb-4 px-4 sm:px-8 lg:px-10 text-center text-xs text-slate-400">
-        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Vartiq Network. All rights reserved.</p>
+      {/* 3. BOTTOM COPYRIGHT STRIP */}
+      <div className="w-full bg-slate-950 border-t border-slate-900 pt-4 pb-20 md:pb-4 px-4 sm:px-8 lg:px-10 text-xs text-slate-400">
+        <div className="max-w-[1440px] mx-auto flex flex-col md:grid md:grid-cols-3 items-center justify-between gap-3">
+          {/* Left: Copyright */}
+          <p className="text-center md:text-left">
+            © {new Date().getFullYear()} Vartiq Network. All rights reserved.
+          </p>
           
-          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
+          {/* Center: Nighwan Technology */}
+          <div className="flex items-center justify-center space-x-1.5 text-center">
             <span>Designed &amp; Developed by</span>
-            <span className="font-bold text-amber-400">Nighwan Technology</span>
+            <a href="https://nighwantech.com" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-400 hover:underline">
+              Nighwan Technology
+            </a>
           </div>
 
-          <p className="text-[11px] text-slate-500">
-            Vartiq Digital News Network
-          </p>
+          {/* Right: PP (Privacy Policy), RP (Refund Policy) & T&C (Terms & Conditions) */}
+          <div className="flex items-center justify-center md:justify-end space-x-3 text-xs text-slate-400">
+            <Link href="/privacy-policy" className="hover:text-amber-400 transition-colors">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/refund-policy" className="hover:text-amber-400 transition-colors">
+              Refund Policy
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-amber-400 transition-colors">
+              Terms &amp; Conditions
+            </Link>
+          </div>
         </div>
       </div>
 
