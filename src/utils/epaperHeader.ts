@@ -1,4 +1,5 @@
 import { EPaperHeaderConfig } from '@/types/epaper';
+export type { EPaperHeaderConfig };
 
 export interface HeaderMetrics extends Required<EPaperHeaderConfig> {
   totalTopOffset: number;

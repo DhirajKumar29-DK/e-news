@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { getEffectiveHeaderConfig, EPaperHeaderConfig } from '@/utils/epaperHeader';
+import { getEffectiveHeaderConfig } from '@/utils/epaperHeader';
+import { EPaperHeaderConfig } from '@/types/epaper';
 
 export interface BroadsheetFooterProps {
   pageNumber?: number;
