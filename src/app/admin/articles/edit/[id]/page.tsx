@@ -179,6 +179,7 @@ function EditArticleContent() {
           setMetaDescription(data.metaDescription || '');
           setMetaKeywords(data.metaKeywords || '');
           setCanonicalUrl(data.canonicalUrl || '');
+          setIsIndexed(typeof data.isIndexed === 'boolean' ? data.isIndexed : true);
         }
       } catch (err: any) {
         setErrorMsg('Failed to load article details.');
@@ -257,7 +258,8 @@ function EditArticleContent() {
         metaTitle: metaTitle.trim() || null,
         metaDescription: metaDescription.trim() || null,
         metaKeywords: metaKeywords.trim() || null,
-        canonicalUrl: canonicalUrl.trim() || null
+        canonicalUrl: canonicalUrl.trim() || null,
+        isIndexed: Boolean(isIndexed)
       });
 
       setStatus(publishStatus);

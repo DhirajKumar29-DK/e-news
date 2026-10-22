@@ -183,7 +183,8 @@ function CreateArticleContent() {
         metaTitle: metaTitle.trim() || null,
         metaDescription: metaDescription.trim() || null,
         metaKeywords: metaKeywords.trim() || null,
-        canonicalUrl: canonicalUrl.trim() || null
+        canonicalUrl: canonicalUrl.trim() || null,
+        isIndexed: Boolean(isIndexed)
       });
 
       setSuccessMsg(`Article ${publishStatus === 'PUBLISHED' ? 'published' : 'saved as draft'} successfully! Redirecting...`);

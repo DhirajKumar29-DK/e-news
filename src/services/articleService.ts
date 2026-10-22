@@ -29,6 +29,7 @@ export interface ArticleData {
   metaDescription?: string | null;
   metaKeywords?: string | null;
   canonicalUrl?: string | null;
+  isIndexed?: boolean;
 }
 
 export interface ArticlesQuery {
@@ -66,6 +67,26 @@ export type CreateArticleInput = Omit<Partial<ArticleData>, 'bulletPoints' | 'ta
   bulletPoints?: string[] | string | null;
   tags?: string[] | string | null;
 };
+
+function sanitizeArticlePayload(data: CreateArticleInput): Record<string, any> {
+  const payload: Record<string, any> = { ...data };
+  if (typeof payload.metaTitle !== 'undefined') {
+    payload.metaTitle = payload.metaTitle ? String(payload.metaTitle).trim() : null;
+  }
+  if (typeof payload.metaDescription !== 'undefined') {
+    payload.metaDescription = payload.metaDescription ? String(payload.metaDescription).trim() : null;
+  }
+  if (typeof payload.metaKeywords !== 'undefined') {
+    payload.metaKeywords = payload.metaKeywords ? String(payload.metaKeywords).trim() : null;
+  }
+  if (typeof payload.canonicalUrl !== 'undefined') {
+    payload.canonicalUrl = payload.canonicalUrl ? String(payload.canonicalUrl).trim() : null;
+  }
+  if (typeof payload.isIndexed !== 'undefined') {
+    payload.isIndexed = Boolean(payload.isIndexed);
+  }
+  return payload;
+}
 
 export const articleService = {
   // 1. Fetch Paginated Articles
@@ -106,18 +127,20 @@ export const articleService = {
 
   // 4. Create New Article
   async createArticle(data: CreateArticleInput): Promise<ArticleData> {
+    const payload = sanitizeArticlePayload(data);
     const res = await apiRequest<{ success: boolean; data: ArticleData }>('/articles', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
     return res.data;
   },
 
   // 5. Update Existing Article
   async updateArticle(id: string, data: CreateArticleInput): Promise<ArticleData> {
+    const payload = sanitizeArticlePayload(data);
     const res = await apiRequest<{ success: boolean; data: ArticleData }>(`/articles/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
     return res.data;
   },

@@ -112,14 +112,38 @@ export default function ArticlePage() {
         if (data) {
           setDynamicArticle(data);
           if (typeof document !== 'undefined') {
-            document.title = `${stripHtml(data.title)} | Vartiq`;
+            document.title = `${stripHtml(data.metaTitle || data.title)} | Vartiq`;
             let metaDesc = document.querySelector('meta[name="description"]');
             if (!metaDesc) {
               metaDesc = document.createElement('meta');
               metaDesc.setAttribute('name', 'description');
               document.head.appendChild(metaDesc);
             }
-            metaDesc.setAttribute('content', stripHtml(data.subHeadline) || stripHtml(data.content).slice(0, 160));
+            metaDesc.setAttribute('content', stripHtml(data.metaDescription || data.subHeadline || '') || stripHtml(data.content).slice(0, 160));
+
+            // Canonical Link
+            if (data.canonicalUrl) {
+              let canonicalTag = document.querySelector('link[rel="canonical"]');
+              if (!canonicalTag) {
+                canonicalTag = document.createElement('link');
+                canonicalTag.setAttribute('rel', 'canonical');
+                document.head.appendChild(canonicalTag);
+              }
+              canonicalTag.setAttribute('href', data.canonicalUrl);
+            }
+
+            // Robots Indexing Tag
+            let robotsTag = document.querySelector('meta[name="robots"]');
+            if (data.isIndexed === false) {
+              if (!robotsTag) {
+                robotsTag = document.createElement('meta');
+                robotsTag.setAttribute('name', 'robots');
+                document.head.appendChild(robotsTag);
+              }
+              robotsTag.setAttribute('content', 'noindex, nofollow');
+            } else if (robotsTag) {
+              robotsTag.setAttribute('content', 'index, follow');
+            }
           }
           const cat = data.category ? data.category.toLowerCase() : undefined;
           
