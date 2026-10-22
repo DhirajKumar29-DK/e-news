@@ -255,7 +255,7 @@ export default function ArticlePage() {
         <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 pt-4 pb-12 flex-1 space-y-6 animate-pulse">
           <h1 className="sr-only">Article Details - Vartiq</h1>
           {/* Breadcrumb Skeleton */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="hidden md:flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
             <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded"></div>
           </div>
@@ -504,7 +504,7 @@ export default function ArticlePage() {
       <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 lg:px-10 pt-4 pb-12 flex-1 space-y-4">
         
         {/* Back Button & Breadcrumbs */}
-        <div className="flex items-center justify-between text-xs text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="hidden md:flex items-center justify-between text-xs text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-3">
           <button
             onClick={() => router.push('/')}
             className="flex items-center space-x-1 font-bold text-jagran-red hover:underline"

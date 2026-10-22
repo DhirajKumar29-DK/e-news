@@ -22,6 +22,28 @@ interface HeaderProps {
   showInFocus?: boolean;
 }
 
+function getLiveFormattedDateTime(lang: string = 'en'): string {
+  const now = new Date();
+  if (lang === 'hi') {
+    const daysHi = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
+    const monthsHi = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+    const dayName = daysHi[now.getDay()];
+    const dateNum = now.getDate();
+    const monthName = monthsHi[now.getMonth()];
+    const year = now.getFullYear();
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    return `${dayName}, ${dateNum} ${monthName} ${year} | अपडेटेड ${timeString} IST`;
+  }
+  const daysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayName = daysEn[now.getDay()];
+  const dateNum = now.getDate();
+  const monthName = monthsEn[now.getMonth()];
+  const year = now.getFullYear();
+  const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+  return `${dayName}, ${monthName} ${dateNum}, ${year} | Updated ${timeString} IST`;
+}
+
 export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, onSelectCategory, showInFocus }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const { language, supportedLanguages, t, toggleLanguage } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-  const [formattedDate, setFormattedDate] = useState('Sun, Sep 20, 2026 | Updated 04:14 PM IST');
+  const [formattedDate, setFormattedDate] = useState<string>('');
   const [isVisible, setIsVisible] = useState(true);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
 
@@ -184,13 +206,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const filteredSearchResults = searchResults;
 
   useEffect(() => {
-    const currentDate = new Date();
-    const timeString = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toUpperCase();
-    setFormattedDate(`Sun, Sep 20, 2026 | Updated ${timeString} IST`);
+    // 1. Immediately set real-time dynamic date & time
+    setFormattedDate(getLiveFormattedDateTime(language));
+
+    // 2. Real-time live clock ticking every 1 second (1000ms):
+    // Updates live time automatically and auto-transitions day/date at midnight without refreshing!
+    const clockTimer = setInterval(() => {
+      setFormattedDate(getLiveFormattedDateTime(language));
+    }, 1000);
 
     // Silently pre-warm backend so ePaper / API is instantly awake
     prewarmBackend();
-  }, []);
+
+    return () => clearInterval(clockTimer);
+  }, [language]);
 
   const handleOpenEPaper = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();

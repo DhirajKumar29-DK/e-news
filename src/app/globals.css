@@ -139,13 +139,13 @@ strong {
   cursor: pointer;
   box-sizing: border-box;
   border: 2px solid transparent;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .epaper-slot-hotspot:hover {
   border-color: #ba1228 !important;
   background-color: rgba(186, 18, 40, 0.08) !important;
-  box-shadow: none !important;
+  box-shadow: 0 4px 20px -2px rgba(186, 18, 40, 0.18), 0 0 0 1px rgba(186, 18, 40, 0.15) !important;
 }
 
 /* Rich Text Editor Styling, High-Contrast Caret & List Enforcements */
@@ -186,4 +186,35 @@ strong {
 .article-body li {
   display: list-item !important;
   margin-bottom: 0.25rem !important;
+}
+
+/* Rich Text Editor Paragraph Separation */
+[contenteditable] p,
+[contenteditable] > div,
+[contenteditable] > p {
+  margin-top: 0 !important;
+  margin-bottom: 0.85rem !important;
+  line-height: 1.65 !important;
+}
+
+[contenteditable] p:last-child,
+[contenteditable] > div:last-child,
+[contenteditable] > p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Broadsheet Story Paragraph Separation & Strict Newspaper Baseline Grid Register */
+.broadsheet-story-text p,
+[data-story-body] p,
+.whitespace-pre-line p {
+  margin-top: 0 !important;
+  margin-bottom: 1.5em !important;
+  margin-bottom: var(--story-line-h, 1lh) !important;
+  line-height: inherit !important;
+}
+
+.broadsheet-story-text p:last-child,
+[data-story-body] p:last-child,
+.whitespace-pre-line p:last-child {
+  margin-bottom: 0 !important;
 }

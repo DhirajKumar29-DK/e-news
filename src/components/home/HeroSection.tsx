@@ -160,16 +160,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
   const leadId = leadArticle ? String(leadArticle.id).toLowerCase() : '';
   const leadTitle = leadArticle ? String(typeof leadArticle.title === 'string' ? leadArticle.title : ((leadArticle.title as any)?.en || '')).trim().toLowerCase() : '';
 
-  // 3. Dynamic Left 5 Quick Highlights: MUST NOT be in Top News and NEVER the same
+  // 3. Dynamic Left 5 Quick Highlights (Honors Quick Highlights Strip from Admin)
   const candidateHighlights = dynamicData.quickHighlights || [];
-
-  const filteredHighlights = (candidateHighlights as any[]).filter(item => {
+  const seenHighlightIds = new Set<string>();
+  const uniqueHighlights: any[] = [];
+  for (const item of candidateHighlights) {
+    if (!item) continue;
     const id = String(item.slug || item.id || '').toLowerCase();
-    const title = (typeof item.title === 'string' ? item.title : (item.title?.en || item.title?.hi || '')).trim().toLowerCase();
-    return !topNewsIds.has(id) && !topNewsTitles.has(title) && id !== leadId && title !== leadTitle;
-  });
+    if (id && !seenHighlightIds.has(id)) {
+      seenHighlightIds.add(id);
+      uniqueHighlights.push(item);
+    }
+  }
 
-  const leftHeadlines = (filteredHighlights as any[]).slice(0, 5).map(item => ({
+  const leftHeadlines = uniqueHighlights.slice(0, 5).map(item => ({
     id: item.slug || item.id,
     title: item.title,
     category: (item.category || 'NEWS').toUpperCase(),

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { apiRequest } from '@/services/api';
-import { fetchAdminEditions, fetchEpaperIssue, saveSlot, savePagesBulk, publishIssue, publishLegacy, generatePdf } from '@/services/epaperService';
+import { fetchAdminEditions, fetchEpaperIssue, saveSlot, savePagesBulk, publishIssue, publishLegacy, generatePdf, invalidateEpaperCache } from '@/services/epaperService';
 import { BACKEND_URL, getFullMediaUrl } from '@/config/env';
 import {
   Newspaper, Eye, Download, Send, Plus, Upload, CheckCircle2,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
-import EPaperRichTextEditor from '@/components/admin/EPaperRichTextEditor';
+import EPaperRichTextEditor, { formatToRichEditorHtml } from '@/components/admin/EPaperRichTextEditor';
 import { EPaperHeaderConfig } from '@/types/epaper';
 import { getEffectiveHeaderConfig, getPageHeaderMetrics } from '@/utils/epaperHeader';
 import BroadsheetHeader from '@/components/common/BroadsheetHeader';
@@ -38,6 +38,7 @@ export interface EPaperSlotData {
   headline: string;
   subHeadline: string;
   summary: string;
+  contentText?: string;
   imageUrl: string;
   imageAlignment?: 'Left' | 'Center Wrap' | 'Center' | 'Right';
   imageAlign?: string;
@@ -198,6 +199,20 @@ export function stripHtmlTagsToPlainText(input: string): string {
   return str.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export function decodeHtmlEntities(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  if (str.includes('&lt;') && str.includes('&gt;')) {
+    str = str
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  return str;
+}
+
 function sliceHtmlTokens(html: string): string[] {
   if (!html) return [];
   // Tokenize preserving HTML tags, words and whitespace
@@ -305,6 +320,8 @@ function findBestTokenFit(
   div.style.fontSize = `${fontSize || 14}px`;
   div.style.fontFamily = "'Noto Serif Devanagari', 'Merriweather', serif";
   div.style.lineHeight = `${lineH}px`;
+  (div.style as any)['--story-line-h'] = `${lineH}px`;
+  div.className = 'broadsheet-story-text whitespace-pre-line';
   div.style.textAlign = 'justify';
   (div.style as any).textJustify = 'inter-word';
   div.style.wordBreak = 'break-word';
@@ -377,7 +394,7 @@ function computeSlotSections(s: EPaperSlotData) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
   const cardH = s.height || 400;
-  const cardContentW = Math.max(100, s.width - 24);
+  const cardContentW = Math.max(100, s.width - 16);
   const showDivider = s.showColumnDivider || false;
 
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
@@ -385,8 +402,6 @@ function computeSlotSections(s: EPaperSlotData) {
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
-  // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px (14px baseline)
-  const cardFraming = 14;
   let measuredH = measureSlotHeaderHeight(s, cardContentW);
   if (!measuredH || measuredH === 0) {
     const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
@@ -402,23 +417,20 @@ function computeSlotSections(s: EPaperSlotData) {
     measuredH = badgeH + hlH + subH;
   }
 
-  const headerTotalH = Math.ceil(measuredH + cardFraming);
-
-  // Integer line-height snapping: ensures every column fits complete whole lines without horizontal cutting!
-  const rawStoryH = Math.max(lineH, cardH - headerTotalH);
-  const fullStoryH = Math.max(lineH, Math.floor(rawStoryH / lineH) * lineH);
+  // Available story height inside the slot (top 8px, bottom 4px, headerGap 4px)
+  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 4));
 
   const imgW = s.imageWidth || 180;
   const imgH = s.imageHeight || 140;
+  const hasImage = Boolean(s.imageUrl);
   const isFullCardPhoto = imgW >= cardContentW - 30 || s.imageWrapMode === 'top-span';
 
-  const rawUnderPhotoH = Math.max(lineH, fullStoryH - imgH - 8);
-  const underPhotoH = Math.max(lineH, Math.floor(rawUnderPhotoH / lineH) * lineH);
+  const photoTotalH = hasImage ? (imgH + 2) : 0;
+  const underPhotoH = Math.max(20, fullStoryH - photoTotalH);
 
   if (colsCount === 1 || isFullCardPhoto) {
     const tokens = sliceHtmlTokens(s.summary || '');
-    const targetH = isFullCardPhoto ? underPhotoH : fullStoryH;
-    const fit1 = findBestTokenFit(tokens, 0, cardContentW, targetH, colsCount, summaryFont, colGap);
+    const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
       isFullWidth: true,
@@ -669,7 +681,8 @@ function FullStudioInner() {
     setRichEditingSlot(slot);
     setRichHeadline(slot.headline || '');
     setRichSubHeadline(slot.subHeadline || '');
-    setRichSummaryHtml(slot.summary || '');
+    const cleanHtml = formatToRichEditorHtml(slot.summary || (slot as any).contentText || '');
+    setRichSummaryHtml(cleanHtml);
     setShowHighlightDropdown(false);
     setShowTextColorDropdown(false);
     setShowFontSizeDropdown(false);
@@ -687,7 +700,7 @@ function FullStudioInner() {
 
     const finalHtml = richSummaryHtml;
 
-    setPages(prevPages => prevPages.map(pg => {
+    const updatedPages = pages.map(pg => {
       return {
         ...pg,
         slots: pg.slots.map(s => {
@@ -696,19 +709,41 @@ function FullStudioInner() {
               ...s,
               headline: richHeadline,
               subHeadline: richSubHeadline,
-              summary: finalHtml
+              summary: finalHtml,
+              contentText: finalHtml
             };
           }
           return s;
         })
       };
-    }));
+    });
+
+    setPages(updatedPages);
 
     if (activeSlotId === richEditingSlot.id) {
       setFormHeadline(richHeadline);
       setFormSubHeadline(richSubHeadline);
       setFormSummary(finalHtml);
     }
+
+    const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
+    safeSaveToLocalStorage(storageKey, updatedPages);
+
+    savePagesBulk({
+      issue_id: 0,
+      edition_slug: currentEditionInfo.slug,
+      editionSlug: currentEditionInfo.slug,
+      date: archiveDate,
+      publish_date: archiveDate,
+      pages: updatedPages.map(pg => ({
+        ...pg,
+        slots: (pg.slots || []).map((s, idx) => ({
+          ...s,
+          slotNumber: idx + 1,
+          slotIndex: idx + 1
+        }))
+      }))
+    }).catch(() => {});
 
     setIsRichEditorOpen(false);
     triggerToast(`🎉 Slot #${richEditingSlot.slotNumber} का कंटेंट और स्टाइल अपडेट हो गया!`);
@@ -829,13 +864,13 @@ function FullStudioInner() {
                 slotNumber: s.slotIndex || (idx + 1),
                 slotBadge: `Slot ${s.slotIndex || (idx + 1)}`,
                 x: s.x !== undefined && s.x !== null ? Number(s.x) : 16,
-                y: s.y !== undefined && s.y !== null ? Math.max(Number(s.y), 172) : 172,
+                y: s.y !== undefined && s.y !== null ? Number(s.y) : (p.pageNumber === 1 ? 188 : 74),
                 width: s.width !== undefined && s.width !== null ? Number(s.width) : 400,
                 height: s.height !== undefined && s.height !== null ? Number(s.height) : 250,
                 headline: s.headline || '',
                 subHeadline: s.subHeadline || '',
                 categoryBadge: s.categoryTag || '',
-                summary: stripHtmlTagsToPlainText(s.contentText || s.summary || ''),
+                summary: decodeHtmlEntities(s.contentText || s.summary || ''),
                 imageUrl: s.imageUrl || '',
                 imageAlignment: s.imageAlign === 'RIGHT' ? 'Right' : s.imageAlign === 'CENTER' ? 'Center Wrap' : 'Left',
                 imageWidth: s.imageWidth || 180,
@@ -873,17 +908,21 @@ function FullStudioInner() {
         setIsPastUncreatedDate(false);
       }
 
-      // 2. Check localStorage for local edits ONLY if database did not have any slots
-      if (!loadedPages && typeof window !== 'undefined') {
+      // 2. Check localStorage for local edits (safeguard: if local has more slots, preserve user work!)
+      if (typeof window !== 'undefined') {
         try {
-          let saved = localStorage.getItem(storageKey);
-          let localPages: EPaperPageData[] | null = null;
+          const saved = localStorage.getItem(storageKey);
           if (saved) {
-            localPages = JSON.parse(saved);
-          }
+            const localPages = JSON.parse(saved);
+            if (Array.isArray(localPages) && localPages.length > 0) {
+              const localTotalSlots = localPages.reduce((acc: number, p: any) => acc + (p.slots?.length || 0), 0);
+              const dbTotalSlots = (loadedPages || []).reduce((acc: number, p: any) => acc + (p.slots?.length || 0), 0);
 
-          if (Array.isArray(localPages) && localPages.length > 0) {
-            loadedPages = localPages;
+              // If DB had 0 slots OR local has more slots than DB, prefer local draft so slots are never lost
+              if (!loadedPages || localTotalSlots > dbTotalSlots) {
+                loadedPages = localPages;
+              }
+            }
           }
         } catch { }
       }
@@ -904,10 +943,14 @@ function FullStudioInner() {
       if (isMounted) {
         const cleanedLoadedPages = loadedPages.map(pg => ({
           ...pg,
-          slots: (pg.slots || []).map(s => ({
-            ...s,
-            summary: stripHtmlTagsToPlainText(s.summary || '')
-          }))
+          slots: (pg.slots || []).map(s => {
+            const formatted = formatToRichEditorHtml(decodeHtmlEntities(s.summary || s.contentText || ''));
+            return {
+              ...s,
+              summary: formatted,
+              contentText: formatted
+            };
+          })
         }));
         setPages(cleanedLoadedPages);
         setActivePageId(cleanedLoadedPages[0].id);
@@ -917,9 +960,9 @@ function FullStudioInner() {
           setFormHeadline(firstSlot.headline || '');
           setFormCategory(firstSlot.categoryBadge || '');
           setFormSubHeadline(firstSlot.subHeadline || '');
-          setFormSummary(stripHtmlTagsToPlainText(firstSlot.summary || ''));
+          setFormSummary(firstSlot.summary || '');
           setFormX(firstSlot.x !== undefined ? firstSlot.x : 16);
-          setFormY(firstSlot.y !== undefined ? Math.max(firstSlot.y, 172) : 172);
+          setFormY(firstSlot.y !== undefined ? Number(firstSlot.y) : (cleanedLoadedPages[0]?.pageNumber === 1 ? 188 : 74));
           setFormW(firstSlot.width || 400);
           setFormH(firstSlot.height || 250);
           setFormImageUrl(firstSlot.imageUrl || '');
@@ -929,11 +972,11 @@ function FullStudioInner() {
           setFormImgPxX(firstSlot.imgPxX || 0);
           setFormImgPxY(firstSlot.imgPxY || 0);
           setFormIsAd(firstSlot.isAd || false);
-          setFormHeadlineFontSize(firstSlot.headlineFontSize || 18);
+          setFormHeadlineFontSize(firstSlot.headlineFontSize || 22);
           setFormHeadlineColor(firstSlot.headlineColor || '#0f172a');
-          setFormSubHeadlineFontSize(firstSlot.subHeadlineFontSize || 12);
+          setFormSubHeadlineFontSize(firstSlot.subHeadlineFontSize || 13);
           setFormSubHeadlineColor(firstSlot.subHeadlineColor || '#b91c1c');
-          setFormSummaryFontSize(firstSlot.summaryFontSize || 11);
+          setFormSummaryFontSize(firstSlot.summaryFontSize || (firstSlot as any).bodyFontSize || 14);
           setFormSummaryColor(firstSlot.summaryColor || '#1e293b');
           setFormColumnsCount(firstSlot.columnsCount || 1);
           setFormColumnGap(firstSlot.columnGap || 14);
@@ -1002,6 +1045,7 @@ function FullStudioInner() {
             }))
           }))
         });
+        invalidateEpaperCache();
       } catch {
         // Quiet fallback
       } finally {
@@ -1129,7 +1173,7 @@ function FullStudioInner() {
   const [formSubHeadline, setFormSubHeadline] = useState(activeSlot.subHeadline || '');
   const [formSummary, setFormSummary] = useState(activeSlot.summary || '');
   const [formX, setFormX] = useState(activeSlot.x || 16);
-  const [formY, setFormY] = useState(activeSlot.y ? Math.max(activeSlot.y, activeHeaderMetrics.totalTopOffset) : activeHeaderMetrics.totalTopOffset);
+  const [formY, setFormY] = useState(activeSlot.y !== undefined && activeSlot.y !== null ? Number(activeSlot.y) : activeHeaderMetrics.totalTopOffset);
   const [formW, setFormW] = useState(activeSlot.width || 400);
   const [formH, setFormH] = useState(activeSlot.height || 250);
   const [formImageUrl, setFormImageUrl] = useState(activeSlot.imageUrl || '');
@@ -1142,11 +1186,11 @@ function FullStudioInner() {
   const [formIsAd, setFormIsAd] = useState(activeSlot.isAd || false);
 
   // Text Styling States (Font Sizes & Colors)
-  const [formHeadlineFontSize, setFormHeadlineFontSize] = useState<number>(activeSlot.headlineFontSize || 18);
+  const [formHeadlineFontSize, setFormHeadlineFontSize] = useState<number>(activeSlot.headlineFontSize || 22);
   const [formHeadlineColor, setFormHeadlineColor] = useState<string>(activeSlot.headlineColor || '#0f172a');
-  const [formSubHeadlineFontSize, setFormSubHeadlineFontSize] = useState<number>(activeSlot.subHeadlineFontSize || 12);
+  const [formSubHeadlineFontSize, setFormSubHeadlineFontSize] = useState<number>(activeSlot.subHeadlineFontSize || 13);
   const [formSubHeadlineColor, setFormSubHeadlineColor] = useState<string>(activeSlot.subHeadlineColor || '#b91c1c');
-  const [formSummaryFontSize, setFormSummaryFontSize] = useState<number>(activeSlot.summaryFontSize || 11);
+  const [formSummaryFontSize, setFormSummaryFontSize] = useState<number>(activeSlot.summaryFontSize || (activeSlot as any).bodyFontSize || 14);
   const [formSummaryColor, setFormSummaryColor] = useState<string>(activeSlot.summaryColor || '#1e293b');
 
   // Newspaper Multi-Column & Wrap States
@@ -1163,7 +1207,7 @@ function FullStudioInner() {
       setFormSubHeadline(activeSlot.subHeadline || '');
       setFormSummary(activeSlot.summary || '');
       setFormX(activeSlot.x !== undefined ? activeSlot.x : 16);
-      setFormY(activeSlot.y !== undefined ? Math.max(activeSlot.y, activeHeaderMetrics.totalTopOffset) : activeHeaderMetrics.totalTopOffset);
+      setFormY(activeSlot.y !== undefined && activeSlot.y !== null ? Number(activeSlot.y) : activeHeaderMetrics.totalTopOffset);
       setFormW(activeSlot.width || 400);
       setFormH(activeSlot.height || 250);
       setFormImageUrl(activeSlot.imageUrl || '');
@@ -1174,11 +1218,11 @@ function FullStudioInner() {
       setFormImgPxX(activeSlot.imgPxX || 0);
       setFormImgPxY(activeSlot.imgPxY || 0);
       setFormIsAd(activeSlot.isAd || false);
-      setFormHeadlineFontSize(activeSlot.headlineFontSize || 18);
+      setFormHeadlineFontSize(activeSlot.headlineFontSize || 22);
       setFormHeadlineColor(activeSlot.headlineColor || '#0f172a');
-      setFormSubHeadlineFontSize(activeSlot.subHeadlineFontSize || 12);
+      setFormSubHeadlineFontSize(activeSlot.subHeadlineFontSize || 13);
       setFormSubHeadlineColor(activeSlot.subHeadlineColor || '#b91c1c');
-      setFormSummaryFontSize(activeSlot.summaryFontSize || 11);
+      setFormSummaryFontSize(activeSlot.summaryFontSize || (activeSlot as any).bodyFontSize || 14);
       setFormSummaryColor(activeSlot.summaryColor || '#1e293b');
       setFormColumnsCount(activeSlot.columnsCount || 1);
       setFormColumnGap(activeSlot.columnGap || 14);
@@ -1978,7 +2022,7 @@ function FullStudioInner() {
 
   // 6. Apply Form Edits to Canvas Live
   const handleApplyChanges = async () => {
-    setPages(prevPages => prevPages.map(pg => {
+    const updatedPages = pages.map(pg => {
       if (pg.slots.some(s => s.id === activeSlotId)) {
         return {
           ...pg,
@@ -1990,6 +2034,7 @@ function FullStudioInner() {
                 categoryBadge: formCategory,
                 subHeadline: formSubHeadline,
                 summary: formSummary,
+                contentText: formSummary,
                 x: formX,
                 y: formY,
                 width: formW,
@@ -2007,6 +2052,7 @@ function FullStudioInner() {
                 subHeadlineFontSize: formSubHeadlineFontSize,
                 subHeadlineColor: formSubHeadlineColor,
                 summaryFontSize: formSummaryFontSize,
+                bodyFontSize: formSummaryFontSize,
                 summaryColor: formSummaryColor,
                 columnsCount: formColumnsCount,
                 columnGap: formColumnGap,
@@ -2019,33 +2065,35 @@ function FullStudioInner() {
         };
       }
       return pg;
-    }));
+    });
+
+    setPages(updatedPages);
+
+    const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
+    safeSaveToLocalStorage(storageKey, updatedPages);
 
     triggerToast('✓ Applied content, styling & geometry to Canvas!');
 
-    // Express API Sync via service
+    // Immediate Bulk Save to Backend MySQL DB
     try {
-      await saveSlot({
+      await savePagesBulk({
         issue_id: 0,
-        page_number: activePage.pageNumber,
-        slot: {
-          slot_id: activeSlot.id,
-          x: formX,
-          y: formY,
-          width: formW,
-          height: formH,
-          type: formIsAd ? 'ad' : 'article',
-          content: {
-            headline: formHeadline,
-            body: formSummary,
-            imageUrl: formImageUrl
-          }
-        }
+        edition_slug: currentEditionInfo.slug,
+        editionSlug: currentEditionInfo.slug,
+        date: archiveDate,
+        publish_date: archiveDate,
+        pages: updatedPages.map(pg => ({
+          ...pg,
+          slots: (pg.slots || []).map((s, idx) => ({
+            ...s,
+            slotNumber: idx + 1,
+            slotIndex: idx + 1
+          }))
+        }))
       });
-      const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
-      safeSaveToLocalStorage(storageKey, pages);
-    } catch {
-      // Fallback
+      invalidateEpaperCache();
+    } catch (err) {
+      console.warn('savePagesBulk in handleApplyChanges fallback:', err);
     }
   };
 
@@ -2174,6 +2222,7 @@ function FullStudioInner() {
           publish_date: archiveDate,
           pages: enriched
         });
+        invalidateEpaperCache();
       } catch (saveErr) {
         console.warn('save-pages-bulk pre-save error:', saveErr);
       }
@@ -2707,7 +2756,7 @@ function FullStudioInner() {
                   const isSelected = s.id === activeSlotId;
                   const isBeingDragged = dragState?.slotId === s.id;
 
-                  const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : activeHeaderMetrics.totalTopOffset, activeHeaderMetrics.totalTopOffset);
+                  const safeSlotY = s.y !== undefined && s.y !== null ? Number(s.y) : activeHeaderMetrics.totalTopOffset;
                   const slotStyle: React.CSSProperties = {
                     position: 'absolute',
                     left: `${s.x}px`,
@@ -2826,7 +2875,7 @@ function FullStudioInner() {
                       </div>
 
                       {/* CARD CONTENT WRAPPER (100% PURE NEWSPAPER) */}
-                      <div className="w-full h-full p-2 flex flex-col overflow-hidden space-y-1">
+                      <div className="w-full h-full pt-2 px-2 pb-1 flex flex-col overflow-hidden space-y-1">
                         {/* Slot Headline (Never Cut Off / Full Display) */}
                         <div id={`slot-header-${s.id}`} className="space-y-0.5">
                           {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
@@ -2884,11 +2933,13 @@ function FullStudioInner() {
                                   style={{
                                     fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                                     lineHeight: `${lineH}px`,
+                                    ['--story-line-h' as any]: `${lineH}px`,
                                     columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
                                     columnGap: `${comp.colGap}px`,
                                     columnFill: 'auto',
-                                    height: `${comp.fullStoryH}px`,
-                                    maxHeight: `${comp.fullStoryH}px`,
+                                    WebkitColumnFill: 'auto' as any,
+                                    width: '100%',
+                                    height: '100%',
                                     overflow: 'hidden',
                                     columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                                     textAlign: 'justify',
@@ -2897,10 +2948,11 @@ function FullStudioInner() {
                                     color: s.summaryColor || undefined,
                                     whiteSpace: 'pre-line',
                                     boxSizing: 'border-box',
-                                    paddingRight: '2px'
+                                    paddingRight: '2px',
+                                    paddingBottom: '4px'
                                   }}
-                                  className="leading-normal h-full overflow-hidden whitespace-pre-line text-justify"
-                                  dangerouslySetInnerHTML={{ __html: s.summary || '' }}
+                                  className="broadsheet-story-text leading-normal h-full w-full overflow-hidden whitespace-pre-line text-justify"
+                                  dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
                                 />
                               </div>
                             );
@@ -2926,7 +2978,7 @@ function FullStudioInner() {
                             }
 
                             const singleColPhoto = (
-                              <div className="w-full mb-1.5 shrink-0 relative select-none">
+                              <div className="w-full shrink-0 relative select-none" style={{ marginBottom: '2px' }}>
                                 <span
                                   onMouseDown={(e) => handleStartDrag(e, s, 'drag-card-img')}
                                   style={{
@@ -2971,11 +3023,15 @@ function FullStudioInner() {
                                 style={{
                                   fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                                   lineHeight: `${lineH}px`,
+                                  ['--story-line-h' as any]: `${lineH}px`,
                                   columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
                                   columnGap: `${comp.colGap}px`,
                                   columnFill: 'auto',
-                                  height: `${bannerTextH}px`,
-                                  maxHeight: `${bannerTextH}px`,
+                                  WebkitColumnFill: 'auto' as any,
+                                  width: '100%',
+                                  height: '100%',
+                                  flex: 1,
+                                  minHeight: 0,
                                   overflow: 'hidden',
                                   columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                                   textAlign: 'justify',
@@ -2984,9 +3040,10 @@ function FullStudioInner() {
                                   color: s.summaryColor || undefined,
                                   whiteSpace: 'pre-line',
                                   boxSizing: 'border-box',
-                                  paddingRight: '2px'
+                                  paddingRight: '2px',
+                                  paddingBottom: '4px'
                                 }}
-                                className="leading-[1.35] flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                                className="broadsheet-story-text leading-normal flex-1 w-full overflow-hidden break-words whitespace-pre-line text-justify"
                                 dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
                               />
                             );
@@ -3014,11 +3071,13 @@ function FullStudioInner() {
                           const colStyleLeft: React.CSSProperties = {
                             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                             lineHeight: `${lineH}px`,
+                            ['--story-line-h' as any]: `${lineH}px`,
                             columnCount: comp.leftCols > 1 ? comp.leftCols : undefined,
                             columnGap: `${comp.colGap}px`,
                             columnFill: 'auto',
-                            height: `${comp.fullStoryH}px`,
-                            maxHeight: `${comp.fullStoryH}px`,
+                            WebkitColumnFill: 'auto' as any,
+                            width: '100%',
+                            height: '100%',
                             overflow: 'hidden',
                             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                             textAlign: 'justify',
@@ -3027,17 +3086,22 @@ function FullStudioInner() {
                             color: s.summaryColor || undefined,
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
-                            paddingRight: '2px'
+                            paddingRight: '2px',
+                            paddingBottom: '4px'
                           };
 
                           const colStylePhoto: React.CSSProperties = {
                             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                             lineHeight: `${lineH}px`,
+                            ['--story-line-h' as any]: `${lineH}px`,
                             columnCount: comp.photoCols > 1 ? comp.photoCols : undefined,
                             columnGap: `${comp.colGap}px`,
                             columnFill: 'auto',
-                            height: `${comp.underPhotoH}px`,
-                            maxHeight: `${comp.underPhotoH}px`,
+                            WebkitColumnFill: 'auto' as any,
+                            width: '100%',
+                            height: '100%',
+                            flex: 1,
+                            minHeight: 0,
                             overflow: 'hidden',
                             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                             textAlign: 'justify',
@@ -3046,17 +3110,22 @@ function FullStudioInner() {
                             color: s.summaryColor || undefined,
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
-                            paddingRight: '2px'
+                            paddingRight: '2px',
+                            paddingBottom: '4px'
                           };
 
                           const colStyleRight: React.CSSProperties = {
                             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                             lineHeight: `${lineH}px`,
+                            ['--story-line-h' as any]: `${lineH}px`,
                             columnCount: comp.rightCols > 1 ? comp.rightCols : undefined,
                             columnGap: `${comp.colGap}px`,
                             columnFill: 'auto',
-                            height: `${comp.fullStoryH}px`,
-                            maxHeight: `${comp.fullStoryH}px`,
+                            WebkitColumnFill: 'auto' as any,
+                            width: '100%',
+                            height: '100%',
+                            flex: 1,
+                            minHeight: 0,
                             overflow: 'hidden',
                             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                             textAlign: 'justify',
@@ -3065,7 +3134,8 @@ function FullStudioInner() {
                             color: s.summaryColor || undefined,
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
-                            paddingRight: '2px'
+                            paddingRight: '2px',
+                            paddingBottom: '4px'
                           };
 
                           const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
@@ -3081,7 +3151,7 @@ function FullStudioInner() {
                           }
 
                           const photoBlock = (
-                            <div className="w-full mb-1.5 shrink-0 relative select-none">
+                            <div className="w-full shrink-0 relative select-none" style={{ marginBottom: '2px' }}>
                               <span
                                 onMouseDown={(e) => handleStartDrag(e, s, 'drag-card-img')}
                                 style={{
@@ -3138,7 +3208,7 @@ function FullStudioInner() {
                                   >
                                     <div
                                       style={colStyleLeft}
-                                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text1 }}
                                     />
                                   </div>
@@ -3156,7 +3226,7 @@ function FullStudioInner() {
                                     {photoBlock}
                                     <div
                                       style={colStylePhoto}
-                                      className="leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                                     />
                                   </>
@@ -3166,7 +3236,7 @@ function FullStudioInner() {
                                   <>
                                     <div
                                       style={colStylePhoto}
-                                      className="leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                                     />
                                     {photoBlock}
@@ -3177,13 +3247,13 @@ function FullStudioInner() {
                                   <>
                                     <div
                                       style={{ ...colStylePhoto, height: `${Math.floor(comp.underPhotoH / 2)}px`, maxHeight: `${Math.floor(comp.underPhotoH / 2)}px`, flex: 'none' }}
-                                      className="leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                                     />
                                     {photoBlock}
                                     <div
                                       style={{ ...colStylePhoto, height: `${Math.ceil(comp.underPhotoH / 2)}px`, maxHeight: `${Math.ceil(comp.underPhotoH / 2)}px`, flex: '1' }}
-                                      className="leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text2b }}
                                     />
                                   </>
@@ -3200,7 +3270,7 @@ function FullStudioInner() {
                                   >
                                     <div
                                       style={colStyleRight}
-                                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                                      className="broadsheet-story-text leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
                                       dangerouslySetInnerHTML={{ __html: comp.text3 }}
                                     />
                                   </div>
@@ -3226,9 +3296,9 @@ function FullStudioInner() {
                   );
                 })}
 
-                {/* AUTHENTIC PRINT BROADSHEET FOOTER & CMYK REGISTRATION STRIP */}
+                {/* AUTHENTIC PRINT BROADSHEET FOOTER & CMYK REGISTRATION STRIP (EXACT BOTTOM REFERENCE) */}
                 <div
-                  className="absolute bottom-10 left-0 right-0 z-20 pointer-events-none"
+                  className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
                   style={{
                     width: '100%'
                   }}
@@ -3239,17 +3309,6 @@ function FullStudioInner() {
                     editionCity={currentEditionInfo.city}
                     dateStr={archiveDate}
                   />
-                </div>
-
-                {/* BOTTOM PAGE BOUNDARY LIMIT LINE (Fixed Height: 2112px) */}
-                <div className="absolute bottom-0 left-0 right-0 h-10 border-t-2 border-dashed border-red-600 bg-red-50/95 px-6 flex items-center justify-between font-sans text-xs font-black text-red-700 z-30 select-none shadow-md">
-                  <span className="flex items-center space-x-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-                    <span>🛑 PAGE 0{activePage.pageNumber} BOTTOM BOUNDARY (Fixed Height: 2112px • ~56cm Canvas)</span>
-                  </span>
-                  <span className="hidden sm:inline bg-red-600 text-white px-3 py-1 rounded-full text-[11px] font-bold">
-                    Space Full? Click "+ Add Page" for Page 0{activePage.pageNumber + 1}
-                  </span>
                 </div>
 
               </div>

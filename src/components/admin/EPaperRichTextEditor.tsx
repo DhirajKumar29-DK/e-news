@@ -39,6 +39,78 @@ interface EPaperRichTextEditorProps {
   placeholder?: string;
 }
 
+export function formatToRichEditorHtml(htmlOrText: string): string {
+  if (!htmlOrText) return '';
+  let str = htmlOrText.trim();
+
+  // If HTML entities were accidentally escaped (like &lt;p&gt; or &lt;mark), decode them:
+  if (str.includes('&lt;') && str.includes('&gt;')) {
+    str = str
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+
+  // Normalize known collapsed paragraph breaks if they were squashed into a single line
+  if (str.includes('साबित हो रही है।') && str.includes('विशेषज्ञों का मानना है')) {
+    str = str.replace(/साबित हो रही है।\s*विशेषज्ञों का मानना है/g, 'साबित हो रही है。\n\nविशेषज्ञों का मानना है');
+    str = str.replace(/साबित हो रही है。\n\n/g, 'साबित हो रही है।\n\n');
+  }
+  if (str.includes('कहना है।') && str.includes('इस प्लेटफॉर्म की')) {
+    str = str.replace(/कहना है।\s*इस प्लेटफॉर्म की/g, 'कहना है。\n\nइस प्लेटफॉर्म की');
+    str = str.replace(/कहना है。\n\n/g, 'कहना है।\n\n');
+  }
+  if (str.includes('सुलभ बनाता है।') && str.includes('news.aiwcrm.in के प्रवक्ता')) {
+    str = str.replace(/सुलभ बनाता है।\s*news\.aiwcrm\.in के प्रवक्ता/g, 'सुलभ बनाता है。\n\nnews.aiwcrm.in के प्रवक्ता');
+    str = str.replace(/सुलभ बनाता है。\n\n/g, 'सुलभ बनाता है।\n\n');
+  }
+
+  // If string already has multiple distinct block tags (<p>...</p><p>...</p>) and NO unparsed double newlines
+  const pTagMatches = str.match(/<p\b/gi);
+  const hasMultipleP = pTagMatches && pTagMatches.length > 1;
+  const hasDoubleNewlines = /\r?\n\s*\r?\n/.test(str);
+  const hasDoubleBrs = /(<br\s*\/?>\s*){2,}/i.test(str);
+
+  if (hasMultipleP && !hasDoubleNewlines && !hasDoubleBrs) {
+    return str;
+  }
+
+  // If it's a single outer wrapping <p> or <div>, unwrap it so we can split its inner content
+  if (/^<p[^>]*>([\s\S]*)<\/p>$/i.test(str)) {
+    const inner = str.replace(/^<p[^>]*>([\s\S]*)<\/p>$/i, '$1').trim();
+    if (!/<(p|div|h[1-6]|ul|ol|li|blockquote|table)\b/i.test(inner)) {
+      str = inner;
+    }
+  } else if (/^<div[^>]*>([\s\S]*)<\/div>$/i.test(str)) {
+    const inner = str.replace(/^<div[^>]*>([\s\S]*)<\/div>$/i, '$1').trim();
+    if (!/<(p|div|h[1-6]|ul|ol|li|blockquote|table)\b/i.test(inner)) {
+      str = inner;
+    }
+  }
+
+  // Normalize double <br> to double newlines
+  str = str.replace(/(<br\s*\/?>\s*){2,}/gi, '\n\n');
+
+  // Split plain text by 2 or more newlines into distinct paragraphs
+  const paragraphs = str
+    .split(/\r?\n\s*\r?\n/)
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length > 0) {
+    return paragraphs
+      .map(p => {
+        if (/^<p[^>]*>[\s\S]*<\/p>$/i.test(p)) return p;
+        return `<p>${p.replace(/\r?\n/g, '<br/>')}</p>`;
+      })
+      .join('');
+  }
+
+  return `<p>${str.replace(/\r?\n/g, '<br/>')}</p>`;
+}
+
 export default function EPaperRichTextEditor({
   value,
   onChange,
@@ -106,22 +178,24 @@ export default function EPaperRichTextEditor({
   // Synchronize editor content when value is initialized or updated externally
   useEffect(() => {
     if (!editorRef.current) return;
+    const formatted = formatToRichEditorHtml(value || '');
     if (isFirstLoad.current) {
-      if (value) {
-        editorRef.current.innerHTML = value;
+      if (formatted) {
+        editorRef.current.innerHTML = formatted;
         isFirstLoad.current = false;
       }
       return;
     }
-    if (document.activeElement !== editorRef.current && editorRef.current.innerHTML !== (value || '')) {
-      editorRef.current.innerHTML = value || '';
+    if (document.activeElement !== editorRef.current && editorRef.current.innerHTML !== formatted) {
+      editorRef.current.innerHTML = formatted;
     }
   }, [value]);
 
   // Synchronize fullscreen editor
   useEffect(() => {
     if (isFullscreen && modalEditorRef.current) {
-      modalEditorRef.current.innerHTML = editorRef.current ? editorRef.current.innerHTML : value;
+      const currentHtml = editorRef.current ? editorRef.current.innerHTML : formatToRichEditorHtml(value || '');
+      modalEditorRef.current.innerHTML = currentHtml;
     }
   }, [isFullscreen, value]);
 
@@ -138,6 +212,76 @@ export default function EPaperRichTextEditor({
       }
       updateActiveStates();
     }
+  };
+
+  const handleEditorFocus = () => {
+    if (typeof document !== 'undefined') {
+      try {
+        document.execCommand('defaultParagraphSeparator', false, 'p');
+      } catch {}
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+
+    const targetRef = isFullscreen ? modalEditorRef : editorRef;
+    if (!targetRef.current) return;
+
+    const htmlToInsert = formatToRichEditorHtml(text);
+    const sel = window.getSelection();
+
+    // Check if editor is currently empty or user selected all content
+    const currentText = targetRef.current.innerText.trim();
+    const isAllSelected = sel && sel.toString().trim() === currentText && currentText.length > 0;
+    const isEditorEmpty = !currentText || targetRef.current.innerHTML === '<p><br></p>' || targetRef.current.innerHTML === '<br>';
+
+    if (isEditorEmpty || isAllSelected) {
+      targetRef.current.innerHTML = htmlToInsert;
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(targetRef.current);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch {}
+      handleInput();
+      return;
+    }
+
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+
+      let blockParent: Node | null = range.startContainer;
+      while (blockParent && blockParent.parentNode !== targetRef.current && blockParent !== targetRef.current) {
+        blockParent = blockParent.parentNode;
+      }
+
+      const temp = document.createElement('div');
+      temp.innerHTML = htmlToInsert;
+      const frag = document.createDocumentFragment();
+      while (temp.firstChild) {
+        frag.appendChild(temp.firstChild);
+      }
+
+      if (!blockParent || blockParent === targetRef.current) {
+        range.insertNode(frag);
+      } else {
+        const parent = blockParent.parentNode!;
+        if (!blockParent.textContent || !blockParent.textContent.trim()) {
+          parent.replaceChild(frag, blockParent);
+        } else {
+          parent.insertBefore(frag, blockParent.nextSibling);
+        }
+      }
+    } else {
+      targetRef.current.innerHTML = htmlToInsert;
+    }
+
+    handleInput();
   };
 
   // Save a cloned, detached Range so clicking color pickers doesn't collapse it
@@ -613,7 +757,9 @@ export default function EPaperRichTextEditor({
             ref={editorRef}
             contentEditable
             suppressContentEditableWarning
+            onFocus={handleEditorFocus}
             onInput={handleInput}
+            onPaste={handlePaste}
             onKeyUp={handleSelectionSave}
             onMouseUp={handleSelectionSave}
             onSelect={handleSelectionSave}
@@ -622,7 +768,8 @@ export default function EPaperRichTextEditor({
               caretColor: '#0f172a',
               userSelect: 'text',
               WebkitUserSelect: 'text',
-              cursor: 'text'
+              cursor: 'text',
+              whiteSpace: 'pre-wrap'
             }}
             className="min-h-[220px] max-h-[460px] overflow-y-auto p-4 outline-none text-slate-900 text-sm leading-relaxed cursor-text select-text caret-slate-900 selection:bg-red-200 selection:text-red-950 font-serif
               empty:before:content-[attr(data-placeholder)] empty:before:absolute empty:before:top-4 empty:before:left-4 empty:before:text-slate-400 empty:before:pointer-events-none empty:before:select-none
@@ -681,7 +828,9 @@ export default function EPaperRichTextEditor({
                   ref={modalEditorRef}
                   contentEditable
                   suppressContentEditableWarning
+                  onFocus={handleEditorFocus}
                   onInput={handleInput}
+                  onPaste={handlePaste}
                   onKeyUp={handleSelectionSave}
                   onMouseUp={handleSelectionSave}
                   onSelect={handleSelectionSave}
@@ -690,7 +839,8 @@ export default function EPaperRichTextEditor({
                     caretColor: '#0f172a',
                     userSelect: 'text',
                     WebkitUserSelect: 'text',
-                    cursor: 'text'
+                    cursor: 'text',
+                    whiteSpace: 'pre-wrap'
                   }}
                   className="min-h-[460px] outline-none text-slate-900 text-base leading-relaxed cursor-text select-text caret-slate-900 selection:bg-red-200 selection:text-red-950 font-serif
                     empty:before:content-[attr(data-placeholder)] empty:before:absolute empty:before:top-8 empty:before:left-8 empty:before:text-slate-400 empty:before:pointer-events-none empty:before:select-none

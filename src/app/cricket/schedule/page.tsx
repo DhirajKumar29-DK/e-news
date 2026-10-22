@@ -42,7 +42,7 @@ export default function SchedulePage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6 w-full space-y-6 flex-1">
         {/* Breadcrumb */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="hidden md:flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <Link href="/cricket" className="hover:text-red-600 dark:hover:text-white flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-400">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Cricket Center
           </Link>

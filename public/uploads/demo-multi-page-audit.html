@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-Page Broadsheet Header Audit (5 Pages)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Merriweather:wght@400;700;900&family=Mukta:wght@400;500;600;700;800&family=Noto+Serif+Devanagari:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fffdf7;
+      font-family: 'Noto Serif Devanagari', 'Merriweather', serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    p, span, div, h1, h2, h3, h4, h5, h6 {
+      margin: 0;
+      padding: 0;
+    }
+    mark {
+      background-color: #fef08a !important;
+      color: #0f172a !important;
+      padding: 1px 4px !important;
+      border-radius: 3px !important;
+      font-weight: 700 !important;
+      display: inline !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    b, strong {
+      font-weight: 800 !important;
+      color: #020617 !important;
+    }
+    .broadsheet-story-text {
+      font-family: 'Noto Serif Devanagari', 'Merriweather', serif;
+      overflow: hidden;
+      box-sizing: border-box;
+      padding-right: 2px;
+      word-break: break-word;
+      text-align: justify;
+      text-justify: inter-word;
+    }
+    @page {
+      size: 1344px 2112px;
+      margin: 0;
+    }
+    .broadsheet-page {
+      width: 1344px;
+      height: 2112px;
+      position: relative;
+      background: #fffdf7;
+      padding: 40px;
+      box-sizing: border-box;
+      overflow: hidden;
+      page-break-after: always;
+    }
+    .broadsheet-page:last-child {
+      page-break-after: avoid;
+    }
+  </style>
+</head>
+<body>
+  
+    <div class="broadsheet-page">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #0f172a; padding-bottom: 2px; margin-bottom: 2px; font-size: 12px; font-weight: 700; color: #1e293b; font-family: 'Mukta', 'Inter', sans-serif; line-height: 1.15;">
+        <div>पटना &bull; बुधवार • 21 अक्टूबर 2026</div>
+        <div style="font-style: italic; color: #475569; font-family: 'Noto Serif Devanagari', 'Merriweather', serif;">डिजिटल संस्करण &bull; epaper</div>
+        <div>पेज 01</div>
+      </div>
+      <header style="border-bottom: 3px double #0f172a; padding-bottom: 2px; margin-bottom: 2px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; height: 82px; box-sizing: border-box;">
+          <div style="width: 210px; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
+            <div style="font-size: 26px; font-weight: 900; color: #dc2626; font-family: 'Noto Serif Devanagari', serif;">वार्तिक</div>
+            <div style="font-size: 9.5px; font-weight: 700; color: #475569; font-family: 'Inter', sans-serif; margin-top: 2px; line-height: 1.2;">
+              <span>वर्ष 01 &bull; अंक 145</span><br />
+              <span>डिजिटल संस्करण &bull; मूल्य: नि:शुल्क</span>
+            </div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+            <h1 style="font-size: 52px; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-weight: 900; color: #dc2626; margin: 0; line-height: 1.0; padding: 0; letter-spacing: -1px;">
+              वार्तिक
+            </h1>
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px;">
+              <span style="width: 28px; height: 1.5px; background-color: #0f172a; display: inline-block;"></span>
+              <span style="border: 1px solid #0f172a; background-color: #ffffff; color: #020617; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-weight: 900; font-size: 13.5px; padding: 1px 12px; border-radius: 2px; letter-spacing: 0.5px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); line-height: 1.2;">
+                मुख्य पृष्ठ
+              </span>
+              <span style="width: 28px; height: 1.5px; background-color: #0f172a; display: inline-block;"></span>
+            </div>
+            <div style="font-size: 9.5px; font-weight: 700; color: #475569; font-style: italic; font-family: 'Mukta', sans-serif; margin-top: 2px; letter-spacing: 0.5px; line-height: 1.1;">
+              &ldquo;खबर समझो, दुनिया समझो।&rdquo;
+            </div>
+          </div>
+          <div style="width: 210px; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end;">
+            <span style="border: 1px solid #0f172a; background-color: #f8fafc; color: #0f172a; font-family: 'Noto Serif Devanagari', serif; font-weight: 800; font-size: 12px; padding: 2px 10px; border-radius: 2px;">
+              मुख्य पृष्ठ
+            </span>
+          </div>
+        </div>
+      </header>
+    
+
+
+      <!-- SLOTS DIRECT ON BROADSHEET CANVAS (EXACT 1:1 REPLICA OF ADMIN CANVAS & WEBSITE MODAL) -->
+      
+      <div
+        id="slot-container-s1-1"
+        style="position: absolute; left: 16px; top: 135px; width: 1232px; height: 600px; border: none; padding: 12px; box-sizing: border-box; background: transparent; overflow: hidden; display: flex; flex-direction: column;"
+      >
+        <div id="slot-header-s1-1" style="margin-bottom: 2px; flex-shrink: 0;">
+          <div style="margin-bottom: 1px; display: flex; align-items: center;"><span style="display: inline-block; background-color: #dc2626; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; text-transform: uppercase; border-radius: 3px; font-family: 'Inter', sans-serif; letter-spacing: 0.5px; line-height: 1;">बड़ी खबर</span></div>
+          <h2 style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 38px; color: #111827; line-height: 1.25; font-weight: 900; margin: 0; word-break: break-word;">बिहार में 5000 करोड़ की नई एक्सप्रेसवे परियोजनाओं को केंद्र सरकार की मंजूरी</h2>
+          <p style="font-family: 'Mukta', 'Inter', sans-serif; font-size: 20px; color: #dc2626; line-height: 1.25; font-weight: 700; margin: 1px 0 0 0; text-align: justify; word-break: break-word;">पटना, गया, मुजफ्फरपुर और भागलपुर के बीच हाई-स्पीड कनेक्टिविटी, 4 घंटे में पूरा होगा सफर</p>
+        </div>
+        <div id="slot-body-s1-1" style="flex: 1; min-height: 0; overflow: hidden; width: 100%;">
+          
+        <div class="broadsheet-story-text" style="column-count: 3; column-gap: 14px; column-rule: none; column-fill: auto; width: 100%; flex: 1; min-height: 0; height: auto; max-height: 100%; overflow: hidden; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 16px; color: #1e293b; line-height: 24px; text-align: justify; text-justify: inter-word; word-break: break-word; white-space: pre-line; box-sizing: border-box; padding-right: 2px;">
+          नई दिल्ली/पटना। केंद्र सरकार ने बिहार के बुनियादी ढांचे को नई रफ्तार देते हुए 5000 करोड़ रुपये से अधिक की 4 प्रमुख एक्सप्रेसवे परियोजनाओं को वित्तीय स्वीकृति प्रदान कर दी है। इस योजना के तहत राज्य के चारों प्रमुख शहरों—पटना, गया, मुजफ्फरपुर और दरभंगा को 6-लेन ग्रीनफील्ड कॉरिडोर से जोड़ा जाएगा। परिवहन विशेषज्ञों का मानना है कि इस कॉरिडोर के निर्माण से न केवल यात्रा का समय आधा रह जाएगा बल्कि राज्य में व्यापार और रोजगार के नए अवसर पैदा होंगे।
+        </div>
+      
+        </div>
+      </div>
+    
+
+      <!-- FOOTER -->
+      <footer style="position: absolute; bottom: 12px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10px; font-family: 'Mukta', 'Inter', sans-serif; color: #64748b;">
+        <span>दैनिक समाचार पत्र • डिजिटल ई-संस्करण • बिहार &bull; पटना</span>
+        <span>पेज 01</span>
+      </footer>
+    </div>
+  
+
+    <div class="broadsheet-page">
+      
+      <header style="border-top: 1.5px solid #0f172a; border-bottom: 2px solid #0f172a; padding: 2px 0; margin-bottom: 4px; box-sizing: border-box; height: 42px; display: flex; align-items: center; justify-content: space-between; font-family: 'Mukta', 'Noto Serif Devanagari', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; flex: 1; font-size: 11px; font-weight: 700; color: #1e293b;">
+          <span style="font-family: 'Noto Serif Devanagari', serif; font-size: 20px; font-weight: 900; color: #dc2626; line-height: 1;">वार्तिक</span>
+          <span style="color: #94a3b8; font-size: 13px;">|</span>
+          <span>पटना &bull; बुधवार • 21 अक्टूबर 2026</span>
+        </div>
+        <div style="flex: 2; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+          <div style="background-color: #0f172a; color: #ffffff; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-weight: 900; font-size: 15px; padding: 2px 20px; letter-spacing: 1px; line-height: 1.15; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+            गया
+          </div>
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 1; font-size: 11.5px; font-weight: 800; color: #0f172a;">
+          <span style="background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 8px; border-radius: 3px;">पेज 02</span>
+          <span style="color: #64748b; font-weight: 600; font-size: 10.5px;">epaper.vartiq.com</span>
+        </div>
+      </header>
+    
+
+
+      <!-- SLOTS DIRECT ON BROADSHEET CANVAS (EXACT 1:1 REPLICA OF ADMIN CANVAS & WEBSITE MODAL) -->
+      
+      <div
+        id="slot-container-s2-1"
+        style="position: absolute; left: 16px; top: 52px; width: 1232px; height: 650px; border: none; padding: 12px; box-sizing: border-box; background: transparent; overflow: hidden; display: flex; flex-direction: column;"
+      >
+        <div id="slot-header-s2-1" style="margin-bottom: 2px; flex-shrink: 0;">
+          <div style="margin-bottom: 1px; display: flex; align-items: center;"><span style="display: inline-block; background-color: #dc2626; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; text-transform: uppercase; border-radius: 3px; font-family: 'Inter', sans-serif; letter-spacing: 0.5px; line-height: 1;">गया लाइव</span></div>
+          <h2 style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 36px; color: #0f172a; line-height: 1.25; font-weight: 900; margin: 0; word-break: break-word;">विष्णुपद मंदिर व बोधगया में महाबोधि मंदिर कॉरिडोर के लिए भूमि अधिग्रहण शुरू</h2>
+          <p style="font-family: 'Mukta', 'Inter', sans-serif; font-size: 19px; color: #b45309; line-height: 1.25; font-weight: 700; margin: 1px 0 0 0; text-align: justify; word-break: break-word;">अंतरराष्ट्रीय पर्यटकों के लिए विश्वस्तरीय सुविधाएं, रिवरफ्रंट पर 50 एकड़ में बनेगा हेरिटेज पार्क</p>
+        </div>
+        <div id="slot-body-s2-1" style="flex: 1; min-height: 0; overflow: hidden; width: 100%;">
+          
+        <div class="broadsheet-story-text" style="column-count: 3; column-gap: 14px; column-rule: none; column-fill: auto; width: 100%; flex: 1; min-height: 0; height: auto; max-height: 100%; overflow: hidden; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 15px; color: #334155; line-height: 22px; text-align: justify; text-justify: inter-word; word-break: break-word; white-space: pre-line; box-sizing: border-box; padding-right: 2px;">
+          गया। धार्मिक पर्यटन को बढ़ावा देने के लिए गया और बोधगया में कॉरिडोर निर्माण का काम अब जमीन पर उतरने लगा है। जिला प्रशासन ने भूमि अधिग्रहण की प्रारंभिक अधिसूचना जारी कर दी है। फल्गु नदी तट पर 50 एकड़ भूमि पर आधुनिक हेरिटेज पार्क और वॉकिंग प्लाजा विकसित किया जाएगा। देश-विदेश से आने वाले श्रद्धालुओं को जाम से मुक्ति दिलाने के लिए एलिवेटेड कॉरिडोर भी तैयार होगा।
+        </div>
+      
+        </div>
+      </div>
+    
+
+      <!-- FOOTER -->
+      <footer style="position: absolute; bottom: 12px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10px; font-family: 'Mukta', 'Inter', sans-serif; color: #64748b;">
+        <span>दैनिक समाचार पत्र • डिजिटल ई-संस्करण • बिहार &bull; पटना</span>
+        <span>पेज 02</span>
+      </footer>
+    </div>
+  
+
+    <div class="broadsheet-page">
+      
+      <header style="border-top: 1.5px solid #0f172a; border-bottom: 2px solid #0f172a; padding: 2px 0; margin-bottom: 4px; box-sizing: border-box; height: 42px; display: flex; align-items: center; justify-content: space-between; font-family: 'Mukta', 'Noto Serif Devanagari', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; flex: 1; font-size: 11px; font-weight: 700; color: #1e293b;">
+          <span style="font-family: 'Noto Serif Devanagari', serif; font-size: 20px; font-weight: 900; color: #dc2626; line-height: 1;">वार्तिक</span>
+          <span style="color: #94a3b8; font-size: 13px;">|</span>
+          <span>पटना &bull; बुधवार • 21 अक्टूबर 2026</span>
+        </div>
+        <div style="flex: 2; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+          <div style="background-color: #0f172a; color: #ffffff; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-weight: 900; font-size: 15px; padding: 2px 20px; letter-spacing: 1px; line-height: 1.15; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+            मुजफ्फरपुर
+          </div>
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 1; font-size: 11.5px; font-weight: 800; color: #0f172a;">
+          <span style="background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 8px; border-radius: 3px;">पेज 03</span>
+          <span style="color: #64748b; font-weight: 600; font-size: 10.5px;">epaper.vartiq.com</span>
+        </div>
+      </header>
+    
+
+
+      <!-- SLOTS DIRECT ON BROADSHEET CANVAS (EXACT 1:1 REPLICA OF ADMIN CANVAS & WEBSITE MODAL) -->
+      
+      <div
+        id="slot-container-s3-1"
+        style="position: absolute; left: 16px; top: 52px; width: 1232px; height: 650px; border: none; padding: 12px; box-sizing: border-box; background: transparent; overflow: hidden; display: flex; flex-direction: column;"
+      >
+        <div id="slot-header-s3-1" style="margin-bottom: 2px; flex-shrink: 0;">
+          <div style="margin-bottom: 1px; display: flex; align-items: center;"><span style="display: inline-block; background-color: #dc2626; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; text-transform: uppercase; border-radius: 3px; font-family: 'Inter', sans-serif; letter-spacing: 0.5px; line-height: 1;">उत्तर बिहार</span></div>
+          <h2 style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 36px; color: #0f172a; line-height: 1.25; font-weight: 900; margin: 0; word-break: break-word;">स्मार्ट सिटी प्रोजेक्ट: मुजफ्फरपुर में नए फ्लाईओवर और रिंग रोड का काम 80% पूरा</h2>
+          <p style="font-family: 'Mukta', 'Inter', sans-serif; font-size: 19px; color: #047857; line-height: 1.25; font-weight: 700; margin: 1px 0 0 0; text-align: justify; word-break: break-word;">अखाड़ाघाट और बैरिया गोलंबर पर लगने वाले जाम से मिलेगी राहत, दिसंबर तक शुरू होगा परिचालन</p>
+        </div>
+        <div id="slot-body-s3-1" style="flex: 1; min-height: 0; overflow: hidden; width: 100%;">
+          
+        <div class="broadsheet-story-text" style="column-count: 3; column-gap: 14px; column-rule: none; column-fill: auto; width: 100%; flex: 1; min-height: 0; height: auto; max-height: 100%; overflow: hidden; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 15px; color: #334155; line-height: 22px; text-align: justify; text-justify: inter-word; word-break: break-word; white-space: pre-line; box-sizing: border-box; padding-right: 2px;">
+          मुजफ्फरपुर। स्मार्ट सिटी मिशन के तहत उत्तर बिहार की वाणिज्यिक राजधानी मुजफ्फरपुर में शहर के ट्रैफिक लोड को कम करने के लिए तैयार हो रहे रिंग रोड प्रोजेक्ट का 80 फीसदी सिविल वर्क पूरा हो चुका है। नगर आयुक्त ने आज निर्माण स्थल का निरीक्षण किया और निर्माण एजेंसियों को आगामी दिसंबर माह तक सभी कनेक्टिंग सड़कों को दुरुस्त करने का अल्टीमेटम दिया।
+        </div>
+      
+        </div>
+      </div>
+    
+
+      <!-- FOOTER -->
+      <footer style="position: absolute; bottom: 12px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10px; font-family: 'Mukta', 'Inter', sans-serif; color: #64748b;">
+        <span>दैनिक समाचार पत्र • डिजिटल ई-संस्करण • बिहार &bull; पटना</span>
+        <span>पेज 03</span>
+      </footer>
+    </div>
+  
+
+    <div class="broadsheet-page">
+      
+      <header style="border-top: 1.5px solid #0f172a; border-bottom: 2px solid #0f172a; padding: 2px 0; margin-bottom: 4px; box-sizing: border-box; height: 42px; display: flex; align-items: center; justify-content: space-between; font-family: 'Mukta', 'Noto Serif Devanagari', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; flex: 1; font-size: 11px; font-weight: 700; color: #1e293b;">
+          <span style="font-family: 'Noto Serif Devanagari', serif; font-size: 20px; font-weight: 900; color: #dc2626; line-height: 1;">वार्तिक</span>
+          <span style="color: #94a3b8; font-size: 13px;">|</span>
+          <span>पटना &bull; बुधवार • 21 अक्टूबर 2026</span>
+        </div>
+        <div style="flex: 2; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+          <div style="background-color: #0f172a; color: #ffffff; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-weight: 900; font-size: 15px; padding: 2px 20px; letter-spacing: 1px; line-height: 1.15; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+            खेल
+          </div>
+          <span style="height: 1.5px; width: 44px; background-color: #0f172a; display: inline-block;"></span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 1; font-size: 11.5px; font-weight: 800; color: #0f172a;">
+          <span style="background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 8px; border-radius: 3px;">पेज 04</span>
+          <span style="color: #64748b; font-weight: 600; font-size: 10.5px;">epaper.vartiq.com</span>
+        </div>
+      </header>
+    
+
+
+      <!-- SLOTS DIRECT ON BROADSHEET CANVAS (EXACT 1:1 REPLICA OF ADMIN CANVAS & WEBSITE MODAL) -->
+      
+      <div
+        id="slot-container-s4-1"
+        style="position: absolute; left: 16px; top: 52px; width: 1232px; height: 650px; border: none; padding: 12px; box-sizing: border-box; background: transparent; overflow: hidden; display: flex; flex-direction: column;"
+      >
+        <div id="slot-header-s4-1" style="margin-bottom: 2px; flex-shrink: 0;">
+          <div style="margin-bottom: 1px; display: flex; align-items: center;"><span style="display: inline-block; background-color: #dc2626; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 1px 6px; text-transform: uppercase; border-radius: 3px; font-family: 'Inter', sans-serif; letter-spacing: 0.5px; line-height: 1;">स्पोर्ट्स स्पेशल</span></div>
+          <h2 style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 36px; color: #0f172a; line-height: 1.25; font-weight: 900; margin: 0; word-break: break-word;">राजगीर इंटरनेशनल स्पोर्ट्स कॉम्प्लेक्स में आगामी एशियन महिला हॉकी चैंपियंस ट्रॉफी की तैयारियां तेज</h2>
+          <p style="font-family: 'Mukta', 'Inter', sans-serif; font-size: 19px; color: #1d4ed8; line-height: 1.25; font-weight: 700; margin: 1px 0 0 0; text-align: justify; word-break: break-word;">6 एशियाई देश लेंगे हिस्सा, बिहार सरकार ने खिलाड़ियो व दर्शकों के लिए की खास व्यवस्था</p>
+        </div>
+        <div id="slot-body-s4-1" style="flex: 1; min-height: 0; overflow: hidden; width: 100%;">
+          
+        <div class="broadsheet-story-text" style="column-count: 3; column-gap: 14px; column-rule: none; column-fill: auto; width: 100%; flex: 1; min-height: 0; height: auto; max-height: 100%; overflow: hidden; font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 15px; color: #334155; line-height: 22px; text-align: justify; text-justify: inter-word; word-break: break-word; white-space: pre-line; box-sizing: border-box; padding-right: 2px;">
+          राजगीर/पटना। बिहार की ऐतिहासिक धरती राजगीर में नवनिर्मित अत्याधुनिक अंतरराष्ट्रीय खेल परिसर में आगामी एशियन महिला हॉकी चैंपियंस ट्रॉफी के आयोजन को लेकर खेल विभाग ने पूरी ताकत झोंक दी है। भारत, चीन, जापान, दक्षिण कोरिया, मलेशिया और थाईलैंड की टीमें इस प्रतिष्ठित टूर्नामेंट में भाग लेंगी। खिलाड़ियों की सुरक्षा और आवागमन के लिए विशेष ग्रीन कॉरिडोर बनाया जाएगा।
+        </div>
+      
+        </div>
+      </div>
+    
+
+      <!-- FOOTER -->
+      <footer style="position: absolute; bottom: 12px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10px; font-family: 'Mukta', 'Inter', sans-serif; color: #64748b;">
+        <span>दैनिक समाचार पत्र • डिजिटल ई-संस्करण • बिहार &bull; पटना</span>
+        <span>पेज 04</span>
+      </footer>
+    </div>
+  
+
+    <div class="broadsheet-page">
+      <div style="height: 6px; width: 100%;"></div>
+
+
+      <!-- SLOTS DIRECT ON BROADSHEET CANVAS (EXACT 1:1 REPLICA OF ADMIN CANVAS & WEBSITE MODAL) -->
+      
+        <div style="position: absolute; left: 16px; top: 16px; width: 1232px; height: 1800px; border: 2px dashed #d97706; padding: 12px; box-sizing: border-box; background: #fffbeb; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <span style="display: inline-block; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 6px;">SPONSORED AD</span>
+            <h3 style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 44px; font-weight: 800; color: #b45309; margin: 0 0 4px 0; line-height: 1.25;">मेगा फेस्टिवल ऑफर — अपने सपनों का आशियाना बनाएं!</h3>
+            <p style="font-family: 'Mukta', 'Inter', sans-serif; font-size: 24px; font-weight: 700; color: #78350f; margin: 0 0 6px 0; line-height: 1.3;">प्राइम लोकेशन पर 2 & 3 BHK लग्जरी अपार्टमेंट्स • नो ईएमआई टिल पजेशन • स्पेशल डिस्काउंट</p>
+            <div class="broadsheet-story-text" style="font-family: 'Noto Serif Devanagari', 'Merriweather', serif; font-size: 18px; color: #451a03; line-height: 26px; text-align: justify; overflow: hidden; box-sizing: border-box; padding-right: 2px;">इस धनतेरस और दीपावली पर आपके परिवार के लिए सबसे बेहतरीन आवासीय योजना। सभी अत्याधुनिक सुविधाओं से युक्त: 24x7 सुरक्षा, क्लब हाउस, स्विमिंग पूल, जिम, जॉगिंग ट्रैक और 70% ग्रीन ओपन एरिया। तुरंत बुकिंग पर पाएं विशेष उपहार। संपर्क करें: 1800-XXX-XXXX या विजिट करें हमारे साइट ऑफिस पर।</div>
+          </div>
+        </div>
+      
+
+      <!-- FOOTER -->
+      <footer style="position: absolute; bottom: 12px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10px; font-family: 'Mukta', 'Inter', sans-serif; color: #64748b;">
+        <span>दैनिक समाचार पत्र • डिजिटल ई-संस्करण • बिहार &bull; पटना</span>
+        <span>पेज 05</span>
+      </footer>
+    </div>
+  
+
+</body>
+</html>

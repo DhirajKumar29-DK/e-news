@@ -172,6 +172,20 @@ export function stripHtmlTagsToPlainText(input: string): string {
   return str.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export function decodeHtmlEntities(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  if (str.includes('&lt;') && str.includes('&gt;')) {
+    str = str
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  return str;
+}
+
 function normalizeSlotData(s: any): any {
   const width = s.width !== undefined && s.width !== null ? Number(s.width) : 400;
   const height = s.height !== undefined && s.height !== null ? Number(s.height) : 250;
@@ -195,6 +209,9 @@ function normalizeSlotData(s: any): any {
   const rawSubHlSize = s.subHeadlineFontSize ?? s.sub_headline_font_size ?? s.content?.subHeadlineFontSize ?? s.content?.sub_headline_font_size;
   const rawSummarySize = s.summaryFontSize ?? s.summary_font_size ?? s.bodyFontSize ?? s.body_font_size ?? s.content?.summaryFontSize ?? s.content?.bodyFontSize ?? s.content?.summary_font_size ?? s.content?.fontSize;
 
+  const rawSummary = s.summary || s.contentText || s.content?.body || s.content?.summary || '';
+  const decodedSummary = decodeHtmlEntities(rawSummary);
+
   return {
     ...s,
     id: s.id || s.slot_id || `slot-${Math.random().toString(36).substr(2, 9)}`,
@@ -206,7 +223,8 @@ function normalizeSlotData(s: any): any {
     subHeadline: s.subHeadline || s.content?.subHeadline || '',
     categoryBadge: s.categoryBadge || s.categoryTag || s.content?.categoryBadge || s.content?.categoryTag || '',
     categoryTag: s.categoryTag || s.categoryBadge || s.content?.categoryTag || s.content?.categoryBadge || '',
-    summary: stripHtmlTagsToPlainText(s.summary || s.contentText || s.content?.body || s.content?.summary || ''),
+    summary: decodedSummary,
+    contentText: s.contentText ? decodeHtmlEntities(s.contentText) : decodedSummary,
     imageUrl: s.imageUrl || s.content?.imageUrl || '',
     imageAlignment: s.imageAlignment || s.imageAlign || 'Left',
     imageAlign: s.imageAlign || s.imageAlignment || 'Left',
@@ -334,6 +352,8 @@ function findBestTokenFit(
   div.style.fontSize = `${fontSize || 14}px`;
   div.style.fontFamily = "'Noto Serif Devanagari', 'Merriweather', serif";
   div.style.lineHeight = `${lineH}px`;
+  (div.style as any)['--story-line-h'] = `${lineH}px`;
+  div.className = 'broadsheet-story-text whitespace-pre-line';
   div.style.textAlign = 'justify';
   (div.style as any).textJustify = 'inter-word';
   div.style.wordBreak = 'break-word';
@@ -405,7 +425,7 @@ function computeSlotSections(s: any) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
   const cardH = s.height || 400;
-  const cardContentW = Math.max(100, s.width - 24);
+  const cardContentW = Math.max(100, s.width - 16);
   const showDivider = s.showColumnDivider || false;
 
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
@@ -413,8 +433,6 @@ function computeSlotSections(s: any) {
   const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
   const lineH = getSummaryLineHeight(summaryFont);
 
-  // Card framing: 8px top padding + 8px bottom padding + 4px gap = 20px (14px baseline in Admin)
-  const cardFraming = 14;
   let measuredH = measureSlotHeaderHeight(s, cardContentW);
   if (!measuredH || measuredH === 0) {
     const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
@@ -430,23 +448,20 @@ function computeSlotSections(s: any) {
     measuredH = badgeH + hlH + subH;
   }
 
-  const headerTotalH = Math.ceil(measuredH + cardFraming);
-
-  // Integer line-height snapping: ensures every column fits complete whole lines without horizontal cutting!
-  const rawStoryH = Math.max(lineH, cardH - headerTotalH);
-  const fullStoryH = Math.max(lineH, Math.floor(rawStoryH / lineH) * lineH);
+  // Available story height inside the slot (top 8px, bottom 4px, headerGap 4px)
+  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 4));
 
   const imgW = s.imageWidth || 180;
   const imgH = s.imageHeight || 140;
+  const hasImage = Boolean(s.imageUrl);
   const isFullCardPhoto = imgW >= cardContentW - 30 || s.imageWrapMode === 'top-span';
 
-  const rawUnderPhotoH = Math.max(lineH, fullStoryH - imgH - 8);
-  const underPhotoH = Math.max(lineH, Math.floor(rawUnderPhotoH / lineH) * lineH);
+  const photoTotalH = hasImage ? (imgH + 2) : 0;
+  const underPhotoH = Math.max(20, fullStoryH - photoTotalH);
 
   if (colsCount === 1 || isFullCardPhoto) {
     const tokens = sliceHtmlTokens(s.summary || '');
-    const targetH = isFullCardPhoto ? underPhotoH : fullStoryH;
-    const fit1 = findBestTokenFit(tokens, 0, cardContentW, targetH, colsCount, summaryFont, colGap);
+    const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
       isFullWidth: true,
@@ -620,6 +635,12 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
   const canvasImageUrl = rawPageImage ? getFullMediaUrl(rawPageImage) : null;
   const formattedPage = String(pageIndex + 1).padStart(2, '0');
 
+  const headerMetrics = getPageHeaderMetrics(
+    { pageNumber: pageIndex + 1, headerConfig: page?.headerConfig },
+    activeEdition?.city,
+    selectedDate
+  );
+
   return (
     <>
       {/* DYNAMIC BROADSHEET HEADER (Page 1 Grand Masthead OR Page 2+ Sleek Section Header) */}
@@ -649,12 +670,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
         const isRight = normAlign === 'right';
         const hasImage = Boolean(s.imageUrl);
 
-        const headerMetrics = getPageHeaderMetrics(
-          { pageNumber: pageIndex + 1, headerConfig: page?.headerConfig },
-          activeEdition?.city,
-          selectedDate
-        );
-        const safeSlotY = Math.max(s.y !== undefined && s.y !== null ? Number(s.y) : headerMetrics.totalTopOffset, headerMetrics.totalTopOffset);
+        const safeSlotY = s.y !== undefined && s.y !== null ? Number(s.y) : headerMetrics.totalTopOffset;
         const slotStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${s.x}px`,
@@ -724,11 +740,13 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                 style={{
                   fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                   lineHeight: `${lineH}px`,
+                  ['--story-line-h' as any]: `${lineH}px`,
                   columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
                   columnGap: `${comp.colGap}px`,
                   columnFill: 'auto',
-                  height: `${comp.fullStoryH}px`,
-                  maxHeight: `${comp.fullStoryH}px`,
+                  WebkitColumnFill: 'auto' as any,
+                  width: '100%',
+                  height: '100%',
                   overflow: 'hidden',
                   columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                   textAlign: 'justify',
@@ -737,10 +755,11 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   color: s.summaryColor || undefined,
                   whiteSpace: 'pre-line',
                   boxSizing: 'border-box',
-                  paddingRight: '2px'
+                  paddingRight: '2px',
+                  paddingBottom: '4px'
                 }}
-                className="leading-normal h-full overflow-hidden whitespace-pre-line text-justify"
-                dangerouslySetInnerHTML={{ __html: s.summary || '' }}
+                className="broadsheet-story-text leading-normal h-full w-full overflow-hidden whitespace-pre-line text-justify"
+                dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
               />
             </div>
           );
@@ -762,7 +781,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
           }
 
           const singleColPhoto = (
-            <div className="w-full mb-1.5 shrink-0 relative select-none">
+            <div className="w-full shrink-0 relative select-none" style={{ marginBottom: '2px' }}>
               <div
                 style={{
                   width: isTopSpanPhoto ? '100%' : `${currentImgW}px`,
@@ -786,11 +805,15 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
               style={{
                 fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
                 lineHeight: `${lineH}px`,
+                ['--story-line-h' as any]: `${lineH}px`,
                 columnCount: comp.colsCount > 1 ? comp.colsCount : undefined,
                 columnGap: `${comp.colGap}px`,
                 columnFill: 'auto',
-                height: `${bannerTextH}px`,
-                maxHeight: `${bannerTextH}px`,
+                WebkitColumnFill: 'auto' as any,
+                width: '100%',
+                height: '100%',
+                flex: 1,
+                minHeight: 0,
                 overflow: 'hidden',
                 columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
                 textAlign: 'justify',
@@ -799,9 +822,10 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                 color: s.summaryColor || undefined,
                 whiteSpace: 'pre-line',
                 boxSizing: 'border-box',
-                paddingRight: '2px'
+                paddingRight: '2px',
+                paddingBottom: '4px'
               }}
-              className="leading-[1.35] flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+              className="broadsheet-story-text leading-normal flex-1 w-full overflow-hidden break-words whitespace-pre-line text-justify"
               dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
             />
           );
@@ -825,11 +849,13 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
           const colStyleLeft: React.CSSProperties = {
             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
             lineHeight: `${lineH}px`,
+            ['--story-line-h' as any]: `${lineH}px`,
             columnCount: comp.leftCols > 1 ? comp.leftCols : undefined,
             columnGap: `${comp.colGap}px`,
             columnFill: 'auto',
-            height: `${comp.fullStoryH}px`,
-            maxHeight: `${comp.fullStoryH}px`,
+            WebkitColumnFill: 'auto' as any,
+            width: '100%',
+            height: '100%',
             overflow: 'hidden',
             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
             textAlign: 'justify',
@@ -838,17 +864,22 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             color: s.summaryColor || undefined,
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
-            paddingRight: '2px'
+            paddingRight: '2px',
+            paddingBottom: '4px'
           };
 
           const colStylePhoto: React.CSSProperties = {
             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
             lineHeight: `${lineH}px`,
+            ['--story-line-h' as any]: `${lineH}px`,
             columnCount: comp.photoCols > 1 ? comp.photoCols : undefined,
             columnGap: `${comp.colGap}px`,
             columnFill: 'auto',
-            height: `${comp.underPhotoH}px`,
-            maxHeight: `${comp.underPhotoH}px`,
+            WebkitColumnFill: 'auto' as any,
+            width: '100%',
+            height: '100%',
+            flex: 1,
+            minHeight: 0,
             overflow: 'hidden',
             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
             textAlign: 'justify',
@@ -857,17 +888,22 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             color: s.summaryColor || undefined,
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
-            paddingRight: '2px'
+            paddingRight: '2px',
+            paddingBottom: '4px'
           };
 
           const colStyleRight: React.CSSProperties = {
             fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
             lineHeight: `${lineH}px`,
+            ['--story-line-h' as any]: `${lineH}px`,
             columnCount: comp.rightCols > 1 ? comp.rightCols : undefined,
             columnGap: `${comp.colGap}px`,
             columnFill: 'auto',
-            height: `${comp.fullStoryH}px`,
-            maxHeight: `${comp.fullStoryH}px`,
+            WebkitColumnFill: 'auto' as any,
+            width: '100%',
+            height: '100%',
+            flex: 1,
+            minHeight: 0,
             overflow: 'hidden',
             columnRule: comp.showDivider ? '1px solid #cbd5e1' : undefined,
             textAlign: 'justify',
@@ -876,7 +912,8 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             color: s.summaryColor || undefined,
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
-            paddingRight: '2px'
+            paddingRight: '2px',
+            paddingBottom: '4px'
           };
 
           const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
@@ -892,7 +929,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
           }
 
           const photoBlock = (
-            <div className="w-full mb-1.5 shrink-0 relative select-none">
+            <div className="w-full shrink-0 relative select-none" style={{ marginBottom: '2px' }}>
               <div
                 style={{
                   width: s.imageWidth && s.imageWidth < comp.photoSectionW ? `${displayImgW}px` : '100%',
@@ -924,7 +961,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   >
                     <div
                       style={colStyleLeft}
-                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text1 }}
                     />
                   </div>
@@ -941,7 +978,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                     {photoBlock}
                     <div
                       style={colStylePhoto}
-                      className="leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif flex-1 overflow-hidden break-words whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                     />
                   </>
@@ -951,7 +988,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   <>
                     <div
                       style={colStylePhoto}
-                      className="leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif flex-1 overflow-hidden break-words mb-2 whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                     />
                     {photoBlock}
@@ -962,13 +999,13 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   <>
                     <div
                       style={{ ...colStylePhoto, height: `${Math.floor(comp.underPhotoH / 2)}px`, maxHeight: `${Math.floor(comp.underPhotoH / 2)}px`, flex: 'none' }}
-                      className="leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif overflow-hidden break-words mb-1.5 whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text2 }}
                     />
                     {photoBlock}
                     <div
                       style={{ ...colStylePhoto, height: `${Math.ceil(comp.underPhotoH / 2)}px`, maxHeight: `${Math.ceil(comp.underPhotoH / 2)}px`, flex: '1' }}
-                      className="leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif overflow-hidden break-words mt-1.5 whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text2b }}
                     />
                   </>
@@ -984,7 +1021,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   >
                     <div
                       style={colStyleRight}
-                      className="leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
+                      className="broadsheet-story-text leading-normal font-serif w-full overflow-hidden break-words whitespace-pre-line text-justify"
                       dangerouslySetInnerHTML={{ __html: comp.text3 }}
                     />
                   </div>
@@ -1000,7 +1037,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             style={slotStyle}
             className="relative z-0 select-none overflow-hidden"
           >
-            <div className="w-full h-full p-2 flex flex-col overflow-hidden space-y-1">
+            <div className="w-full h-full pt-2 px-2 pb-1 flex flex-col overflow-hidden space-y-1">
               {headerContent}
               {bodyContent}
             </div>
@@ -1024,13 +1061,13 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
       {/* Interactive Hotspot Overlay Boxes (Only in live interactive reading mode, omitted in print mode) */}
       {!isPrintMode && currentSlots.map((rawSlot, sIdx) => {
         const slot = normalizeSlotData(rawSlot);
-        const safeSlotY = Math.max(slot.y !== undefined && slot.y !== null ? Number(slot.y) : 188, 188);
+        const safeSlotY = slot.y !== undefined && slot.y !== null ? Number(slot.y) : headerMetrics.totalTopOffset;
         return (
           <div
             key={slot.id || `slot-${pageIndex}-${sIdx}`}
             onClick={() => onSlotClick && onSlotClick(slot)}
             title={slot.headline || ''}
-            className="absolute cursor-pointer box-border border-2 border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/10 transition-colors duration-150 rounded-sm z-20 select-none"
+            className="absolute cursor-pointer box-border border-2 border-transparent epaper-slot-hotspot hover:border-[#ba1228] hover:bg-[#ba1228]/10 transition-all duration-150 rounded-sm z-20 select-none"
             style={{
               position: 'absolute',
               left: `${slot.x}px`,
