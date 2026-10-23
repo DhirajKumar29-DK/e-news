@@ -2366,17 +2366,27 @@ ${rawBody}
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          {/* Newspaper Logo Emblem */}
-          <div className="flex items-center space-x-2 shrink-0">
-            <div className="bg-white text-[#ba1228] w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shadow-md border border-amber-300">
-              <Newspaper className="w-4 h-4 sm:w-5 sm:h-5 text-[#ba1228]" />
+          {/* Vartiq Brand Logo & E-Paper Title */}
+          <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-md border border-amber-300/80 shrink-0 overflow-hidden flex items-center justify-center bg-[#ba1228]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/vartiq-icon.png"
+                alt="Vartiq"
+                className="w-full h-full object-cover"
+              />
             </div>
-            <div className="hidden md:block">
-              <span className="font-serif font-black text-lg tracking-wide text-white block leading-tight">
-                डिजिटल <span className="text-amber-300 text-xs font-sans tracking-normal uppercase bg-black/40 px-1.5 py-0.5 rounded ml-1">E-PAPER</span>
-              </span>
-              <span className="text-[10px] text-red-100/90 font-medium block">
-                {activeEdition.tag || activeEdition.title}
+            <div className="hidden sm:block">
+              <div className="flex items-center space-x-1.5 leading-tight">
+                <span className="font-serif font-black text-base sm:text-lg tracking-wide text-white uppercase">
+                  VARTIQ
+                </span>
+                <span className="text-amber-300 text-[10px] sm:text-xs font-sans font-black tracking-normal uppercase bg-black/40 px-1.5 py-0.5 rounded border border-amber-300/30">
+                  E-PAPER
+                </span>
+              </div>
+              <span className="text-[10px] text-red-100/90 font-medium block leading-none mt-0.5">
+                डिजिटल • {activeEdition.tag || activeEdition.title || 'बिहार मुख्य संस्करण'}
               </span>
             </div>
           </div>
