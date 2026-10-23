@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
   const pathname = usePathname();
   const shouldShowInFocus = showInFocus !== undefined ? showInFocus : (pathname === '/');
   const { theme, toggleTheme } = useTheme();
-  const { language, supportedLanguages, t, toggleLanguage } = useLanguage();
+  const { language, supportedLanguages, t, toggleLanguage, isTranslating } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [formattedDate, setFormattedDate] = useState<string>('');
@@ -315,7 +315,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             <div className="flex items-center space-x-3.5 text-[11px] my-auto">
               <button
                 onClick={toggleTheme}
-                className="flex items-center space-x-1 text-slate-300 hover:text-amber-400 transition-colors"
+                className="flex items-center space-x-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer"
               >
                 {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-300" />}
                 <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
@@ -324,9 +324,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               <button
                 onClick={handleOpenEPaper}
                 onMouseEnter={prewarmBackend}
-                className="text-slate-300 hover:text-amber-400 font-medium"
+                className="text-slate-300 hover:text-amber-400 font-medium cursor-pointer notranslate"
+                translate="no"
               >
-                E-Paper
+                {language === 'hi' ? 'ई-पेपर' : 'E-Paper'}
+              </button>
+              <span className="opacity-40">•</span>
+              <button
+                onClick={toggleLanguage}
+                disabled={isTranslating}
+                className="flex items-center space-x-1 text-slate-300 hover:text-amber-400 transition-colors font-medium cursor-pointer"
+                title={language === 'hi' ? 'Switch website to English' : 'वेबसाइट को हिन्दी में बदलें'}
+              >
+                <Globe className={`w-3.5 h-3.5 text-slate-300 ${isTranslating ? 'animate-spin text-amber-400' : ''}`} />
+                <span>{language === 'hi' ? 'English' : 'हिन्दी'}</span>
               </button>
             </div>
           </div>
@@ -479,7 +490,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               title="Read Today's ePaper Edition"
             >
               <FileText className="w-4 h-4 text-jagran-red group-hover:scale-110 transition-transform" />
-              <span className="tracking-wide">ePaper</span>
+              <span className="tracking-wide notranslate" translate="no">
+                {language === 'hi' ? 'ई-पेपर' : 'ePaper'}
+              </span>
             </button>
 
             {/* Enhanced Live Videos Action Pill Button */}
@@ -491,7 +504,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Play className="w-2.5 h-2.5 fill-white ml-0.5 text-white" />
               </div>
-              <span className="tracking-wide">Videos</span>
+              <span className="tracking-wide notranslate" translate="no">
+                {language === 'hi' ? 'वीडियो' : 'Videos'}
+              </span>
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping ml-0.5" />
             </button>
 
@@ -503,7 +518,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               title="ePaper"
             >
               <FileText className="w-3 h-3 text-jagran-red" />
-              <span className="tracking-tight">ePaper</span>
+              <span className="tracking-tight notranslate" translate="no">
+                {language === 'hi' ? 'ई-पेपर' : 'ePaper'}
+              </span>
             </button>
 
             {/* Mobile Day/Night Theme Toggle Icon Button */}
@@ -520,13 +537,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               )}
             </button>
 
-            {/* User Profile Avatar */}
+            {/* Mobile Language Switcher Button */}
             <button
-              onClick={() => alert('User login profile')}
-              className="hidden sm:flex w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 items-center justify-center transition-colors"
-              title="User Account"
+              onClick={toggleLanguage}
+              disabled={isTranslating}
+              className="sm:hidden flex items-center justify-center px-2 h-7 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs shrink-0 cursor-pointer text-[10px] font-black notranslate"
+              translate="no"
+              title={language === 'hi' ? 'Switch to English' : 'हिन्दी में बदलें'}
+              aria-label="Toggle Language"
             >
-              <User className="w-4 h-4" />
+              <Globe className={`w-3 h-3 mr-1 text-slate-600 dark:text-slate-400 ${isTranslating ? 'animate-spin text-jagran-red' : ''}`} />
+              <span className="notranslate" translate="no">{language === 'hi' ? 'EN' : 'हि'}</span>
             </button>
           </div>
 

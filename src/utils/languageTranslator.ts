@@ -8,6 +8,7 @@ export interface LanguageOption {
 }
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' }
 ];
 
@@ -15,7 +16,7 @@ export function translateText(textOrObj: any, lang: Language): string {
   if (!textOrObj) return '';
   
   if (typeof textOrObj === 'object') {
-    let res = textOrObj['en'] ?? textOrObj[lang] ?? Object.values(textOrObj)[0];
+    let res = textOrObj[lang] ?? textOrObj['hi'] ?? textOrObj['en'] ?? Object.values(textOrObj)[0];
     if (res && typeof res === 'object') {
       return translateText(res, lang);
     }

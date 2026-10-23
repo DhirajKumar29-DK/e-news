@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind:wght@700&family=Mukta:wght@600;700;800&family=Noto+Sans+Devanagari:wght@700;800;900&family=Noto+Serif+Devanagari:wght@700;900&family=Poppins:wght@700;800;900&family=Rozha+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Mukta:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -44,22 +44,26 @@ nextjs-portal,
   }
 }
 
-/* Hindi Devanagari Readability Tuning */
-.lang-hi {
-  font-family: 'Mukta', 'Noto Sans Devanagari', sans-serif;
-  line-height: 1.7;
+/* Modern Devanagari Readability Tuning - Matching Noto Sans Devanagari */
+.lang-hi,
+[lang="hi"] {
+  font-family: 'Noto Sans Devanagari', 'Mukta', 'Plus Jakarta Sans', sans-serif !important;
+  line-height: 1.65;
 }
 
 .lang-hi h1,
 .lang-hi h2,
 .lang-hi h3,
-.lang-hi h4 {
-  font-family: 'Noto Serif Devanagari', serif;
-  letter-spacing: 0.01em;
+.lang-hi h4,
+.lang-hi h5,
+.lang-hi h6 {
+  font-family: 'Noto Sans Devanagari', 'Mukta', sans-serif !important;
+  letter-spacing: normal !important;
+  line-height: 1.35 !important;
 }
 
 .lang-en {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
 }
 
@@ -217,4 +221,56 @@ strong {
 [data-story-body] p:last-child,
 .whitespace-pre-line p:last-child {
   margin-bottom: 0 !important;
+}
+
+/* Seamless Website-Wide Translation Engine Overrides */
+#google_translate_element {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+html,
+body {
+  top: 0px !important;
+  position: static !important;
+  margin-top: 0px !important;
+}
+
+/* Hide all injected Google Translate top banners, iframes, tooltips, and badges */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+iframe.goog-te-banner-frame,
+iframe.skiptranslate,
+body > .skiptranslate,
+body > iframe[id*=":container"],
+[class*="VIpgJd"],
+#goog-gt-tt,
+.goog-te-balloon-frame,
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0px !important;
+  width: 0px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  z-index: -9999 !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+font[style] {
+  background: transparent !important;
 }

@@ -435,8 +435,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
                   onClick={() => handleArticleClick(item.id)}
                   className="py-2 first:pt-0 last:pb-0 flex space-x-2.5 items-start group cursor-pointer"
                 >
-                  <span className="font-serif font-black text-xl text-jagran-red/60 group-hover:text-jagran-red transition-colors w-5 shrink-0 leading-none">
-                    0{item.rank}
+                  <span className="font-sans font-black text-lg text-jagran-red/70 group-hover:text-jagran-red transition-colors w-4 shrink-0 leading-none">
+                    {item.rank}
                   </span>
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-black uppercase text-jagran-red block mb-0.5">
