@@ -6,9 +6,10 @@ import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { horoscopeService, HoroscopeData } from '@/services/horoscopeService';
+import { articleService } from '@/services/articleService';
 import {
   Sparkles, Save, RefreshCw, ExternalLink, CheckCircle, AlertCircle, Compass,
-  Calendar, Heart, Shield, HelpCircle
+  Calendar, Heart, Shield, HelpCircle, Upload, Image as ImageIcon, Trash2
 } from 'lucide-react';
 
 const ZODIAC_SIGNS = [
@@ -34,6 +35,17 @@ const PERIOD_TABS: Array<{ id: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'LOVE
   { id: 'LOVE', label: 'Love' },
 ];
 
+const isValidImageUrl = (url?: string | null): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  return (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('data:')
+  );
+};
+
 function HoroscopeStudioContent() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAdminAuth();
@@ -43,6 +55,8 @@ function HoroscopeStudioContent() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -51,6 +65,7 @@ function HoroscopeStudioContent() {
     sign: 'taurus',
     signName: 'Taurus',
     hindiName: '',
+    iconUrl: '',
     dateRange: 'APR 20 - MAY 20',
     period: 'DAILY',
     luckyColour: '',
@@ -70,7 +85,13 @@ function HoroscopeStudioContent() {
       setLoading(true);
       setErrorMsg('');
       const data = await horoscopeService.getHoroscope(sign, period);
-      setFormData(data);
+      const rawImg = data.iconUrl || (data as any)?.hindiName || '';
+      const validImg = isValidImageUrl(rawImg) ? rawImg : '';
+      setImageLoadError(false);
+      setFormData({
+        ...data,
+        iconUrl: validImg
+      });
     } catch (err: any) {
       console.error('Failed to load horoscope:', err);
       setErrorMsg('Failed to load astrological data');
@@ -91,6 +112,24 @@ function HoroscopeStudioContent() {
     }
   }, [user, activeSign, activePeriod]);
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingImage(true);
+      setErrorMsg('');
+      const uploadedUrl = await articleService.uploadImage(file);
+      setImageLoadError(false);
+      setFormData(prev => ({ ...prev, iconUrl: uploadedUrl, hindiName: uploadedUrl }));
+      setSuccessMsg('✓ Image uploaded successfully! Click "Save Horoscope" to apply.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Image upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -98,16 +137,24 @@ function HoroscopeStudioContent() {
       setErrorMsg('');
       setSuccessMsg('');
 
+      const cleanIcon = isValidImageUrl(formData.iconUrl) ? (formData.iconUrl || '') : '';
+
       const updated = await horoscopeService.updateHoroscope({
         ...formData,
         sign: activeSign,
         period: activePeriod,
         signName: selectedSignMeta.name,
-        hindiName: '',
+        iconUrl: cleanIcon,
+        hindiName: cleanIcon,
         dateRange: selectedSignMeta.dates
       });
 
-      setFormData(updated);
+      const rawUpdatedImg = updated.iconUrl || (updated as any)?.hindiName || cleanIcon;
+      setImageLoadError(false);
+      setFormData({
+        ...updated,
+        iconUrl: isValidImageUrl(rawUpdatedImg) ? rawUpdatedImg : ''
+      });
       setSuccessMsg(`✓ ${selectedSignMeta.name} (${activePeriod}) updated successfully in MySQL!`);
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
@@ -240,6 +287,97 @@ function HoroscopeStudioContent() {
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-4">
+              {/* 1. Zodiac Sign Image & Visual Avatar Card */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                      <ImageIcon className="w-4 h-4 text-red-600" />
+                      <span>{selectedSignMeta.name} Zodiac Icon & Image (राशि इमेज / आइकन)</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Upload or specify a custom image for this zodiac sign. Displayed dynamically on the Homepage horoscope strip and main reading card.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                    Dynamic Media
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* Circular Avatar Medallion Preview */}
+                  <div className="relative group shrink-0">
+                    <div className="w-24 h-24 rounded-full border-4 border-amber-400/60 p-1 bg-amber-50/50 shadow-md flex items-center justify-center overflow-hidden">
+                      {formData.iconUrl && isValidImageUrl(formData.iconUrl) && !imageLoadError ? (
+                        <img
+                          src={formData.iconUrl}
+                          alt={selectedSignMeta.name}
+                          onError={() => setImageLoadError(true)}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                          <span className="text-3xl">{selectedSignMeta.icon}</span>
+                          <span className="text-[10px] font-bold uppercase mt-0.5 text-slate-400">No Image</span>
+                        </div>
+                      )}
+                    </div>
+                    {formData.iconUrl && isValidImageUrl(formData.iconUrl) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageLoadError(false);
+                          setFormData(prev => ({ ...prev, iconUrl: '', hindiName: '' }));
+                        }}
+                        title="Remove Image"
+                        className="absolute -top-1 -right-1 p-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Upload Controls & URL Input */}
+                  <div className="flex-1 w-full space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors">
+                        <Upload className="w-4 h-4" />
+                        <span>{uploadingImage ? 'Uploading Image...' : 'Upload Image from Computer'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          className="hidden"
+                        />
+                      </label>
+                      {uploadingImage && (
+                        <span className="text-xs text-slate-500 font-semibold flex items-center space-x-1.5">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-600" />
+                          <span>Processing media upload...</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                        Or Image URL (वेब लिंक)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.iconUrl || ''}
+                        onChange={(e) => {
+                          setImageLoadError(false);
+                          setFormData(prev => ({ ...prev, iconUrl: e.target.value, hindiName: e.target.value }));
+                        }}
+                        placeholder="e.g. /uploads/articles/... or https://example.com/zodiac.png"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-red-500 focus:bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Top Grid: 6 Astrological Attributes (Lucky Boxes) */}
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">

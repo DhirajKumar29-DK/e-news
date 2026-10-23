@@ -1191,6 +1191,7 @@ export const EPaperModal: React.FC<EPaperModalProps> = ({ isOpen, onClose }) => 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => setScreenWidth(window.innerWidth);
+    setScreenWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -1956,10 +1957,10 @@ ${rawBody}
     ? (proxyPdfUrl + '#page=' + (currentPageIndex + 1) + '&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : null;
 
-  // Base visual scale multiplier: expands base paper width by 1.05x on desktop while keeping zoom base at 100%
+  // Base visual scale multiplier: expands base paper width by 1.05x on desktop while dynamically fitting mobile screen width
   const isMobileScreen = screenWidth < 768;
-  const fitScale = Number((Math.min(1.0, (screenWidth - 16) / 1344)).toFixed(3));
-  const baseScale = isMobileScreen ? 1.0 : 1.05;
+  const mobileFitScale = Number(Math.max(0.2, (screenWidth - 8) / 1344).toFixed(3));
+  const baseScale = isMobileScreen ? mobileFitScale : 1.05;
   const effectiveCanvasScale = Number((canvasZoom * baseScale).toFixed(3));
 
   const totalPages = Math.max(1, pages.length > 0 ? pages.length : totalPagesCount);
@@ -2886,7 +2887,7 @@ ${rawBody}
                       transform: `scale(${effectiveCanvasScale})`,
                       transformOrigin: 'top left',
                     }}
-                    className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 pt-2 px-6 sm:px-10 pb-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
+                    className="bg-white text-slate-950 border border-slate-300 shadow-2xl ring-1 ring-slate-900/5 pt-2 px-10 pb-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden select-none"
                     >
                     <BroadsheetCanvasContent
                       page={currentPage}
