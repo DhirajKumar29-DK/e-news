@@ -293,7 +293,7 @@ function HoroscopeStudioContent() {
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
                       <ImageIcon className="w-4 h-4 text-red-600" />
-                      <span>{selectedSignMeta.name} Zodiac Icon & Image (राशि इमेज / आइकन)</span>
+                      <span>{selectedSignMeta.name} Zodiac Icon & Image</span>
                     </h3>
                     <p className="text-[11px] text-slate-500">
                       Upload or specify a custom image for this zodiac sign. Displayed dynamically on the Homepage horoscope strip and main reading card.
@@ -342,7 +342,7 @@ function HoroscopeStudioContent() {
                     <div className="flex flex-wrap items-center gap-3">
                       <label className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors">
                         <Upload className="w-4 h-4" />
-                        <span>{uploadingImage ? 'Uploading Image...' : 'Upload Image from Computer'}</span>
+                        <span>{uploadingImage ? 'Uploading...' : 'Upload Image'}</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -361,7 +361,7 @@ function HoroscopeStudioContent() {
 
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                        Or Image URL (वेब लिंक)
+                        Or Image URL
                       </label>
                       <input
                         type="text"
