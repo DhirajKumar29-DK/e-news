@@ -556,7 +556,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
         {/* 3. MOBILE ALWAYS-VISIBLE SWIPEABLE CATEGORY PILL BAR (App-like UX like LiveHindustan / Jagran) */}
         <div className="xl:hidden w-full max-w-full overflow-hidden bg-[#FFF4F4] dark:bg-slate-900 border-y border-[#FFE2E2] dark:border-slate-800 py-1.5 px-3">
           <div ref={mobileCategoryContainerRef} suppressHydrationWarning className="relative flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-            {/* Home Pill */}
+            {/* Home Pill (Icon Only on Mobile) */}
             <button
               onClick={() => {
                 if (mobileCategoryContainerRef.current) {
@@ -565,14 +565,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 onSelectCategory('all');
               }}
               data-active={activeCategory === 'all' ? 'true' : 'false'}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 ${
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center justify-center ${
                 activeCategory === 'all'
                   ? 'bg-jagran-red text-white shadow-xs'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
               }`}
+              title="Home"
+              aria-label="Home"
             >
-              <Home className="w-3 h-3" />
-              <span>HOME</span>
+              <Home className="w-3.5 h-3.5" />
             </button>
 
             {/* Dynamic Category Pills */}
