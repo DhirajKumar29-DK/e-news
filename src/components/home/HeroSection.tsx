@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { videoService, VideoData } from '@/services/videoService';
+import { isRegularVideo } from '@/utils/videoUtils';
 import { Play, TrendingUp, Video, Clock } from 'lucide-react';
 
 import { HomeArticlesResponse, ArticleData } from '@/services/articleService';
@@ -22,10 +23,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
 
   useEffect(() => {
     let isMounted = true;
-    videoService.getVideos({ limit: 4, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
+    videoService.getVideos({ limit: 12, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
       .then(res => {
         if (isMounted && res && res.videos && res.videos.length > 0) {
-          setLatestVideos(res.videos.slice(0, 4));
+          const regularOnly = res.videos.filter(isRegularVideo);
+          setLatestVideos(regularOnly.slice(0, 4));
         }
       })
       .catch(err => console.error('Error fetching latest videos for hero section:', err));

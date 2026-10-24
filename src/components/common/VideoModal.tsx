@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { X, Play, Film, Eye, Clock, Share2, Sparkles } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
-import { buildVideoEmbedUrl, getVideoThumbnail } from '@/utils/videoUtils';
+import { buildVideoEmbedUrl, getVideoThumbnail, isRegularVideo } from '@/utils/videoUtils';
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -27,14 +27,15 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
     let isMounted = true;
     const fetchVideos = async () => {
       try {
-        const res = await videoService.getVideos({ limit: 25, status: 'PUBLISHED' });
+        const res = await videoService.getVideos({ limit: 35, status: 'PUBLISHED' });
         if (isMounted && res.videos && res.videos.length > 0) {
-          setVideos(res.videos);
+          const cleanVideos = res.videos.filter(isRegularVideo);
+          setVideos(cleanVideos);
           if (initialVideoId) {
-            const match = res.videos.find(v => v.id === initialVideoId || v.slug === initialVideoId);
-            setActiveVideo(match || res.videos[0]);
+            const match = cleanVideos.find(v => v.id === initialVideoId || v.slug === initialVideoId);
+            setActiveVideo(match || cleanVideos[0]);
           } else {
-            setActiveVideo(res.videos[0]);
+            setActiveVideo(cleanVideos[0]);
           }
         }
       } catch (err) {

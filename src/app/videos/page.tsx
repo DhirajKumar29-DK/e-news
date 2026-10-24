@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
-import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp } from 'lucide-react';
+import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp, ChevronDown, Flame } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
-import { buildVideoEmbedUrl, getVideoThumbnail, getYouTubeId } from '@/utils/videoUtils';
+import { buildVideoEmbedUrl, getVideoThumbnail, getYouTubeId, isRegularVideo, isShortVideo } from '@/utils/videoUtils';
 
 function updateVideoSEO(video: VideoData) {
   if (typeof document === 'undefined') return;
@@ -142,6 +142,143 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>('latest');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
+  // Mobile-only dual tab switcher: 'shorts' vs 'videos' (matches Dainik Jagran reference)
+  const [mobileSubTab, setMobileSubTab] = useState<'shorts' | 'videos'>('shorts');
+  const [shortsList, setShortsList] = useState<VideoData[]>([]);
+  const [activeShortIndex, setActiveShortIndex] = useState<number>(0);
+  const [isShortPaused, setIsShortPaused] = useState(false);
+
+  const reelContainerRef = useRef<HTMLDivElement>(null);
+  const shortIframeRef = useRef<HTMLIFrameElement>(null);
+  const lastTapTimeRef = useRef<number>(0);
+  const isShortPausedRef = useRef(false);
+
+  useEffect(() => {
+    isShortPausedRef.current = isShortPaused;
+  }, [isShortPaused]);
+
+  // Send commands to YouTube IFrame API via postMessage
+  const sendYtCommand = (command: 'pauseVideo' | 'playVideo') => {
+    const iframe = shortIframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+    try {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: command, args: '' }), '*');
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: command, args: [] }), '*');
+    } catch (err) {
+      console.warn('YouTube postMessage error:', err);
+    }
+  };
+
+  // Toggle Play / Pause with 350ms debounce to prevent touch-click double triggers
+  const toggleShortPlayPause = () => {
+    const now = Date.now();
+    if (now - lastTapTimeRef.current < 350) return;
+    lastTapTimeRef.current = now;
+
+    setIsShortPaused(prev => {
+      const nextPaused = !prev;
+      sendYtCommand(nextPaused ? 'pauseVideo' : 'playVideo');
+      return nextPaused;
+    });
+  };
+
+  // Strict screen check: mobile view and shorts ONLY exist when screen is < 768px
+  // When resized or switched to desktop, mobile view unmounts completely, killing all iframe audio instantly
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(false);
+  const [hasMounted, setHasMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+    const checkScreen = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobileScreen(window.innerWidth < 768);
+      }
+    };
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
+
+  // Auto-play loop: seamlessly replays the same video when finished without flashing pause icon
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string' && data.startsWith('{')) {
+          data = JSON.parse(data);
+        }
+        if (!data || isShortPausedRef.current) return;
+
+        const iframe = shortIframeRef.current;
+        if (!iframe || !iframe.contentWindow) return;
+
+        // When video reaches ENDED (0), call playVideo directly without seekTo to prevent pause HUD icon
+        if ((data.event === 'onStateChange' && (data.info === 0 || data.info === '0')) || data.info?.playerState === 0) {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+        }
+      } catch {
+        // Ignore unparseable postMessages
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const scrollDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Instant scroll tracker: directly changes activeShortIndex when user scrolls to any card
+  const handleContainerScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const height = container.clientHeight;
+    if (!height) return;
+
+    const newIndex = Math.round(container.scrollTop / height);
+    if (newIndex >= 0 && newIndex < shortsList.length && newIndex !== activeShortIndex) {
+      if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+      scrollDebounceRef.current = setTimeout(() => {
+        setActiveShortIndex(newIndex);
+        setIsShortPaused(false);
+      }, 50);
+    }
+  };
+
+  // IntersectionObserver to accurately detect which short is in view (1 scroll = 1 video, no skipping)
+  useEffect(() => {
+    if (!hasMounted || !isMobileScreen || mobileSubTab !== 'shorts' || shortsList.length === 0) return;
+
+    const container = reelContainerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const idx = Number(entry.target.getAttribute('data-index'));
+            if (!isNaN(idx)) {
+              setActiveShortIndex(prev => {
+                if (prev !== idx) {
+                  setIsShortPaused(false);
+                  return idx;
+                }
+                return prev;
+              });
+            }
+          }
+        });
+      },
+      {
+        root: container,
+        threshold: [0.5]
+      }
+    );
+
+    const slides = container.querySelectorAll('[data-index]');
+    slides.forEach((slide) => observer.observe(slide));
+
+    return () => observer.disconnect();
+  }, [hasMounted, isMobileScreen, mobileSubTab, shortsList]);
+
   // Scroll listener for floating Back To Top button
   useEffect(() => {
     const handleScroll = () => {
@@ -159,11 +296,9 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     }
   };
 
-  // On Mobile: Clicking any video opens a dedicated new watch page and starts playing immediately
+  // On Mobile: Clicking any video opens in the popup modal player
   const handleMobileVideoClick = (vid: VideoData) => {
-    setIsPlayingLead(false);
-    setModalVideo(null);
-    router.push(`/videos/${encodeURIComponent(vid.slug || vid.id)}`);
+    handleOpenModalVideo(vid);
   };
 
   useEffect(() => {
@@ -186,11 +321,14 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
 
         const data = await videoService.getFeaturedAndTrending();
         if (isMounted) {
-          // Strictly identify the admin-selected Lead Video (isFeaturedHero: true)
-          const adminLead = data.heroVideo || (data.trendingVideos && data.trendingVideos[0]) || FALLBACK_VIDEOS[0];
+          // STRICT RULE: Only include regular long videos here, exclude all Shorts
+          const cleanTrending = (data.trendingVideos || []).filter(isRegularVideo);
+          const adminLead = (data.heroVideo && isRegularVideo(data.heroVideo))
+            ? data.heroVideo
+            : (cleanTrending[0] || FALLBACK_VIDEOS[0]);
           setLeadVideo(adminLead);
 
-          setTrendingList(data.trendingVideos && data.trendingVideos.length > 0 ? data.trendingVideos.slice(0, 5) : FALLBACK_VIDEOS);
+          setTrendingList(cleanTrending.length > 0 ? cleanTrending.slice(0, 5) : FALLBACK_VIDEOS);
 
           // Handle target video from URL query if specified
           if (targetIdOrSlug) {
@@ -230,17 +368,37 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     return () => { isMounted = false; };
   }, [initialVideoId]);
 
-  // Fetch all videos from backend
+  // Fetch all videos from backend (splits strictly into regular videos & shorts)
   useEffect(() => {
     let isMounted = true;
     const loadAllVideos = async () => {
       try {
-        const data = await videoService.getVideos({ limit: 50, status: 'PUBLISHED' });
+        const data = await videoService.getVideos({ limit: 60, status: 'PUBLISHED' });
         if (isMounted) {
-          if (data.videos && data.videos.length > 0) {
-            setGridVideos(data.videos);
-          } else {
-            setGridVideos(FALLBACK_VIDEOS);
+          const cleanRegularVideos = (data.videos || []).filter(isRegularVideo);
+          const cleanShorts = (data.videos || []).filter(isShortVideo);
+          setGridVideos(cleanRegularVideos.length > 0 ? cleanRegularVideos : FALLBACK_VIDEOS);
+          setShortsList(cleanShorts);
+
+          // If a video is requested via ?v= in URL and modal is not open yet, open it
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const target = params.get('v');
+            if (target) {
+              const decodedTarget = decodeURIComponent(target).toLowerCase();
+              const matched = (data.videos || []).find((v) => 
+                (v.id && v.id.toLowerCase() === decodedTarget) || 
+                (v.slug && v.slug.toLowerCase() === decodedTarget)
+              );
+              if (matched) {
+                if (leadVideo && (matched.id === leadVideo.id || matched.slug === leadVideo.slug)) {
+                  setIsPlayingLead(true);
+                } else {
+                  setModalVideo(matched);
+                }
+                updateVideoSEO(matched);
+              }
+            }
           }
         }
       } catch (err) {
@@ -273,8 +431,20 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     };
   }, [modalVideo]);
 
-  // Opens any other video in the popup modal player with 100% clean audio isolation
+  // Opens non-lead videos in popup modal, while lead video plays exclusively in Hero stage
   const handleOpenModalVideo = (vid: VideoData) => {
+    // If clicked video is the Lead video, play it exclusively in the Hero Cinema Stage
+    if (leadVideo && (vid.id === leadVideo.id || vid.slug === leadVideo.slug)) {
+      setModalVideo(null);
+      setIsPlayingLead(true);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const newUrl = `${window.location.pathname}?v=${encodeURIComponent(vid.slug || vid.id || '')}&play=1`;
+        window.history.replaceState({}, '', newUrl);
+      }
+      return;
+    }
+
     // 1. Instantly stop lead cinema player to prevent dual audio / echo
     setIsPlayingLead(false);
     // 2. Open popup modal for this video
@@ -335,26 +505,26 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     return getVideoThumbnail(video, 'max');
   };
 
-  // Combine and deduplicate videos - lead video goes first, followed by published videos
+  // Combine and deduplicate videos - lead video goes first, followed by published videos (STRICTLY REGULAR ONLY)
   const allVideos = useMemo(() => {
     const map = new Map<string, VideoData>();
     const hasDbVideos = gridVideos && gridVideos.length > 0;
 
     if (hasDbVideos) {
-      if (leadVideo) map.set(leadVideo.id, leadVideo);
-      gridVideos.forEach(v => {
+      if (leadVideo && isRegularVideo(leadVideo)) map.set(leadVideo.id, leadVideo);
+      gridVideos.filter(isRegularVideo).forEach(v => {
         if (!map.has(v.id)) map.set(v.id, v);
       });
-      trendingList.forEach(v => {
+      trendingList.filter(isRegularVideo).forEach(v => {
         if (!map.has(v.id)) map.set(v.id, v);
       });
     } else {
-      if (leadVideo) map.set(leadVideo.id, leadVideo);
-      FALLBACK_VIDEOS.forEach(v => {
+      if (leadVideo && isRegularVideo(leadVideo)) map.set(leadVideo.id, leadVideo);
+      FALLBACK_VIDEOS.filter(isRegularVideo).forEach(v => {
         if (!map.has(v.id)) map.set(v.id, v);
       });
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).filter(isRegularVideo);
   }, [leadVideo, trendingList, gridVideos]);
 
   // Extract ONLY Video Categories that come from backend video records (no navbar categories!)
@@ -362,7 +532,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     const catMap = new Map<string, { slug: string; name: string }>();
 
     allVideos.forEach((vid) => {
-      if (vid.category && vid.category.trim()) {
+      if (vid.category && vid.category.trim() && vid.category.toLowerCase() !== 'shorts') {
         const raw = vid.category.trim();
         const slug = raw.toLowerCase();
         if (!catMap.has(slug)) {
@@ -375,9 +545,9 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     return Array.from(catMap.values());
   }, [allVideos]);
 
-  // Filter videos by selected video category
+  // Filter videos by selected video category (strictly regular videos only)
   const filteredVideos = useMemo(() => {
-    return allVideos.filter((vid) => {
+    return allVideos.filter(isRegularVideo).filter((vid) => {
       // Video Category filter
       if (activeCategoryTab !== 'latest') {
         const vCat = vid.category?.trim().toLowerCase() || '';
@@ -393,144 +563,292 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     <main className="min-h-screen flex flex-col bg-white dark:bg-brand-dark-bg text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
       
       {/* ======================================================== */}
-      {/* MOBILE VIEW (BACKEND VIDEO-ONLY CATEGORIES & CLEAN FEED) */}
+      {/* MOBILE VIEW (DUAL-TAB: SHORTS VS VIDEOS - PHONE ONLY)    */}
       {/* ======================================================== */}
-      <div className="md:hidden flex flex-col min-h-screen bg-white dark:bg-slate-950">
+      {hasMounted && isMobileScreen && (
+        <div className={`md:hidden flex flex-col bg-black ${mobileSubTab === 'shorts' ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
         
-        {/* Sticky Top Bar: Shows ONLY Video Categories from Backend */}
-        <header
-          style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 0px))' }}
-          className="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs"
-        >
-          {/* Main Video Category Strip (From Backend Videos Only) */}
-          <div className="flex items-center space-x-6 px-4 overflow-x-auto no-scrollbar text-sm font-semibold pt-2">
-            
-            {/* 1. Latest Tab (Shows all latest videos) */}
+        {/* Fixed Top Pill Switcher: [ Shorts | Videos ] - 100% Fixed and Solid */}
+        <div className="fixed top-0 inset-x-0 h-[52px] z-40 bg-white dark:bg-slate-950 pt-2.5 pb-2 px-4 flex justify-center border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
+          <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-full flex items-center space-x-1 border border-slate-200 dark:border-slate-800 shadow-inner">
             <button
               type="button"
-              onClick={() => setActiveCategoryTab('latest')}
-              className={`pb-2.5 whitespace-nowrap transition-colors relative cursor-pointer ${
-                activeCategoryTab === 'latest'
-                  ? 'text-red-600 dark:text-red-500 font-bold'
+              onClick={() => setMobileSubTab('shorts')}
+              className={`flex items-center space-x-1.5 px-5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                mobileSubTab === 'shorts'
+                  ? 'bg-red-600 text-white shadow-md'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span>Latest</span>
-              {activeCategoryTab === 'latest' && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-red-600 rounded-full" />
-              )}
+              <Flame className="w-3.5 h-3.5 fill-current" />
+              <span>Shorts</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setMobileSubTab('videos')}
+              className={`flex items-center space-x-1.5 px-5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                mobileSubTab === 'videos'
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>Videos</span>
+            </button>
+          </div>
+        </div>
 
-            {/* 2. Video Categories directly from Backend Video Records */}
-            {videoCategories.map((cat) => {
-              const isActive = activeCategoryTab === cat.slug;
-              return (
+        {/* 1. SHORTS FULL-SCREEN VERTICAL REEL VIEW (Native Snap-Scroll: 1 Scroll = Exactly 1 Video) */}
+        {mobileSubTab === 'shorts' ? (
+          <div
+            ref={reelContainerRef}
+            onScroll={handleContainerScroll}
+            className="fixed top-[52px] bottom-[58px] inset-x-0 w-full overflow-y-scroll snap-y snap-mandatory bg-black select-none no-scrollbar"
+            style={{
+              scrollSnapType: 'y mandatory',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorY: 'contain'
+            }}
+          >
+            {shortsList.length > 0 ? (
+              shortsList.map((short, idx) => {
+                const isCurrent = idx === activeShortIndex;
+                const originParam = typeof window !== 'undefined' && window.location.origin
+                  ? `&origin=${encodeURIComponent(window.location.origin)}`
+                  : '';
+
+                return (
+                  <div
+                    key={`short-slide-${short.id || short.youtubeId || idx}`}
+                    data-index={idx}
+                    className="w-full h-full snap-start snap-always shrink-0 relative overflow-hidden bg-black flex items-center justify-center"
+                    style={{
+                      height: '100%',
+                      scrollSnapAlign: 'start',
+                      scrollSnapStop: 'always'
+                    }}
+                  >
+                    {isCurrent ? (
+                      /* Live YouTube IFrame Embed (Mounted ONLY for current visible short - Stops all other audio) */
+                      <iframe
+                        ref={shortIframeRef}
+                        key={`yt-active-${short.youtubeId}`}
+                        src={`https://www.youtube.com/embed/${short.youtubeId}?autoplay=1&playsinline=1&controls=0&modestbranding=1&rel=0&enablejsapi=1&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0${originParam}`}
+                        title={short.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="w-full h-full border-0 pointer-events-none"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          border: 'none',
+                          objectFit: 'cover'
+                        }}
+                        onLoad={() => {
+                          if (shortIframeRef.current?.contentWindow) {
+                            shortIframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                          }
+                        }}
+                      />
+                    ) : (
+                      /* High-Res Preview Poster for inactive shorts (Ultra-smooth 60fps native scroll, zero memory & zero audio) */
+                      <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
+                        <img
+                          src={getVideoThumbnail(short, 'max')}
+                          alt={short.title}
+                          className="w-full h-full object-cover opacity-85"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+
+                    {/* Tap Surface: Clicking toggles Play / Pause */}
+                    <div
+                      onClick={toggleShortPlayPause}
+                      className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center"
+                    >
+                      {/* When Paused: Display Sleek Glassmorphic Play Icon */}
+                      {isCurrent && isShortPaused && (
+                        <div className="w-16 h-16 rounded-full bg-black/65 border border-white/40 text-white flex items-center justify-center shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-75 duration-200 pointer-events-none">
+                          <Play className="w-8 h-8 fill-white text-white ml-1" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Headline & Metadata Overlay matching reference */}
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 pb-4 pt-16 flex items-end justify-between gap-3 z-30 pointer-events-auto">
+                      <div className="flex-1 pr-2">
+                        {short.location && (
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="text-[11px] font-semibold text-slate-300 drop-shadow-sm">
+                              {short.location}
+                            </span>
+                          </div>
+                        )}
+                        <h2 className="text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md line-clamp-2 font-serif">
+                          {short.title}
+                        </h2>
+                      </div>
+
+                      {/* Share Button on Bottom Right */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = short.youtubeId
+                            ? `https://www.youtube.com/shorts/${short.youtubeId}`
+                            : (short.videoUrl || window.location.href);
+                          if (navigator.share) {
+                            navigator.share({ title: short.title, url }).catch(() => {});
+                          } else {
+                            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(short.title + ' ' + url)}`, '_blank');
+                          }
+                        }}
+                        className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center shadow-lg transition active:scale-90 shrink-0 cursor-pointer"
+                        title="Share Short"
+                      >
+                        <Share2 className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-slate-400 py-20 space-y-3">
+                <Flame className="w-12 h-12 mx-auto text-red-500 animate-pulse" />
+                <p className="font-bold text-sm text-white">Loading Shorts Feed...</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* 2. REGULAR VIDEOS FEED: Categories + 16:9 Landscape Video List */
+          <div className="flex flex-col flex-1 bg-white dark:bg-slate-950 pt-[52px]">
+            {/* Category Strip */}
+            <div className="sticky top-[52px] z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs">
+              <div className="flex items-center space-x-6 px-4 overflow-x-auto no-scrollbar text-sm font-semibold pt-2">
                 <button
-                  key={cat.slug}
                   type="button"
-                  onClick={() => setActiveCategoryTab(cat.slug)}
+                  onClick={() => setActiveCategoryTab('latest')}
                   className={`pb-2.5 whitespace-nowrap transition-colors relative cursor-pointer ${
-                    isActive
+                    activeCategoryTab === 'latest'
                       ? 'text-red-600 dark:text-red-500 font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <span>{cat.name}</span>
-                  {isActive && (
+                  <span>Latest</span>
+                  {activeCategoryTab === 'latest' && (
                     <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-red-600 rounded-full" />
                   )}
                 </button>
-              );
-            })}
-          </div>
-        </header>
 
-        {/* VIDEOS FEED: Single-column 16:9 vertical cards with center red play button */}
-        <div className="px-4 py-4 pb-28 space-y-6 flex-1">
-          {filteredVideos.length > 0 ? (
-            filteredVideos.map((vid) => {
-              const thumb = getThumbnail(vid);
-              const isLead = leadVideo?.id === vid.id;
-
-              return (
-                <article key={vid.id} className="space-y-2.5">
-                  {/* 16:9 Thumbnail Stage: Tapping opens new dedicated video watch page */}
-                  <div
-                    onClick={() => handleMobileVideoClick(vid)}
-                    className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md cursor-pointer group select-none"
-                  >
-                    <img
-                      src={thumb}
-                      alt={vid.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
-                      loading="lazy"
-                    />
-
-                    {/* Badge Top Left */}
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded shadow ${
-                        isLead ? 'bg-red-600 text-white' : 'bg-black/75 backdrop-blur-sm text-slate-100'
-                      }`}>
-                        {isLead ? 'EXCLUSIVE LEAD' : (vid.badge || vid.category?.toUpperCase() || 'NEWS')}
-                      </span>
-                    </div>
-
-                    {/* Center YouTube-style Red Play Button */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-14 h-9.5 bg-[#ea2e2e] hover:bg-red-600 rounded-xl flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105 active:scale-95">
-                        <Play className="w-5 h-5 fill-white text-white ml-0.5" />
-                      </div>
-                    </div>
-
-                    {/* Watermark Logo Bottom-Left: Vartiq */}
-                    <div className="absolute bottom-2.5 left-3 flex items-center space-x-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] pointer-events-none">
-                      <img
-                        src="/vartiq-icon.png"
-                        alt="Vartiq"
-                        className="w-5 h-5 rounded-md object-cover shadow"
-                      />
-                      <span className="text-[10px] font-black font-serif text-white tracking-wide uppercase">
-                        VARTIQ
-                      </span>
-                    </div>
-
-                    {/* Duration Badge Bottom-Right */}
-                    {vid.duration && (
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur-sm text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shadow">
-                        {vid.duration}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Headline Below Thumbnail */}
-                  <h2
-                    onClick={() => handleMobileVideoClick(vid)}
-                    className="font-serif font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-3 cursor-pointer hover:text-red-600 transition-colors"
-                  >
-                    {vid.title}
-                  </h2>
-                </article>
-              );
-            })
-          ) : (
-            <div className="py-20 text-center space-y-3">
-              <Film className="w-12 h-12 mx-auto text-slate-400" />
-              <p className="text-base font-bold text-slate-700 dark:text-slate-300">
-                No videos found in this category yet.
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveCategoryTab('latest')}
-                className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer"
-              >
-                View All Videos
-              </button>
+                {videoCategories.map((cat) => {
+                  const isActive = activeCategoryTab === cat.slug;
+                  return (
+                    <button
+                      key={cat.slug}
+                      type="button"
+                      onClick={() => setActiveCategoryTab(cat.slug)}
+                      className={`pb-2.5 whitespace-nowrap transition-colors relative cursor-pointer ${
+                        isActive
+                          ? 'text-red-600 dark:text-red-500 font-bold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span>{cat.name}</span>
+                      {isActive && (
+                        <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-red-600 rounded-full" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* 16:9 Video Cards List */}
+            <div className="px-4 py-4 pb-28 space-y-6 flex-1">
+              {filteredVideos.length > 0 ? (
+                filteredVideos.map((vid) => {
+                  const thumb = getThumbnail(vid);
+                  const isLead = leadVideo?.id === vid.id;
+
+                  return (
+                    <article key={vid.id} className="space-y-2.5">
+                      <div
+                        onClick={() => handleMobileVideoClick(vid)}
+                        className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md cursor-pointer group select-none"
+                      >
+                        <img
+                          src={thumb}
+                          alt={vid.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
+                          loading="lazy"
+                        />
+
+                        <div className="absolute top-2.5 left-2.5">
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded shadow ${
+                            isLead ? 'bg-red-600 text-white' : 'bg-black/75 backdrop-blur-sm text-slate-100'
+                          }`}>
+                            {isLead ? 'EXCLUSIVE LEAD' : (vid.badge || vid.category?.toUpperCase() || 'NEWS')}
+                          </span>
+                        </div>
+
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-14 h-9.5 bg-[#ea2e2e] hover:bg-red-600 rounded-xl flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105 active:scale-95">
+                            <Play className="w-5 h-5 fill-white text-white ml-0.5" />
+                          </div>
+                        </div>
+
+                        <div className="absolute bottom-2.5 left-3 flex items-center space-x-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] pointer-events-none">
+                          <img
+                            src="/vartiq-icon.png"
+                            alt="Vartiq"
+                            className="w-5 h-5 rounded-md object-cover shadow"
+                          />
+                          <span className="text-[10px] font-black font-serif text-white tracking-wide uppercase">
+                            VARTIQ
+                          </span>
+                        </div>
+
+                        {vid.duration && (
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur-sm text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shadow">
+                            {vid.duration}
+                          </span>
+                        )}
+                      </div>
+
+                      <h2
+                        onClick={() => handleMobileVideoClick(vid)}
+                        className="font-serif font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-3 cursor-pointer hover:text-red-600 transition-colors"
+                      >
+                        {vid.title}
+                      </h2>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="py-20 text-center space-y-3">
+                  <Film className="w-12 h-12 mx-auto text-slate-400" />
+                  <p className="text-base font-bold text-slate-700 dark:text-slate-300">
+                    No videos found in this category yet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategoryTab('latest')}
+                    className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer"
+                  >
+                    View All Videos
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Floating Back To Top Button on Mobile */}
-        {showBackToTop && (
+        {showBackToTop && mobileSubTab === 'videos' && (
           <button
             type="button"
             onClick={scrollToTop}
@@ -542,12 +860,14 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           </button>
         )}
 
-      </div>
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* DESKTOP VIEW (FULL CINEMA THEATRE + SHOWCASE)           */}
       {/* ======================================================== */}
-      <div className="hidden md:flex md:flex-col min-h-screen">
+      {(!hasMounted || !isMobileScreen) && (
+        <div className="hidden md:flex md:flex-col min-h-screen">
         
         {/* 1. Desktop Header */}
         <Header
@@ -556,23 +876,18 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           onSelectCategory={(slug) => router.push(slug === 'all' ? '/' : (slug === 'videos' ? '/videos' : `/${slug}`))}
         />
 
-        {/* 2. Top Dark Cinema Stage (EXCLUSIVE LEAD VIDEO ONLY) */}
-        <section className="w-full bg-[#070b13] text-white py-10 px-4 sm:px-8 lg:px-12 border-b border-slate-800 relative overflow-hidden">
-          {/* Ambient background grid */}
-          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-red-600/10 blur-[140px] pointer-events-none rounded-full" />
+        {/* 2. Top Cinema Stage (EXCLUSIVE LEAD VIDEO ONLY) - Centered & Sleek Light-Black Charcoal Stage */}
+        <section className="w-full bg-gradient-to-b from-[#141824] via-[#1b2234] to-[#10141f] text-white py-6 sm:py-8 px-4 sm:px-6 lg:px-8 border-b border-slate-700/60 relative overflow-hidden shadow-sm">
+          {/* Subtle Ambient Studio Lighting */}
+          <div className="absolute inset-0 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px] opacity-25 pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[300px] bg-red-600/12 blur-[100px] pointer-events-none rounded-full" />
+          <div className="absolute -top-12 right-1/4 w-[350px] h-[200px] bg-blue-500/10 blur-[90px] pointer-events-none rounded-full" />
 
-          <div className="max-w-[1440px] mx-auto relative flex flex-col lg:flex-row items-center justify-center gap-8">
-            
-            {/* Vertical Large Watermark 'VIDEOS' Text on Left */}
-            <div className="hidden lg:flex items-center justify-center select-none shrink-0 pr-4">
-              <h1 className="text-8xl font-black tracking-widest text-slate-700/25 uppercase font-serif [writing-mode:vertical-lr] rotate-180 leading-none">
-                VIDEOS
-              </h1>
-            </div>
+          {/* Centered Main Container: 100% Horizontally Centered */}
+          <div className="w-full max-w-[820px] mx-auto flex flex-col items-center justify-center relative z-10">
 
-            {/* Main Featured Cinema Screen Container: Dedicated SOLELY to the Admin Lead Video */}
-            <div className="w-full max-w-[1040px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl relative group">
+            {/* Main Featured Cinema Screen Container: Sleek & Perfectly Proportioned */}
+            <div className="w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-700/80 shadow-[0_15px_40px_rgba(0,0,0,0.6)] relative group">
               {leadVideo ? (
                 <>
                   <div className="aspect-video relative overflow-hidden bg-black">
@@ -618,35 +933,30 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                           className="w-full h-full object-cover opacity-85 group-hover:opacity-95 group-hover:scale-105 transition-all duration-700"
                         />
 
-                        {/* Channel Badge Overlay */}
-                        <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-start justify-between">
-                          <div className="space-y-1 max-w-[85%]">
+                        {/* Channel Badge Overlay - Non-blocking pointer events, line-clamp-2 */}
+                        <div className="absolute top-0 left-0 right-0 p-3.5 sm:p-4 bg-gradient-to-b from-black/85 via-black/45 to-transparent flex items-start justify-between pointer-events-none z-10">
+                          <div className="space-y-1 max-w-[90%]">
                             <div className="flex items-center space-x-2">
-                              <span className="bg-red-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded tracking-wider shadow">
+                              <span className="bg-red-600 text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider shadow">
                                 {leadVideo.badge || 'EXCLUSIVE LEAD'}
                               </span>
-                              <span className="text-[11px] font-mono text-slate-300">
+                              <span className="text-[10px] sm:text-[11px] font-mono text-slate-300">
                                 {leadVideo.location || 'NEWS BROADCAST'}
                               </span>
                             </div>
-                            <h2 className="text-lg sm:text-2xl lg:text-3xl font-black font-serif text-white tracking-tight leading-tight pt-1 drop-shadow-md">
+                            <h2 className="text-sm sm:text-base lg:text-lg font-bold font-serif text-white tracking-tight leading-snug drop-shadow-md line-clamp-2">
                               {leadVideo.title}
                             </h2>
-                            {leadVideo.location && (
-                              <p className="text-[11px] sm:text-xs font-mono text-amber-400 font-bold tracking-wide pt-0.5">
-                                {leadVideo.location}
-                              </p>
-                            )}
                           </div>
                         </div>
 
                         {/* Play Button Center Overlay */}
                         <div
                           onClick={handlePlayLead}
-                          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                          className="absolute inset-0 flex items-center justify-center cursor-pointer z-10"
                         >
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 border-4 border-white/20">
-                            <Play className="w-10 h-10 sm:w-12 sm:h-12 fill-white ml-1" />
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-all duration-300 border-2 border-white/30 backdrop-blur-xs">
+                            <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-white ml-0.5" />
                           </div>
                         </div>
                       </>
@@ -654,27 +964,33 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                   </div>
 
                   {/* Sub Bar below video with reporter and action controls */}
-                  <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-900 flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <h3 className="text-base sm:text-lg font-bold text-white line-clamp-1">
+                  <div className="px-5 py-3 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-0.5 min-w-0 max-w-md lg:max-w-lg">
+                      <h3 className="text-xs sm:text-sm font-bold text-white truncate">
                         {leadVideo.title}
                       </h3>
-                      <div className="flex items-center space-x-4 text-xs text-slate-400 font-mono">
-                        {leadVideo.reporterName && <span>Reported by: <strong className="text-slate-200">{leadVideo.reporterName}</strong></span>}
-                        {leadVideo.duration && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leadVideo.duration}</span>}
-                        <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {leadVideo.viewsCount.toLocaleString()} views</span>
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-400 font-mono">
+                        {leadVideo.reporterName && (
+                          <span className="truncate">Reported by: <strong className="text-slate-200">{leadVideo.reporterName}</strong></span>
+                        )}
+                        {leadVideo.duration && (
+                          <span className="flex items-center gap-1 shrink-0"><Clock className="w-3 h-3" /> {leadVideo.duration}</span>
+                        )}
+                        <span className="flex items-center gap-1 shrink-0"><Eye className="w-3 h-3 text-red-500" /> {leadVideo.viewsCount.toLocaleString()} views</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 shrink-0">
                       <button
+                        type="button"
                         onClick={(e) => handleShare(leadVideo, e)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg text-slate-200 transition-colors cursor-pointer"
+                        className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold rounded-lg text-slate-200 transition-colors cursor-pointer border border-slate-700/70 hover:border-slate-500 shadow-sm"
+                        title="Share Video"
                       >
                         {copiedId === leadVideo.id ? (
                           <>
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Copied Link!</span>
+                            <span className="text-emerald-400">Copied!</span>
                           </>
                         ) : (
                           <>
@@ -696,92 +1012,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           </div>
         </section>
 
-        {/* 3. Top 5 Trending Countdown Strip (1 to 5): Clicking opens video in Popup Modal */}
-        {trendingList.length > 0 && (
-          <section className="w-full bg-[#0c111d] text-white py-12 px-4 sm:px-8 lg:px-12 border-b border-slate-800">
-            <div className="max-w-[1440px] mx-auto space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
-                  <h2 className="text-xl sm:text-2xl font-black font-serif uppercase tracking-tight text-white">
-                    TOP 5 TRENDING BULLETINS
-                  </h2>
-                </div>
-                <span className="text-xs font-mono text-slate-400 hidden sm:inline-block">
-                  UPDATED REAL-TIME
-                </span>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {trendingList.map((item, idx) => {
-                  const rank = idx + 1;
-                  const thumb = getThumbnail(item);
-                  const isCurrentModal = modalVideo?.id === item.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => handleOpenModalVideo(item)}
-                      className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all flex flex-col justify-between group ${
-                        isCurrentModal
-                          ? 'bg-slate-900 border-2 border-red-500 ring-2 ring-red-500/20'
-                          : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-                      }`}
-                    >
-                      {/* Big Watermark Rank Number */}
-                      <span className="absolute top-1 right-2 text-6xl font-black font-serif text-white/5 pointer-events-none group-hover:text-red-500/10 transition-colors">
-                        {rank}
-                      </span>
-
-                      <div className="aspect-[16/10] bg-slate-950 relative overflow-hidden">
-                        <img
-                          src={thumb}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
-                            <Play className="w-4 h-4 fill-white ml-0.5" />
-                          </div>
-                        </div>
-
-                        {/* Rank Tag Top Left */}
-                        <span className="absolute top-2 left-2 bg-black/80 backdrop-blur text-white text-[10px] font-black px-2 py-0.5 rounded font-mono">
-                          #{rank}
-                        </span>
-
-                        {/* Duration Bottom Right */}
-                        {item.duration && (
-                          <span className="absolute bottom-2 right-2 bg-black/85 backdrop-blur text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
-                            {item.duration}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between relative z-10">
-                        <div>
-                          {item.badge && (
-                            <span className="text-[10px] font-black uppercase text-red-400 block mb-1">
-                              {item.badge}
-                            </span>
-                          )}
-                          <h4 className="text-xs font-bold leading-snug line-clamp-3 group-hover:text-amber-300 transition-colors">
-                            {item.title}
-                          </h4>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-800/60">
-                          <span>{item.reporterName || item.location || 'NEWS REPORT'}</span>
-                          <span>{item.viewsCount.toLocaleString()} views</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* 4. Desktop Video Gallery: Clicking any card opens in Popup Modal */}
         <section className="max-w-[1440px] mx-auto w-full py-12 px-4 sm:px-8 lg:px-12 space-y-8 flex-1">
@@ -845,25 +1076,12 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                     </div>
 
                     {/* Card Content */}
-                    <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono mb-1.5">
-                          <span className="uppercase font-bold text-red-600 dark:text-red-400">{vid.badge || 'VIDEO'}</span>
-                          {vid.location && <span className="truncate max-w-[140px]">{vid.location}</span>}
-                        </div>
+                    <div className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-red-600 dark:group-hover:text-amber-300 transition-colors leading-snug line-clamp-2">
+                        {vid.title}
+                      </h4>
 
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-red-600 dark:group-hover:text-amber-300 transition-colors leading-snug line-clamp-2">
-                          {vid.title}
-                        </h4>
-
-                        {vid.description && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                            {vid.description}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                         <span>{vid.reporterName ? `By ${vid.reporterName}` : 'News Desk'}</span>
                         <span className="flex items-center gap-1">
                           <Eye className="w-3.5 h-3.5" />
@@ -893,6 +1111,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
         <Footer />
 
       </div>
+      )}
 
       {/* ======================================================== */}
       {/* GLOBAL POPUP VIDEO MODAL (Guarantees zero ghost audio)   */}

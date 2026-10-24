@@ -80,3 +80,53 @@ export function buildVideoEmbedUrl(
 
   return video.videoUrl || '';
 }
+
+/**
+ * Strictly check if a video item is a YouTube Short / Vertical Reel
+ */
+export function isShortVideo(video?: {
+  title?: string | null;
+  videoUrl?: string | null;
+  badge?: string | null;
+  category?: string | null;
+  subCategory?: string | null;
+  tags?: string | null;
+  duration?: string | null;
+  durationSeconds?: number | null;
+} | null): boolean {
+  if (!video) return false;
+
+  // 1. Explicit badge or categories
+  if (video.badge && /^(SHORTS?|REELS?)$/i.test(video.badge.trim())) return true;
+  if (video.category && /^shorts?$/i.test(video.category.trim())) return true;
+  if (video.subCategory && /^shorts?$/i.test(video.subCategory.trim())) return true;
+
+  // 2. URL containing /shorts/
+  if (video.videoUrl && video.videoUrl.includes('/shorts/')) return true;
+
+  // 3. Hashtags or keywords in title or tags
+  if (video.title && (/#shorts?|#reels?/i.test(video.title) || /\bshorts?\b|\breels?\b/i.test(video.title))) return true;
+  if (video.tags && /#?shorts?|#?reels?/i.test(video.tags)) return true;
+
+  // 4. Duration under 65 seconds (via durationSeconds or mm:ss string)
+  if (typeof video.durationSeconds === 'number' && video.durationSeconds > 0 && video.durationSeconds <= 65) {
+    return true;
+  }
+  if (video.duration && typeof video.duration === 'string') {
+    const parts = video.duration.trim().split(':').map(p => parseInt(p, 10));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      const totalSec = parts[0] * 60 + parts[1];
+      if (totalSec > 0 && totalSec <= 65) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Strictly check if a video item is a regular long/horizontal news video
+ */
+export function isRegularVideo(video?: any): boolean {
+  if (!video) return false;
+  return !isShortVideo(video);
+}

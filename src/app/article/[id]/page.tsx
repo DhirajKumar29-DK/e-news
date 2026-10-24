@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { videoService, VideoData } from '@/services/videoService';
+import { isRegularVideo } from '@/utils/videoUtils';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal, MobileBottomNav } from '@/components/common';
 import { ArrowLeft, Clock, Share2, Tag, Check, Play, Copy, X } from 'lucide-react';
@@ -204,11 +205,12 @@ export default function ArticlePage() {
       })
       .catch(() => {});
 
-    // Fetch dynamic latest videos for sidebar
-    videoService.getVideos({ limit: 4, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
+    // Fetch dynamic latest videos for sidebar (strictly regular news videos, exclude shorts)
+    videoService.getVideos({ limit: 12, status: 'PUBLISHED', sortBy: 'publishedAt', sortOrder: 'desc' })
       .then(res => {
         if (res && res.videos && res.videos.length > 0) {
-          setLatestVideos(res.videos.slice(0, 4));
+          const regularOnly = res.videos.filter(isRegularVideo);
+          setLatestVideos(regularOnly.slice(0, 4));
         }
       })
       .catch(() => {});

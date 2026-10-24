@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { Play, Film, ArrowRight, Eye, Sparkles } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
-import { buildVideoEmbedUrl, getVideoThumbnail } from '@/utils/videoUtils';
+import { buildVideoEmbedUrl, getVideoThumbnail, isRegularVideo } from '@/utils/videoUtils';
 
 export const VideosDarkSection: React.FC = () => {
   const { language, t } = useLanguage();
@@ -21,8 +21,25 @@ export const VideosDarkSection: React.FC = () => {
       try {
         const data = await videoService.getFeaturedAndTrending();
         if (isMounted) {
-          const hero = data.heroVideo || (data.trendingVideos && data.trendingVideos[0]) || null;
-          const list = data.trendingVideos || [];
+          // STRICT RULE: Only include regular landscape videos in VideosDarkSection. Exclude all Shorts!
+          const cleanTrending = (data.trendingVideos || []).filter(isRegularVideo);
+          let hero = (data.heroVideo && isRegularVideo(data.heroVideo)) ? data.heroVideo : cleanTrending[0] || null;
+
+          // If trending videos had shorts removed and list is small, fetch more regular videos
+          let list = cleanTrending;
+          if (list.length < 5) {
+            try {
+              const allRes = await videoService.getVideos({ limit: 25, status: 'PUBLISHED' });
+              const cleanAll = (allRes.videos || []).filter(isRegularVideo);
+              if (!hero && cleanAll.length > 0) {
+                hero = cleanAll[0];
+              }
+              list = cleanAll.slice(0, 10);
+            } catch (e) {
+              // Ignore secondary fetch error
+            }
+          }
+
           setFeaturedVideo(hero);
           setSelectedVideo(hero);
           setPlaylist(list);
