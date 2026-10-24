@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { CapacitorBridge, GlobalMobileBottomNav } from '@/components/common';
+import { CapacitorBridge, GlobalMobileBottomNav, PullToRefresh } from '@/components/common';
 import { SITE_URL } from '@/config/env';
 
 const siteUrl = SITE_URL;
@@ -157,6 +157,7 @@ export default function RootLayout({
         <ThemeProvider>
           <CapacitorBridge />
           <LanguageProvider>
+            <PullToRefresh />
             {children}
             <GlobalMobileBottomNav />
           </LanguageProvider>

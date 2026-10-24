@@ -26,10 +26,20 @@ export const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="hidden md:block w-full max-w-full overflow-hidden bg-jagran-dark text-slate-300 border-t border-slate-800 transition-colors">
-      
-      {/* 1. TOP NEWSLETTER & GRIEVANCE STRIP (No Links) */}
-      <div className="bg-slate-950 border-b border-slate-800 py-8 px-4 sm:px-8 lg:px-10">
+    <footer className="hidden md:block w-full max-w-full overflow-hidden bg-slate-950 text-slate-300 border-t border-slate-800 transition-colors relative">
+      {/* Clearly Visible News Network Broadcast Studio Background */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-45 pointer-events-none brightness-100 contrast-110"
+        style={{ backgroundImage: `url('/images/footer-news-bg.jpg')` }}
+      />
+      {/* Balanced Dark Vignette & Gradient Overlay for crisp text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/65 to-slate-950/90 pointer-events-none" />
+
+      {/* Main Footer Content */}
+      <div className="relative z-10 w-full">
+
+        {/* 1. TOP NEWSLETTER & GRIEVANCE STRIP (No Links) */}
+        <div className="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800/80 py-8 px-4 sm:px-8 lg:px-10">
         <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center md:text-left">
             <h3 className="text-lg font-bold font-serif text-white">
@@ -55,7 +65,7 @@ export const Footer: React.FC = () => {
 
       {/* 2. MAIN FOOTER CONTENT GRID (No Links) */}
       <div className="max-w-[1440px] mx-auto py-12 px-4 sm:px-8 lg:px-10 grid grid-cols-1 md:grid-cols-4 gap-8 text-xs">
-        
+
         {/* Col 1: Brand Info */}
         <div className="space-y-3">
           <div className="flex items-center">
@@ -73,22 +83,6 @@ export const Footer: React.FC = () => {
           <div className="flex items-center space-x-2 text-emerald-400 pt-1 font-medium">
             <ShieldCheck className="w-4 h-4" />
             <span>Verified Editorial Standards</span>
-          </div>
-
-          {/* Digital Edition Image Badge */}
-          <div className="pt-1">
-            <div className="relative rounded-lg overflow-hidden border border-slate-800 h-20">
-              <img
-                src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80"
-                alt="Vartiq Digital Edition"
-                className="w-full h-full object-cover brightness-85"
-              />
-              <div className="absolute inset-0 bg-slate-950/40 p-2 flex items-end justify-between">
-                <span className="text-[10px] font-bold text-amber-400 bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30">
-                  Digital Edition
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -133,26 +127,22 @@ export const Footer: React.FC = () => {
           <h3 className="font-bold text-white uppercase text-sm border-b border-slate-800 pb-2">
             24/7 Live Newsroom
           </h3>
-          
-          <div className="relative rounded-xl overflow-hidden border border-slate-800 shadow-md">
-            <img
-              src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80"
-              alt="Live News Studio Desk"
-              className="w-full h-28 object-cover brightness-90"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent p-3 flex flex-col justify-end">
-              <span className="inline-flex items-center space-x-1.5 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider w-fit mb-1 shadow">
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2.5">
+            <div className="flex items-center space-x-2">
+              <span className="inline-flex items-center space-x-1.5 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                 <span>LIVE DESK</span>
               </span>
-              <p className="text-[11px] font-bold text-white line-clamp-1">
-                Vartiq Digital Studio
-              </p>
+              <span className="text-white font-bold text-xs">Vartiq Digital Studio</span>
             </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Real-time multi-bureau news reporting &amp; independent verified journalism.
+            </p>
           </div>
 
           <p className="text-slate-400 text-[11px]">
-            Active Edition: {edition.toUpperCase()}
+            Active Edition: <span className="text-white font-semibold">{edition.toUpperCase()}</span>
           </p>
         </div>
 
@@ -165,7 +155,7 @@ export const Footer: React.FC = () => {
           <p className="text-center md:text-left">
             © {new Date().getFullYear()} Vartiq Network. All rights reserved.
           </p>
-          
+
           {/* Center: Nighwan Technology */}
           <div className="flex items-center justify-center space-x-1.5 text-center">
             <span>Designed &amp; Developed by</span>
@@ -191,6 +181,7 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-    </footer>
+    </div>
+  </footer>
   );
 };

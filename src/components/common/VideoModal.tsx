@@ -20,6 +20,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [copied, setCopied] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,13 +102,18 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md transition-opacity animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-black md:bg-black/90 md:backdrop-blur-md transition-opacity animate-in fade-in duration-300">
       
-      {/* Modal Card Container */}
-      <div className="bg-slate-950 text-white w-full max-w-[1280px] max-h-[92vh] rounded-2xl border border-slate-800 flex flex-col overflow-hidden shadow-2xl relative">
+      {/* Modal Card Container: Full Screen on Mobile, Cinema Card on Desktop */}
+      <div className="bg-slate-950 text-white w-full h-[100dvh] md:h-auto md:max-w-[1280px] md:max-h-[92vh] rounded-none md:rounded-2xl border-0 md:border md:border-slate-800 flex flex-col overflow-hidden shadow-2xl relative">
         
-        {/* Top Header Strip */}
-        <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between shrink-0">
+        {/* Top Header Strip with Safe-Area Inset */}
+        <div 
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)'
+          }}
+          className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-800/80 bg-slate-900/90 flex items-center justify-between shrink-0"
+        >
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2 bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow">
               <Film className="w-3.5 h-3.5" />
@@ -202,9 +208,22 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
                 </h2>
 
                 {activeVideo.description && (
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    {activeVideo.description}
-                  </p>
+                  <div className="space-y-1">
+                    <p className={`text-xs sm:text-sm text-slate-300 dark:text-slate-400 leading-relaxed ${
+                      isDescExpanded ? '' : 'line-clamp-3'
+                    }`}>
+                      {activeVideo.description}
+                    </p>
+                    {activeVideo.description.length > 100 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsDescExpanded(prev => !prev)}
+                        className="text-xs font-bold text-red-500 hover:text-red-400 cursor-pointer pt-0.5 inline-flex items-center gap-1"
+                      >
+                        {isDescExpanded ? 'Show Less' : 'Show More'}
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 border-t border-slate-800/80 pt-3">

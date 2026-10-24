@@ -368,7 +368,7 @@ function HoroscopeContent() {
                       />
                     ) : null}
                   </div>
-                  <span className={`text-xs sm:text-sm font-black mt-2 tracking-tight ${
+                  <span translate="no" className={`notranslate text-xs sm:text-sm font-black mt-2 tracking-tight ${
                     isSelected ? 'text-amber-300' : 'text-white'
                   }`}>
                     {sign.name}

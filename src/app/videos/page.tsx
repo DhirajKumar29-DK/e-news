@@ -132,6 +132,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
 
   // 2. Popup Modal Video: Every other video opens and plays inside this popup modal
   const [modalVideo, setModalVideo] = useState<VideoData | null>(null);
+  const [isModalDescExpanded, setIsModalDescExpanded] = useState(false);
 
   const [trendingList, setTrendingList] = useState<VideoData[]>([]);
   const [gridVideos, setGridVideos] = useState<VideoData[]>([]);
@@ -296,9 +297,19 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     }
   };
 
-  // On Mobile: Clicking any video opens in the popup modal player
+  // On Mobile: Clicking ANY video (lead or non-lead) opens the dedicated full-screen mobile video player
   const handleMobileVideoClick = (vid: VideoData) => {
-    handleOpenModalVideo(vid);
+    setIsPlayingLead(false);
+    setModalVideo(vid);
+    setIsModalDescExpanded(false);
+    if (vid.id) {
+      videoService.incrementViews(vid.id);
+    }
+    updateVideoSEO(vid);
+    if (typeof window !== 'undefined') {
+      const newUrl = `${window.location.pathname}?v=${encodeURIComponent(vid.slug || vid.id || '')}`;
+      window.history.replaceState({}, '', newUrl);
+    }
   };
 
   useEffect(() => {
@@ -449,6 +460,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     setIsPlayingLead(false);
     // 2. Open popup modal for this video
     setModalVideo(vid);
+    setIsModalDescExpanded(false);
     // 3. Increment views count
     if (vid.id) {
       videoService.incrementViews(vid.id);
@@ -465,6 +477,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   // Closes modal and unmounts player completely, terminating all sound instantly
   const handleCloseModal = () => {
     setModalVideo(null);
+    setIsModalDescExpanded(false);
   };
 
   // Handle Play on the exclusive Lead cinema player
@@ -568,8 +581,13 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
       {hasMounted && isMobileScreen && (
         <div className={`md:hidden flex flex-col bg-black ${mobileSubTab === 'shorts' ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
         
-        {/* Fixed Top Pill Switcher: [ Shorts | Videos ] - 100% Fixed and Solid */}
-        <div className="fixed top-0 inset-x-0 h-[52px] z-40 bg-white dark:bg-slate-950 pt-2.5 pb-2 px-4 flex justify-center border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
+        {/* Fixed Top Pill Switcher: [ Shorts | Videos ] - Safe-Area Inset Aware */}
+        <div 
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top, 0px), 36px)',
+          }}
+          className="fixed top-0 inset-x-0 z-40 bg-white dark:bg-slate-950 pb-2 px-4 flex justify-center border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0"
+        >
           <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-full flex items-center space-x-1 border border-slate-200 dark:border-slate-800 shadow-inner">
             <button
               type="button"
@@ -603,12 +621,14 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           <div
             ref={reelContainerRef}
             onScroll={handleContainerScroll}
-            className="fixed top-[52px] bottom-[58px] inset-x-0 w-full overflow-y-scroll snap-y snap-mandatory bg-black select-none no-scrollbar"
             style={{
+              top: 'max(calc(env(safe-area-inset-top, 0px) + 50px), 84px)',
+              bottom: 'max(calc(env(safe-area-inset-bottom, 0px) + 54px), 58px)',
               scrollSnapType: 'y mandatory',
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorY: 'contain'
             }}
+            className="fixed inset-x-0 w-full overflow-y-scroll snap-y snap-mandatory bg-black select-none no-scrollbar"
           >
             {shortsList.length > 0 ? (
               shortsList.map((short, idx) => {
@@ -628,90 +648,86 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                       scrollSnapStop: 'always'
                     }}
                   >
-                    {isCurrent ? (
-                      /* Live YouTube IFrame Embed (Mounted ONLY for current visible short - Stops all other audio) */
-                      <iframe
-                        ref={shortIframeRef}
-                        key={`yt-active-${short.youtubeId}`}
-                        src={`https://www.youtube.com/embed/${short.youtubeId}?autoplay=1&playsinline=1&controls=0&modestbranding=1&rel=0&enablejsapi=1&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0${originParam}`}
-                        title={short.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="w-full h-full border-0 pointer-events-none"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          border: 'none',
-                          objectFit: 'cover'
-                        }}
-                        onLoad={() => {
-                          if (shortIframeRef.current?.contentWindow) {
-                            shortIframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
-                          }
-                        }}
-                      />
-                    ) : (
-                      /* High-Res Preview Poster for inactive shorts (Ultra-smooth 60fps native scroll, zero memory & zero audio) */
-                      <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
-                        <img
-                          src={getVideoThumbnail(short, 'max')}
-                          alt={short.title}
-                          className="w-full h-full object-cover opacity-85"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
-
-                    {/* Tap Surface: Clicking toggles Play / Pause */}
-                    <div
-                      onClick={toggleShortPlayPause}
-                      className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center"
-                    >
-                      {/* When Paused: Display Sleek Glassmorphic Play Icon */}
-                      {isCurrent && isShortPaused && (
-                        <div className="w-16 h-16 rounded-full bg-black/65 border border-white/40 text-white flex items-center justify-center shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-75 duration-200 pointer-events-none">
-                          <Play className="w-8 h-8 fill-white text-white ml-1" />
+                    {/* Centered Genuine 9:16 Frame that never squashes or clips */}
+                    <div className="relative w-full h-full max-w-[450px] mx-auto flex items-center justify-center overflow-hidden bg-black">
+                      {isCurrent ? (
+                        /* Live YouTube IFrame Embed (Mounted ONLY for current visible short - Stops all other audio) */
+                        <div className="w-full h-full aspect-[9/16] max-h-full flex items-center justify-center overflow-hidden bg-black">
+                          <iframe
+                            ref={shortIframeRef}
+                            key={`yt-active-${short.youtubeId}`}
+                            src={`https://www.youtube.com/embed/${short.youtubeId}?autoplay=1&playsinline=1&controls=0&modestbranding=1&rel=0&enablejsapi=1&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0${originParam}`}
+                            title={short.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            className="w-full h-full border-0 pointer-events-none"
+                            onLoad={() => {
+                              if (shortIframeRef.current?.contentWindow) {
+                                shortIframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        /* High-Res Preview Poster for inactive shorts (Ultra-smooth 60fps native scroll, zero memory & zero audio) */
+                        <div className="w-full h-full aspect-[9/16] max-h-full bg-black flex items-center justify-center overflow-hidden">
+                          <img
+                            src={getVideoThumbnail(short, 'max')}
+                            alt={short.title}
+                            className="w-full h-full object-contain opacity-85"
+                            loading="lazy"
+                          />
                         </div>
                       )}
-                    </div>
 
-                    {/* Bottom Headline & Metadata Overlay matching reference */}
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 pb-4 pt-16 flex items-end justify-between gap-3 z-30 pointer-events-auto">
-                      <div className="flex-1 pr-2">
-                        {short.location && (
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-[11px] font-semibold text-slate-300 drop-shadow-sm">
-                              {short.location}
-                            </span>
+                      {/* Tap Surface: Clicking toggles Play / Pause */}
+                      <div
+                        onClick={toggleShortPlayPause}
+                        className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center"
+                      >
+                        {/* When Paused: Display Sleek Glassmorphic Play Icon */}
+                        {isCurrent && isShortPaused && (
+                          <div className="w-16 h-16 rounded-full bg-black/65 border border-white/40 text-white flex items-center justify-center shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-75 duration-200 pointer-events-none">
+                            <Play className="w-8 h-8 fill-white text-white ml-1" />
                           </div>
                         )}
-                        <h2 className="text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md line-clamp-2 font-serif">
-                          {short.title}
-                        </h2>
                       </div>
 
-                      {/* Share Button on Bottom Right */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const url = short.youtubeId
-                            ? `https://www.youtube.com/shorts/${short.youtubeId}`
-                            : (short.videoUrl || window.location.href);
-                          if (navigator.share) {
-                            navigator.share({ title: short.title, url }).catch(() => {});
-                          } else {
-                            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(short.title + ' ' + url)}`, '_blank');
-                          }
-                        }}
-                        className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center shadow-lg transition active:scale-90 shrink-0 cursor-pointer"
-                        title="Share Short"
-                      >
-                        <Share2 className="w-5 h-5 text-white" />
-                      </button>
+                      {/* Bottom Headline & Metadata Overlay matching reference */}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 pb-3 pt-16 flex items-end justify-between gap-3 z-30 pointer-events-auto">
+                        <div className="flex-1 pr-2">
+                          {short.location && (
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-[11px] font-semibold text-slate-300 drop-shadow-sm">
+                                {short.location}
+                              </span>
+                            </div>
+                          )}
+                          <h2 className="text-white font-bold text-sm sm:text-base leading-snug drop-shadow-md line-clamp-2 font-serif">
+                            {short.title}
+                          </h2>
+                        </div>
+
+                        {/* Share Button on Bottom Right */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const url = short.youtubeId
+                              ? `https://www.youtube.com/shorts/${short.youtubeId}`
+                              : (short.videoUrl || window.location.href);
+                            if (navigator.share) {
+                              navigator.share({ title: short.title, url }).catch(() => {});
+                            } else {
+                              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(short.title + ' ' + url)}`, '_blank');
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center shadow-lg transition active:scale-90 shrink-0 cursor-pointer"
+                          title="Share Short"
+                        >
+                          <Share2 className="w-5 h-5 text-white" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -725,9 +741,19 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           </div>
         ) : (
           /* 2. REGULAR VIDEOS FEED: Categories + 16:9 Landscape Video List */
-          <div className="flex flex-col flex-1 bg-white dark:bg-slate-950 pt-[52px]">
+          <div 
+            style={{
+              paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 50px), 84px)'
+            }}
+            className="flex flex-col flex-1 bg-white dark:bg-slate-950"
+          >
             {/* Category Strip */}
-            <div className="sticky top-[52px] z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs">
+            <div 
+              style={{
+                top: 'max(calc(env(safe-area-inset-top, 0px) + 50px), 84px)'
+              }}
+              className="sticky z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs"
+            >
               <div className="flex items-center space-x-6 px-4 overflow-x-auto no-scrollbar text-sm font-semibold pt-2">
                 <button
                   type="button"
@@ -1114,23 +1140,28 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
       )}
 
       {/* ======================================================== */}
-      {/* GLOBAL POPUP VIDEO MODAL (Guarantees zero ghost audio)   */}
+      {/* 4. DEDICATED VIDEO PLAYER SCREEN (MOBILE: FULL PHONE FIT | DESKTOP: CINEMA MODAL) */}
       {/* ======================================================== */}
       {modalVideo && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-6 bg-black md:bg-black/90 md:backdrop-blur-md transition-opacity animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleCloseModal();
             }
           }}
         >
-          <div className="bg-slate-950 text-white w-full max-w-4xl max-h-[92vh] rounded-2xl border border-slate-800 flex flex-col overflow-hidden shadow-2xl relative">
+          <div className="bg-slate-950 text-white w-full h-[100dvh] md:h-auto md:max-w-4xl md:max-h-[92vh] rounded-none md:rounded-2xl border-0 md:border md:border-slate-800 flex flex-col overflow-hidden shadow-2xl relative">
             
-            {/* Modal Top Bar */}
-            <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-b border-slate-800/80 bg-slate-900/90 flex items-center justify-between shrink-0">
+            {/* Modal Top Bar: Mobile Safe-Area Aware */}
+            <div 
+              style={{
+                paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)'
+              }}
+              className="px-4 py-3 sm:px-6 sm:py-3.5 border-b border-slate-800/80 bg-slate-900 flex items-center justify-between shrink-0"
+            >
               <div className="flex items-center space-x-2.5 min-w-0 pr-4">
                 <span className="bg-red-600 text-white text-[10px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded tracking-wider shadow shrink-0">
                   {modalVideo.badge || modalVideo.category?.toUpperCase() || 'NEWS VIDEO'}
@@ -1143,7 +1174,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 shadow"
+                className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center"
                 title="Close Video"
                 aria-label="Close Video"
               >
@@ -1152,7 +1183,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
             </div>
 
             {/* 16:9 Cinema Player Stage with unique key per video for clean teardown */}
-            <div className="aspect-video w-full bg-black relative overflow-hidden flex items-center justify-center">
+            <div className="aspect-video w-full bg-black relative overflow-hidden flex items-center justify-center shrink-0">
               {modalVideo.videoType === 'FILE' ? (
                 <video
                   key={`modal-file-${modalVideo.id}`}
@@ -1175,10 +1206,10 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
               )}
             </div>
 
-            {/* Modal Info Bar & Actions */}
-            <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-900 overflow-y-auto space-y-3">
+            {/* Modal Info Bar & Actions with Show More / Show Less */}
+            <div className="p-4 sm:p-5 bg-slate-950 flex-1 overflow-y-auto space-y-4 pb-14 md:pb-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <h2 className="text-base sm:text-xl font-bold font-serif text-white leading-snug">
                     {modalVideo.title}
                   </h2>
@@ -1199,7 +1230,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                 <button
                   type="button"
                   onClick={(e) => handleShare(modalVideo, e)}
-                  className="flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg text-slate-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+                  className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg text-slate-200 transition-colors cursor-pointer self-start sm:self-auto shrink-0 shadow"
                 >
                   {copiedId === modalVideo.id ? (
                     <>
@@ -1216,9 +1247,22 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
               </div>
 
               {modalVideo.description && (
-                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed pt-2 border-t border-slate-900">
-                  {modalVideo.description}
-                </p>
+                <div className="pt-3 border-t border-slate-900 space-y-1.5">
+                  <p className={`text-xs sm:text-sm text-slate-300 dark:text-slate-400 leading-relaxed ${
+                    isModalDescExpanded ? '' : 'line-clamp-3'
+                  }`}>
+                    {modalVideo.description}
+                  </p>
+                  {modalVideo.description.length > 100 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsModalDescExpanded(prev => !prev)}
+                      className="text-xs font-bold text-red-500 hover:text-red-400 cursor-pointer pt-0.5 inline-flex items-center gap-1"
+                    >
+                      {isModalDescExpanded ? 'Show Less' : 'Show More'}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 

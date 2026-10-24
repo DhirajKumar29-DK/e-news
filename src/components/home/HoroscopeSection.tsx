@@ -95,12 +95,27 @@ export const HoroscopeSection: React.FC = () => {
           {mockHoroscopeSigns.map((sign) => {
             const signKey = sign.name.toLowerCase();
             const imgSrc = getSignImage(signKey);
+            // Strictly abbreviate month names into 3-letter standard format (e.g. OCT, NOV, DEC, FEB, MAR)
+            const shortDate = (sign.date || '')
+              .replace(/JANUARY/gi, 'JAN')
+              .replace(/FEBRUARY/gi, 'FEB')
+              .replace(/MARCH/gi, 'MAR')
+              .replace(/APRIL/gi, 'APR')
+              .replace(/JUNE/gi, 'JUN')
+              .replace(/JULY/gi, 'JUL')
+              .replace(/AUGUST/gi, 'AUG')
+              .replace(/SEPTEMBER/gi, 'SEP')
+              .replace(/OCTOBER/gi, 'OCT')
+              .replace(/NOVEMBER/gi, 'NOV')
+              .replace(/DECEMBER/gi, 'DEC');
+
             return (
               <div
                 key={sign.name}
                 onClick={() => handleSignClick(sign.name)}
                 title={`Read ${sign.name} Daily Horoscope`}
-                className="bg-white rounded-2xl p-4 sm:p-5 text-center transition-all duration-200 hover:-translate-y-1.5 cursor-pointer flex flex-col items-center justify-center group min-h-[160px] shadow-md hover:shadow-2xl hover:border-amber-400 border border-transparent"
+                translate="no"
+                className="notranslate bg-white rounded-2xl p-4 sm:p-5 text-center transition-all duration-200 hover:-translate-y-1.5 cursor-pointer flex flex-col items-center justify-center group min-h-[160px] shadow-md hover:shadow-2xl hover:border-amber-400 border border-transparent select-none"
               >
                 {/* Circular Medallion Avatar with Dynamic Backend Image / 3D Medallion */}
                 <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-amber-400/50 p-0.5 bg-[#FFF5F7] group-hover:scale-110 group-hover:ring-2 group-hover:ring-amber-400 transition-all mb-2.5 overflow-hidden shadow-sm flex items-center justify-center">
@@ -114,13 +129,13 @@ export const HoroscopeSection: React.FC = () => {
                 </div>
                 
                 {/* Title */}
-                <h3 className="text-sm sm:text-base font-black font-serif tracking-wide text-slate-900 uppercase group-hover:text-[#8E192B] transition-colors">
+                <h3 translate="no" className="notranslate text-sm sm:text-base font-black font-serif tracking-wide text-slate-900 uppercase group-hover:text-[#8E192B] transition-colors">
                   {sign.name}
                 </h3>
                 
                 {/* Date */}
-                <p className="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-tight mt-0.5">
-                  {sign.date}
+                <p translate="no" className="notranslate text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-tight mt-0.5 whitespace-nowrap">
+                  {shortDate}
                 </p>
               </div>
             );
