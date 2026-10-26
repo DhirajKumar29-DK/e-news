@@ -123,7 +123,7 @@ function FullCleanDashboardInner() {
                 <div className="text-2xl sm:text-3xl font-black font-serif text-emerald-600">99.9%</div>
                 <div className="text-[11px] font-bold text-slate-500 flex items-center space-x-1 mt-1">
                   <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>24ms API Latency (Port 5000)</span>
+                  <span>24ms API Latency (Operational)</span>
                 </div>
               </div>
             </div>

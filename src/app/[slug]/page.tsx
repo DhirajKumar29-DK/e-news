@@ -11,6 +11,7 @@ import VideosPage from '@/app/videos/page';
 
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml } from '@/utils/textUtils';
+import { SITE_URL } from '@/config/env';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -281,13 +282,13 @@ export default function CategoryPage() {
                 '@type': 'ListItem',
                 'position': 1,
                 'name': 'Home',
-                'item': 'http://localhost:3000'
+                'item': SITE_URL
               },
               {
                 '@type': 'ListItem',
                 'position': 2,
                 'name': currentCategoryName,
-                'item': `http://localhost:3000/${slug}`
+                'item': `${SITE_URL}/${slug}`
               }
             ]
           })

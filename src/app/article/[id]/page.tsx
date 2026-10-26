@@ -10,6 +10,7 @@ import { ArrowLeft, Clock, Share2, Tag, Check, Play, Copy, X } from 'lucide-reac
 import { articleService, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml, hasHtmlTags, formatArticleHtml } from '@/utils/textUtils';
+import { SITE_URL } from '@/config/env';
 import Script from 'next/script';
 
 export default function ArticlePage() {
@@ -455,11 +456,11 @@ export default function ArticlePage() {
             'publisher': {
               '@type': 'NewsMediaOrganization',
               'name': 'Vartiq',
-              'url': 'http://localhost:3000'
+              'url': SITE_URL
             },
             'mainEntityOfPage': {
               '@type': 'WebPage',
-              '@id': typeof window !== 'undefined' ? window.location.href : `http://localhost:3000/article/${articleId}`
+              '@id': typeof window !== 'undefined' ? window.location.href : `${SITE_URL}/article/${articleId}`
             }
           })
         }}
@@ -476,19 +477,19 @@ export default function ArticlePage() {
                 '@type': 'ListItem',
                 'position': 1,
                 'name': 'Home',
-                'item': 'http://localhost:3000'
+                'item': SITE_URL
               },
               {
                 '@type': 'ListItem',
                 'position': 2,
                 'name': article.category,
-                'item': `http://localhost:3000/${article.category.toLowerCase()}`
+                'item': `${SITE_URL}/${article.category.toLowerCase()}`
               },
               {
                 '@type': 'ListItem',
                 'position': 3,
                 'name': article.title,
-                'item': typeof window !== 'undefined' ? window.location.href : `http://localhost:3000/article/${articleId}`
+                'item': typeof window !== 'undefined' ? window.location.href : `${SITE_URL}/article/${articleId}`
               }
             ]
           })

@@ -8,7 +8,7 @@ import {
   Share2, Image as ImageIcon, Copy, Volume2, VolumeX, ZoomIn, ZoomOut, Plus, Minus,
   AlertCircle, Newspaper
 } from 'lucide-react';
-import { BACKEND_URL, getFullMediaUrl } from '@/config/env';
+import { BACKEND_URL, getFullMediaUrl, SITE_URL } from '@/config/env';
 import {
   fetchStatesWithEditions,
   fetchArchiveDates,
@@ -2069,7 +2069,7 @@ ${rawBody}
   const getShareableEpaperUrl = () => {
     const origin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
       ? window.location.origin
-      : 'https://e-news-ebon.vercel.app';
+      : SITE_URL;
     const ed = activeEdition?.slug || 'patna-main';
     const pg = currentPageIndex + 1;
     return `${origin}/epaper?edition=${encodeURIComponent(ed)}&date=${encodeURIComponent(selectedDate)}&page=${pg}`;

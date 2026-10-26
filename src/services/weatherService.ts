@@ -3,7 +3,7 @@
  * Connects to e-news-backend (/api/v1/weather) with in-memory caching and fallback data.
  */
 
-import { API_BASE_URL } from '@/config/env';
+import { API_BASE_URL, BACKEND_URL } from '@/config/env';
 
 export interface WeatherState {
   id: string;
@@ -104,6 +104,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 function getCleanUrl(url: string): string {
   if (!url) return '';
   if (typeof window !== 'undefined') {
+    if (BACKEND_URL && url.startsWith(`${BACKEND_URL}/api/`)) {
+      return url.replace(BACKEND_URL, '');
+    }
     if (url.includes(':5000/api/')) {
       return url.replace(/https?:\/\/[^/]+:5000\/api\//, '/api/');
     }

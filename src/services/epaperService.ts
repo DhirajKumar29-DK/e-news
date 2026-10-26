@@ -5,7 +5,7 @@
  */
 
 import { apiRequest } from './api';
-import { API_BASE_URL } from '@/config/env';
+import { API_BASE_URL, BACKEND_URL } from '@/config/env';
 import { ENDPOINTS } from '@/constants/endpoints';
 import {
   SaveSlotPayload,
@@ -21,7 +21,9 @@ const inFlightRequests = new Map<string, Promise<any>>();
 function getCleanUrl(url: string): string {
   if (!url) return '';
   if (typeof window !== 'undefined') {
-    // If URL points to port 5000 in browser, convert to relative Next.js proxy (/api/)
+    if (BACKEND_URL && url.startsWith(`${BACKEND_URL}/api/`)) {
+      return url.replace(BACKEND_URL, '');
+    }
     if (url.includes(':5000/api/')) {
       return url.replace(/https?:\/\/[^/]+:5000\/api\//, '/api/');
     }
