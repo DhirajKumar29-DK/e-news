@@ -2131,14 +2131,21 @@ ${rawBody}
         if (currentPdf.startsWith('http')) {
           candidateUrls.push(currentPdf);
         } else {
-          const envBackend = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
-          if (envBackend) candidateUrls.push(`${envBackend}${cleanPath}`);
-          candidateUrls.push(`http://localhost:5000${cleanPath}`);
-          candidateUrls.push(`https://e-news-backend.onrender.com${cleanPath}`);
+          const envBackend = (process.env.NEXT_PUBLIC_BACKEND_URL || BACKEND_URL || '').replace(/\/$/, '');
+          if (envBackend && !candidateUrls.includes(envBackend + cleanPath)) {
+            candidateUrls.push(envBackend + cleanPath);
+          }
           const fullMedia = getFullMediaUrl(cleanPath);
-          if (fullMedia && !candidateUrls.includes(fullMedia)) candidateUrls.push(fullMedia);
+          if (fullMedia && !candidateUrls.includes(fullMedia)) {
+            candidateUrls.push(fullMedia);
+          }
+          if (typeof window !== 'undefined' && window.location.origin) {
+            const originUrl = window.location.origin.replace(/\/$/, '') + cleanPath;
+            if (!candidateUrls.includes(originUrl)) {
+              candidateUrls.push(originUrl);
+            }
+          }
         }
-
         let downloadedBlob: Blob | null = null;
         for (const testUrl of candidateUrls) {
           try {

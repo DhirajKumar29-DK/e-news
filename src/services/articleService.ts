@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/env';
 import { apiRequest } from './api';
 
 export interface ArticleData {
@@ -158,7 +159,7 @@ export const articleService = {
     formData.append('image', file);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
     const res = await fetch(`${apiUrl}/articles/upload`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { SITE_URL } from '@/config/env';
+import { SITE_URL, API_BASE_URL } from '@/config/env';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = SITE_URL;
@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic published news articles
   let articleEntries: MetadataRoute.Sitemap = [];
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
     const res = await fetch(`${apiUrl}/articles?limit=100`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data = await res.json();

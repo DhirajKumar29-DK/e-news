@@ -11,12 +11,12 @@ const isClient = typeof window !== 'undefined';
 
 export const BACKEND_URL: string = (
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  (isClient ? window.location.origin : 'http://localhost:5000')
+  (isClient ? window.location.origin : 'https://backendnews.aiwcrm.in')
 ).replace(/\/$/, '');
 
 export const API_BASE_URL: string = (
   process.env.NEXT_PUBLIC_API_URL ||
-  (isClient ? '/api/v1' : 'http://localhost:5000/api/v1')
+  (isClient ? '/api/v1' : `${BACKEND_URL}/api/v1`)
 ).replace(/\/$/, '');
 
 /**
