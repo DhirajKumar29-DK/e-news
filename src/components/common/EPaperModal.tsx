@@ -244,7 +244,7 @@ function normalizeSlotData(s: any): any {
     imageWrapMode: s.imageWrapMode || s.image_wrap_mode || 'auto',
     imageVertAlign: s.imageVertAlign || s.image_vert_align || 'top',
     isAd: s.isAd || s.type === 'ad' || false,
-    computedSections: s.computedSections
+    computedSections: s.computedSections || (typeof s.subStories === 'string' ? (() => { try { return JSON.parse(s.subStories); } catch { return undefined; } })() : s.subStories)
   };
 }
 
@@ -326,15 +326,17 @@ function findBestTokenFit(
   colGap: number = 14
 ): number {
   if (startTokenIdx >= tokens.length) return tokens.length;
+  const lineH = getSummaryLineHeight(fontSize);
+  if (height < lineH) return startTokenIdx;
+
   const div = getReaderMeasureDiv();
   if (!div) {
     return tokens.length;
   }
 
   const targetW = Math.max(50, width);
-  const targetH = Math.max(20, height);
+  const targetH = height;
 
-  const lineH = getSummaryLineHeight(fontSize);
   div.style.width = `${targetW}px`;
   if (cols > 1) {
     div.style.height = `${targetH}px`;
@@ -392,7 +394,7 @@ function findBestTokenFit(
     }
   }
 
-  return Math.max(startTokenIdx + 1, bestFit);
+  return bestFit;
 }
 
 function measureSlotHeaderHeight(s: any, cardContentW: number): number {
@@ -457,7 +459,9 @@ function computeSlotSections(s: any) {
   const isFullCardPhoto = imgW >= cardContentW - 30 || s.imageWrapMode === 'top-span';
 
   const photoTotalH = hasImage ? (imgH + 2) : 0;
-  const underPhotoH = Math.max(20, fullStoryH - photoTotalH);
+  const rawUnderH = fullStoryH - photoTotalH;
+  const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
+  const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
   if (colsCount === 1 || isFullCardPhoto) {
     const tokens = sliceHtmlTokens(s.summary || '');
@@ -553,7 +557,7 @@ function computeSlotSections(s: any) {
       }
     }
   } else {
-    if (currentTokenIdx < tokens.length) {
+    if (underPhotoH >= minRequiredH && currentTokenIdx < tokens.length) {
       if (rightCols > 0) {
         const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
         text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
@@ -662,7 +666,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
       {/* ABSOLUTE POSITIONED SLOTS CONTAINER (Identical rendering to Admin Studio Canvas!) */}
       {currentSlots.map((rawSlot, sIdx) => {
         const s = normalizeSlotData(rawSlot);
-        const comp = computeSlotSections(s);
+        const comp = s.computedSections || computeSlotSections(s);
         const cardContentW = Math.max(100, s.width - 24);
         const vertAlign: 'top' | 'middle' | 'bottom' = s.imageVertAlign || 'top';
         const normAlign = (s.imageAlignment || s.imageAlign || 'Center').toLowerCase();
@@ -2103,11 +2107,22 @@ ${rawBody}
     if (!currentPdf) {
       try {
         setPdfCompileStatus('सर्वर पर उच्च गुणवत्ता वाला PDF तैयार हो रहा है (Puppeteer)...');
+        const enrichedPages = pages && pages.length > 0 ? pages.map(pg => ({
+          ...pg,
+          slots: (pg.slots || []).map(s => {
+            if (s.isAd) return s;
+            return {
+              ...s,
+              computedSections: computeSlotSections(s)
+            };
+          })
+        })) : undefined;
+
         const genRes = await generatePdf({
           editionSlug,
           editionTitle: activeEdition?.title || 'अपना पटना',
           publishDate: selectedDate,
-          pages: pages && pages.length > 0 ? pages : undefined,
+          pages: enrichedPages,
         });
         if (genRes.ok) {
           const genData = await genRes.json();
@@ -2159,6 +2174,50 @@ ${rawBody}
             }
           } catch (fetchErr) {
             console.warn(`Attempt to fetch PDF from ${testUrl} failed:`, fetchErr);
+          }
+        }
+
+        // If file returned 404 on server (e.g. was generated on another machine or storage was cleared)
+        // Trigger live server Puppeteer to generate and persist fresh PDF right now!
+        if (!downloadedBlob) {
+          try {
+            setPdfCompileStatus('सर्वर पर उच्च गुणवत्ता वाला PDF तैयार हो रहा है (Puppeteer)...');
+            const enrichedPages = pages && pages.length > 0 ? pages.map(pg => ({
+              ...pg,
+              slots: (pg.slots || []).map(s => {
+                if (s.isAd) return s;
+                return {
+                  ...s,
+                  computedSections: s.computedSections || computeSlotSections(s)
+                };
+              })
+            })) : undefined;
+
+            const genRes = await generatePdf({
+              editionSlug,
+              editionTitle: activeEdition?.title || 'अपना पटना',
+              publishDate: selectedDate,
+              pages: enrichedPages,
+            });
+            if (genRes.ok) {
+              const genData = await genRes.json();
+              const freshUrl = genData.data?.publicUrl || genData.data?.pdfUrl;
+              if (freshUrl) {
+                currentPdf = freshUrl;
+                setPdfUrl(freshUrl);
+                pdfUrlRef.current = freshUrl;
+                const freshFullUrl = getFullMediaUrl(freshUrl);
+                const freshResp = await fetch(freshFullUrl);
+                if (freshResp.ok) {
+                  const freshBlob = await freshResp.blob();
+                  if (freshBlob.size > 1000) {
+                    downloadedBlob = freshBlob;
+                  }
+                }
+              }
+            }
+          } catch (freshGenErr) {
+            console.warn('Fallback server generation error:', freshGenErr);
           }
         }
 
@@ -3642,7 +3701,7 @@ ${rawBody}
       )}
 
       {/* 4. HIDDEN MULTI-PAGE PRINT STAGE (FOR REAL BROADSHEET PDF GENERATION) */}
-      {isDownloadingPdf && !pdfUrl && (
+      {isDownloadingPdf && (
         <div
           aria-hidden="true"
           style={{

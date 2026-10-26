@@ -294,15 +294,17 @@ function findBestTokenFit(
   colGap: number = 14
 ): number {
   if (startTokenIdx >= tokens.length) return tokens.length;
+  const lineH = getSummaryLineHeight(fontSize);
+  if (height < lineH) return startTokenIdx;
+
   const div = getMeasureDiv();
   if (!div) {
     return tokens.length;
   }
 
   const targetW = Math.max(50, width);
-  const targetH = Math.max(20, height);
+  const targetH = height;
 
-  const lineH = getSummaryLineHeight(fontSize);
   div.style.width = `${targetW}px`;
   if (cols > 1) {
     div.style.height = `${targetH}px`;
@@ -361,7 +363,7 @@ function findBestTokenFit(
     }
   }
 
-  return Math.max(startTokenIdx + 1, bestFit);
+  return bestFit;
 }
 
 function measureSlotHeaderHeight(s: EPaperSlotData, cardContentW: number): number {
@@ -426,7 +428,9 @@ function computeSlotSections(s: EPaperSlotData) {
   const isFullCardPhoto = imgW >= cardContentW - 30 || s.imageWrapMode === 'top-span';
 
   const photoTotalH = hasImage ? (imgH + 2) : 0;
-  const underPhotoH = Math.max(20, fullStoryH - photoTotalH);
+  const rawUnderH = fullStoryH - photoTotalH;
+  const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
+  const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
   if (colsCount === 1 || isFullCardPhoto) {
     const tokens = sliceHtmlTokens(s.summary || '');
@@ -522,7 +526,7 @@ function computeSlotSections(s: EPaperSlotData) {
       }
     }
   } else {
-    if (currentTokenIdx < tokens.length) {
+    if (underPhotoH >= minRequiredH && currentTokenIdx < tokens.length) {
       if (rightCols > 0) {
         const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
         text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
