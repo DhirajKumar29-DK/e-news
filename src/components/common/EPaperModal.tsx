@@ -394,6 +394,10 @@ function findBestTokenFit(
     }
   }
 
+  if (bestFit === startTokenIdx && targetH >= lineH && startTokenIdx < tokens.length) {
+    bestFit = startTokenIdx + 1;
+  }
+
   return bestFit;
 }
 
@@ -423,7 +427,8 @@ function measureSlotHeaderHeight(s: any, cardContentW: number): number {
   return div.offsetHeight;
 }
 
-function computeSlotSections(s: any) {
+function computeSlotSections(rawS: any) {
+  const s = normalizeSlotData(rawS);
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
   const cardH = s.height || 400;
@@ -463,8 +468,11 @@ function computeSlotSections(s: any) {
   const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
   const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
+  const rawText = s.summary || s.contentText || (s.content?.body) || (s.content?.summary) || '';
+  const decoded = decodeHtmlEntities(rawText);
+  const tokens = sliceHtmlTokens(decoded);
+
   if (colsCount === 1 || isFullCardPhoto) {
-    const tokens = sliceHtmlTokens(s.summary || '');
     const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
@@ -518,7 +526,6 @@ function computeSlotSections(s: any) {
   const rightSectionW = rightCols > 0 ? (rightCols * singleColW) + ((rightCols - 1) * colGap) : 0;
   const vertAlign = s.imageVertAlign || 'top';
 
-  const tokens = sliceHtmlTokens(s.summary || '');
   let text1 = '';
   let text2 = '';
   let text2b = '';

@@ -363,6 +363,10 @@ function findBestTokenFit(
     }
   }
 
+  if (bestFit === startTokenIdx && targetH >= lineH && startTokenIdx < tokens.length) {
+    bestFit = startTokenIdx + 1;
+  }
+
   return bestFit;
 }
 
@@ -432,8 +436,11 @@ function computeSlotSections(s: EPaperSlotData) {
   const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
   const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
+  const rawText = s.summary || (s as any).contentText || (s as any).content?.body || (s as any).content?.summary || '';
+  const decoded = decodeHtmlEntities(rawText);
+  const tokens = sliceHtmlTokens(decoded);
+
   if (colsCount === 1 || isFullCardPhoto) {
-    const tokens = sliceHtmlTokens(s.summary || '');
     const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
@@ -487,7 +494,6 @@ function computeSlotSections(s: EPaperSlotData) {
   const rightSectionW = rightCols > 0 ? (rightCols * singleColW) + ((rightCols - 1) * colGap) : 0;
   const vertAlign = s.imageVertAlign || 'top';
 
-  const tokens = sliceHtmlTokens(s.summary || '');
   let text1 = '';
   let text2 = '';
   let text2b = '';
