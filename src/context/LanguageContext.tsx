@@ -83,6 +83,18 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Do NOT initialize or load script on Admin routes
+    if (pathname?.startsWith('/admin')) {
+      // Clear googtrans cookie to prevent browser from auto-translating admin
+      document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      const host = window.location.hostname;
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${host}; path=/;`;
+      if (document.documentElement.classList.contains('translated-ltr')) {
+        document.documentElement.classList.remove('translated-ltr');
+      }
+      return;
+    }
+
     window.googleTranslateElementInit = () => {
       try {
         if (window.google && window.google.translate && window.google.translate.TranslateElement) {
@@ -108,7 +120,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       document.body.appendChild(script);
       scriptLoadedRef.current = true;
     }
-  }, []);
+  }, [pathname]);
 
   // Sync translation across client-side page route transitions
   useEffect(() => {
@@ -216,8 +228,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       supportedLanguages: SUPPORTED_LANGUAGES
     }}>
       <div className={language === 'hi' ? 'lang-hi' : 'lang-en'}>
-        {/* Invisible Google Translate Mount Element */}
-        <div id="google_translate_element" aria-hidden="true" />
+        {/* Invisible Google Translate Mount Element (omitted on admin routes) */}
+        {!pathname?.startsWith('/admin') && (
+          <div id="google_translate_element" aria-hidden="true" />
+        )}
         {children}
       </div>
     </LanguageContext.Provider>

@@ -405,7 +405,7 @@ function AdminVideoEditContent() {
                 </div>
 
                 {videoType === 'URL' ? (
-                  <div className="space-y-1.5">
+                  <div key="video-source-url-panel" className="space-y-1.5 animate-in fade-in duration-100">
                     <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500">
                       YouTube URL or Embed Stream Link <span className="text-red-500">*</span>
                     </label>
@@ -422,7 +422,7 @@ function AdminVideoEditContent() {
                     </div>
                   </div>
                 ) : (
-                  <div>
+                  <div key="video-source-file-panel" className="animate-in fade-in duration-100">
                     <label className="border-2 border-dashed border-slate-300 hover:border-red-500 bg-slate-50/50 hover:bg-red-50/20 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer transition-all group">
                       <input
                         type="file"
@@ -512,7 +512,7 @@ function AdminVideoEditContent() {
                     }`}
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Poster</span>
+                    <span>Thumbnail</span>
                   </button>
                   <button
                     type="button"
@@ -524,7 +524,7 @@ function AdminVideoEditContent() {
                     }`}
                   >
                     <Search className="w-3.5 h-3.5" />
-                    <span>SEO</span>
+                    <span translate="no" className="notranslate">SEO</span>
                   </button>
                 </div>
               </div>
@@ -631,32 +631,32 @@ function AdminVideoEditContent() {
                 </div>
               )}
 
-              {/* TAB 2: Poster Thumbnail Media */}
+              {/* TAB 2: Video Thumbnail Media */}
               {inspectorTab === 'media' && (
                 <div className="space-y-4 animate-in fade-in duration-150">
                   <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
                     <div className="text-xs font-black uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2.5">
-                      Broadcast Cover Poster
+                      Video Thumbnail
                     </div>
 
                     <div className="aspect-[16/9] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 relative group shadow-2xs">
                       {thumbnailUrl ? (
                         <img
                           src={thumbnailUrl}
-                          alt="Poster preview"
+                          alt="Thumbnail preview"
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 space-y-1">
                           <ImageIcon className="w-8 h-8 text-slate-400" />
-                          <span className="text-xs font-medium">No poster assigned</span>
+                          <span className="text-xs font-medium">No thumbnail assigned</span>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                        Poster Image Link
+                        Thumbnail Image Link
                       </label>
                       <input
                         type="url"
@@ -670,7 +670,7 @@ function AdminVideoEditContent() {
                     <div>
                       <label className="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors border border-slate-200">
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{isUploadingThumb ? 'Uploading...' : 'Upload Local Poster File'}</span>
+                        <span>{isUploadingThumb ? 'Uploading...' : 'Upload Local Thumbnail'}</span>
                         <input
                           type="file"
                           accept="image/*"

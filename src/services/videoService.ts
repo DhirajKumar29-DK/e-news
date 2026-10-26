@@ -166,6 +166,7 @@ export const videoService = {
   // 9. Upload Custom Video Thumbnail
   async uploadThumbnail(file: File): Promise<{ thumbnailUrl: string }> {
     const formData = new FormData();
+    formData.append('image', file);
     formData.append('thumbnail', file);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
@@ -180,8 +181,9 @@ export const videoService = {
     if (!res.ok || !data.success) {
       throw new Error(data.message || 'Thumbnail upload failed');
     }
+    const uploadedUrl = data.data?.thumbnailUrl || data.data?.imageUrl || '';
     return {
-      thumbnailUrl: data.data.thumbnailUrl
+      thumbnailUrl: uploadedUrl
     };
   },
   // 10. Sync YouTube Channel Videos
