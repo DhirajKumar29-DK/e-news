@@ -22,9 +22,11 @@ export default function EPaperPageRoute() {
   const router = useRouter();
   
   return (
-    <EPaperModal
-      isOpen={true}
-      onClose={() => router.push('/')}
-    />
+    <div translate="no" className="notranslate w-full h-full min-h-screen">
+      <EPaperModal
+        isOpen={true}
+        onClose={() => router.push('/')}
+      />
+    </div>
   );
 }

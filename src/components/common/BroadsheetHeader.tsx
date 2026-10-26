@@ -44,7 +44,8 @@ export const BroadsheetHeader: React.FC<BroadsheetHeaderProps> = ({
 
   return (
     <header
-      className={`relative select-none group w-full ${className}`}
+      translate="no"
+      className={`notranslate relative select-none group w-full ${className}`}
       style={{
         backgroundColor: cfg.bgColor,
         marginBottom: `${cfg.bottomMargin}px`,

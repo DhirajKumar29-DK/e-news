@@ -112,6 +112,11 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync translation across client-side page route transitions
   useEffect(() => {
+    // NEVER translate or sync when on Admin routes or EPaper routes
+    if (pathname?.startsWith('/admin') || pathname?.startsWith('/epaper')) {
+      return;
+    }
+
     if (language === 'en') {
       const timer = setTimeout(() => {
         const select = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;

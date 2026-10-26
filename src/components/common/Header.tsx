@@ -13,7 +13,7 @@ import { articleService } from '@/services/articleService';
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
-import { Search, Video, User, Home, Sun, Moon, FileText, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
+import { Search, Video, User, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -486,10 +486,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             <button
               onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
-              className="hidden sm:flex items-center space-x-2 h-9 px-4 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-lg text-xs font-bold transition-all shadow-xs"
+              className="hidden sm:flex items-center space-x-2 h-9 px-4 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-lg text-xs font-bold transition-all shadow-xs group cursor-pointer"
               title="Read Today's ePaper Edition"
             >
-              <FileText className="w-4 h-4 text-jagran-red group-hover:scale-110 transition-transform" />
+              <Newspaper className="w-4 h-4 text-jagran-red group-hover:scale-110 transition-transform" />
               <span className="tracking-wide notranslate" translate="no">
                 {language === 'hi' ? 'ई-पेपर' : 'ePaper'}
               </span>
@@ -514,10 +514,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             <button
               onClick={handleOpenEPaper}
               onMouseEnter={prewarmBackend}
-              className="sm:hidden flex items-center space-x-1 h-7 px-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[10px] font-extrabold transition-all shadow-2xs shrink-0 cursor-pointer"
+              className="sm:hidden flex items-center space-x-1.5 h-7 px-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 rounded-md text-[10px] font-extrabold transition-all shadow-2xs shrink-0 cursor-pointer"
               title="ePaper"
             >
-              <FileText className="w-3 h-3 text-jagran-red" />
+              <Newspaper className="w-3.5 h-3.5 text-jagran-red" />
               <span className="tracking-tight notranslate" translate="no">
                 {language === 'hi' ? 'ई-पेपर' : 'ePaper'}
               </span>
@@ -767,7 +767,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                   }}
                   className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-jagran-red border border-red-200 dark:border-red-900/50 text-xs font-bold"
                 >
-                  <FileText className="w-3.5 h-3.5" />
+                  <Newspaper className="w-3.5 h-3.5" />
                   <span>ePaper</span>
                 </button>
                 <button

@@ -86,8 +86,9 @@ export const BroadsheetFooter: React.FC<BroadsheetFooterProps> = ({
 
   return (
     <footer
+      translate="no"
       style={style}
-      className={`w-full bg-white select-none ${className}`}
+      className={`notranslate w-full bg-white select-none ${className}`}
     >
       {/* 1. TOP SOLID THIN RULE (Matches Top Headmaster Border Color & Thin 1.5px Crisp Line) */}
       <div className="w-full relative">

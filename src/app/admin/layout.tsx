@@ -6,7 +6,9 @@ import { AdminAuthProvider } from '@/context/AdminAuthContext';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminAuthProvider>
-      {children}
+      <div translate="no" className="notranslate w-full h-full min-h-screen">
+        {children}
+      </div>
     </AdminAuthProvider>
   );
 }

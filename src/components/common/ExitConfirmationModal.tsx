@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, X, FileText, Trophy } from 'lucide-react';
+import { LogOut, X, Newspaper, Trophy } from 'lucide-react';
 
 interface ExitConfirmationModalProps {
   isOpen: boolean;
@@ -111,7 +111,7 @@ export const ExitConfirmationModal: React.FC<ExitConfirmationModalProps> = ({
             className="flex flex-col items-center p-3 rounded-2xl bg-red-50/70 hover:bg-red-100/80 dark:bg-red-950/30 dark:hover:bg-red-950/50 border border-red-200/80 dark:border-red-900/40 text-center transition-all cursor-pointer group active:scale-95"
           >
             <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-jagran-red shadow-xs mb-1.5 group-hover:scale-110 transition-transform">
-              <FileText className="w-4 h-4" />
+              <Newspaper className="w-4 h-4" />
             </div>
             <span className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
               Today&apos;s E-Paper

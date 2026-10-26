@@ -2335,7 +2335,7 @@ ${rawBody}
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
+    <div translate="no" className="notranslate fixed inset-0 z-[100] bg-[#f8fafc] flex flex-col text-slate-900 font-sans select-none overflow-hidden animate-in fade-in duration-200">
 
       {/* Floating Copied Toast Alert */}
       {headerCopiedToast && (
@@ -2827,7 +2827,7 @@ ${rawBody}
                     }}
                     className="w-full sm:w-auto px-4 py-2.5 bg-[#ba1228] hover:bg-[#9b0f21] text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5"
                   >
-                    <FileText className="w-4 h-4" />
+                    <Newspaper className="w-4 h-4" />
                     <span>नवीनतम प्रकाशित अंक देखें</span>
                   </button>
                 )}
@@ -2843,7 +2843,7 @@ ${rawBody}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-6 border border-red-500/30 rounded-2xl bg-red-950/20 w-[90%] max-w-sm text-center space-y-4 my-auto mx-auto shadow-2xl">
-              <FileText className="w-10 h-10 text-red-400" />
+              <Newspaper className="w-10 h-10 text-red-400" />
               <h3 className="text-sm font-bold text-red-200 font-serif">{errorMsg}</h3>
               <button
                 type="button"
