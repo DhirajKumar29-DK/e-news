@@ -6,8 +6,10 @@ import {
   List, ListOrdered, Quote, Link as LinkIcon, Unlink,
   Undo2, Redo2, RemoveFormatting,
   Maximize2, Minimize2, X, Heading2, Heading3, Pilcrow,
-  Palette, ChevronDown, Check
+  Palette, ChevronDown, Check,
+  Search, Globe, FileText, ExternalLink, Loader2
 } from 'lucide-react';
+import { articleService, ArticleData } from '@/services/articleService';
 
 const COLOR_PALETTE = [
   { name: 'Dark Slate', value: '#0f172a' },
@@ -42,6 +44,19 @@ export default function RichTextEditor({
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [currentColor, setCurrentColor] = useState('#0f172a');
   const savedRangeRef = useRef<Range | null>(null);
+
+  // Link Modal States (SEO Linking Engine)
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkTab, setLinkTab] = useState<'internal' | 'external'>('internal');
+  const [linkAnchorText, setLinkAnchorText] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const [internalResults, setInternalResults] = useState<ArticleData[]>([]);
+  const [isSearchingInternal, setIsSearchingInternal] = useState(false);
+  const [selectedInternalArticle, setSelectedInternalArticle] = useState<ArticleData | null>(null);
+  const [externalUrl, setExternalUrl] = useState('');
+  const [isNofollow, setIsNofollow] = useState(false);
+  const [openInNewTab, setOpenInNewTab] = useState(true);
+  const [linkError, setLinkError] = useState('');
 
   // Active state trackers for buttons
   const [activeFormats, setActiveFormats] = useState({
@@ -260,36 +275,128 @@ export default function RichTextEditor({
     handleInput();
   };
 
-  const handleInsertLink = () => {
+  // Debounced search for published internal articles
+  useEffect(() => {
+    if (!isLinkModalOpen || linkTab !== 'internal') return;
+    const timer = setTimeout(() => {
+      setIsSearchingInternal(true);
+      articleService.getArticles({
+        search: internalSearch.trim() || undefined,
+        status: 'PUBLISHED',
+        limit: 8,
+        sortBy: 'publishedAt',
+        sortOrder: 'desc'
+      })
+        .then(res => {
+          if (res && res.articles) {
+            setInternalResults(res.articles);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsSearchingInternal(false));
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [internalSearch, isLinkModalOpen, linkTab]);
+
+  const handleOpenLinkModal = () => {
     const target = getTarget();
     if (!target) return;
 
     const selection = window.getSelection();
-    let selectedText = '';
-    let savedRange: Range | null = null;
-
+    let text = '';
     if (selection && selection.rangeCount > 0) {
-      savedRange = selection.getRangeAt(0).cloneRange();
-      selectedText = selection.toString().trim();
-    }
-
-    const url = prompt('Enter link URL (e.g. https://example.com):', 'https://');
-    if (!url || url.trim() === '' || url === 'https://') return;
-
-    target.focus();
-
-    if (selection && savedRange) {
-      selection.removeAllRanges();
-      selection.addRange(savedRange);
-    }
-
-    if (!selectedText) {
-      // If no text was selected, insert the link text
-      document.execCommand('insertHTML', false, `<a href="${url.trim()}" target="_blank" rel="noopener noreferrer">${url.trim()}</a>`);
+      savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+      text = selection.toString().trim();
     } else {
-      document.execCommand('createLink', false, url.trim());
+      savedRangeRef.current = null;
     }
+
+    setLinkAnchorText(text);
+    setLinkTab('internal');
+    setInternalSearch('');
+    setInternalResults([]);
+    setSelectedInternalArticle(null);
+    setExternalUrl('');
+    setIsNofollow(false);
+    setOpenInNewTab(true);
+    setLinkError('');
+    setIsLinkModalOpen(true);
+
+    setIsSearchingInternal(true);
+    articleService.getArticles({ status: 'PUBLISHED', limit: 8, sortBy: 'publishedAt', sortOrder: 'desc' })
+      .then(res => {
+        if (res && res.articles) {
+          setInternalResults(res.articles);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsSearchingInternal(false));
+  };
+
+  const handleConfirmLink = () => {
+    setLinkError('');
+    let finalUrl = '';
+    let isInternal = linkTab === 'internal';
+
+    if (linkTab === 'internal') {
+      if (!selectedInternalArticle) {
+        setLinkError('कृपया सूची में से कोई समाचार चुनें (Please select an article from the list).');
+        return;
+      }
+      finalUrl = `/article/${selectedInternalArticle.slug || selectedInternalArticle.id}`;
+    } else {
+      const raw = externalUrl.trim();
+      if (!raw) {
+        setLinkError('कृपया वैध URL दर्ज करें (Please enter a valid URL).');
+        return;
+      }
+
+      // Block dangerous pseudo-protocols
+      if (/^(javascript|vbscript|data):/i.test(raw)) {
+        setLinkError('अमान्य लिंक: यह प्रोटोकॉल सुरक्षा कारणों से प्रतिबंधित है (Dangerous protocol blocked).');
+        return;
+      }
+
+      try {
+        const full = raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('mailto:') || raw.startsWith('tel:') ? raw : `https://${raw}`;
+        const parsed = new URL(full);
+        if (!['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)) {
+          setLinkError('केवल http, https, mailto या tel लिंक मान्य हैं.');
+          return;
+        }
+        finalUrl = parsed.toString();
+        isInternal = parsed.hostname === 'news.aiercm.in' || (typeof window !== 'undefined' && parsed.hostname === window.location.hostname);
+      } catch {
+        setLinkError('अमान्य वेब पता (Invalid web URL format).');
+        return;
+      }
+    }
+
+    const displayText = linkAnchorText.trim() || (selectedInternalArticle?.title ? selectedInternalArticle.title : finalUrl);
+
+    const target = getTarget();
+    if (target) {
+      target.focus();
+      restoreSelection();
+    }
+
+    // Build target and rel attributes cleanly
+    const targetAttr = (!isInternal && openInNewTab) ? ' target="_blank"' : '';
+    const relParts: string[] = [];
+    if (!isInternal && openInNewTab) {
+      relParts.push('noopener', 'noreferrer');
+    }
+    if (!isInternal && isNofollow) {
+      relParts.push('nofollow');
+    }
+    const relAttr = relParts.length > 0 ? ` rel="${relParts.join(' ')}"` : '';
+
+    const linkHtml = `<a href="${finalUrl}"${targetAttr}${relAttr} class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline font-medium">${displayText}</a>`;
+
+    document.execCommand('insertHTML', false, linkHtml);
     handleInput();
+    setIsLinkModalOpen(false);
   };
 
   const handleOpenTweetModal = () => {
@@ -555,11 +662,12 @@ export default function RichTextEditor({
 
         <button
           type="button"
-          onClick={handleInsertLink}
-          className="h-7 w-7 rounded flex items-center justify-center hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
-          title="Insert Link"
+          onClick={handleOpenLinkModal}
+          className="h-7 px-2 rounded flex items-center space-x-1 hover:bg-blue-50 text-blue-600 transition-colors cursor-pointer border border-blue-200/60"
+          title="Insert Link (Internal Article / External Source - Ctrl+K)"
         >
           <LinkIcon className="w-3.5 h-3.5 text-blue-600" />
+          <span className="hidden sm:inline text-[11px] font-bold">Link</span>
         </button>
 
         <button
@@ -652,6 +760,12 @@ export default function RichTextEditor({
             onClick={handleEditorClick}
             onKeyUp={handleSelectionSave}
             onMouseUp={handleSelectionSave}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                handleOpenLinkModal();
+              }
+            }}
             data-placeholder={placeholder}
             style={{ caretColor: '#0f172a', userSelect: 'text', WebkitUserSelect: 'text' }}
             className="min-h-[220px] max-h-[460px] overflow-y-auto p-4 outline-none text-slate-800 text-sm leading-relaxed cursor-text select-text caret-slate-900 selection:bg-red-100 selection:text-red-900
@@ -730,6 +844,12 @@ export default function RichTextEditor({
                   onClick={handleEditorClick}
                   onKeyUp={handleSelectionSave}
                   onMouseUp={handleSelectionSave}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                      e.preventDefault();
+                      handleOpenLinkModal();
+                    }
+                  }}
                   data-placeholder={placeholder}
                   style={{ caretColor: '#0f172a', userSelect: 'text', WebkitUserSelect: 'text' }}
                   className="min-h-[460px] outline-none text-slate-800 text-base leading-relaxed cursor-text select-text caret-slate-900 selection:bg-red-100 selection:text-red-900
@@ -807,6 +927,205 @@ export default function RichTextEditor({
                 className="px-5 py-2 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs cursor-pointer transition-colors disabled:opacity-40 flex items-center space-x-1.5 shadow-sm"
               >
                 <span>Insert Tweet</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔗 Unified SEO Linking Modal (Internal Articles & External Sources) */}
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-5 space-y-4 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <LinkIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900">SEO Link Manager (लिंक जोड़ें)</h4>
+                  <p className="text-[11px] text-slate-500">Internal Article Search ya External Source link lagayein</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLinkModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Link Mode Tabs */}
+            <div className="flex border-b border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => { setLinkTab('internal'); setLinkError(''); }}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center space-x-1.5 border-b-2 transition-colors cursor-pointer ${
+                  linkTab === 'internal'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>आंतरिक समाचार (Internal Article)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLinkTab('external'); setLinkError(''); }}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center space-x-1.5 border-b-2 transition-colors cursor-pointer ${
+                  linkTab === 'external'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>बाहरी लिंक (External Web Link)</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              {/* Anchor Text Input */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700">
+                  Anchor Text (पाठकों को दिखने वाला टेक्स्ट):
+                </label>
+                <input
+                  type="text"
+                  placeholder="उदा: पूरी रिपोर्ट यहां पढ़ें, चक्रवात अलर्ट..."
+                  value={linkAnchorText}
+                  onChange={(e) => setLinkAnchorText(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                />
+              </div>
+
+              {linkTab === 'internal' ? (
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-700">
+                    वेबसाइट के प्रकाशित समाचार खोजें:
+                  </label>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="शीर्षक या कीवर्ड से खोजें (उदा: चुनाव, बजट, मौसम)..."
+                      value={internalSearch}
+                      onChange={(e) => setInternalSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                    />
+                    {isSearchingInternal && (
+                      <Loader2 className="w-3.5 h-3.5 absolute right-3 top-3 animate-spin text-blue-600" />
+                    )}
+                  </div>
+
+                  {/* Results list */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white">
+                    {internalResults.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        {isSearchingInternal ? 'समाचार खोजे जा रहे हैं...' : 'कोई प्रकाशित समाचार नहीं मिला.'}
+                      </div>
+                    ) : (
+                      internalResults.map((art) => {
+                        const isSelected = selectedInternalArticle?.id === art.id;
+                        return (
+                          <div
+                            key={art.id}
+                            onClick={() => {
+                              setSelectedInternalArticle(art);
+                              if (!linkAnchorText.trim()) {
+                                setLinkAnchorText(art.title);
+                              }
+                            }}
+                            className={`p-2.5 hover:bg-blue-50/70 cursor-pointer transition-colors flex items-start space-x-2.5 ${
+                              isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                            }`}
+                          >
+                            <span className="shrink-0 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 mt-0.5">
+                              {art.category || 'NEWS'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
+                                {art.title}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                {art.publishedAt ? new Date(art.publishedAt).toLocaleDateString('hi-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                                {' • /article/'}{art.slug || art.id}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-4 h-4 text-blue-600 shrink-0 self-center" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      बाहरी वेब पता (External Web URL):
+                    </label>
+                    <input
+                      type="url"
+                      autoFocus
+                      placeholder="उदा: https://pib.gov.in या सरकारी आदेश का लिंक"
+                      value={externalUrl}
+                      onChange={(e) => setExternalUrl(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
+                    <label className="flex items-center space-x-2 text-xs font-medium text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={openInNewTab}
+                        onChange={(e) => setOpenInNewTab(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>नए टैब में खोलें (Open in new window - target=&quot;_blank&quot;)</span>
+                    </label>
+
+                    <label className="flex items-center space-x-2 text-xs font-medium text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isNofollow}
+                        onChange={(e) => setIsNofollow(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>मार्क करें nofollow (rel=&quot;nofollow&quot; - स्पॉन्सर या असत्यापित लिंक हेतु)</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {linkError && (
+                <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
+                  {linkError}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsLinkModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+              >
+                रद्द करें (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLink}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors flex items-center space-x-1.5 shadow-sm"
+              >
+                <span>लिंक जोड़ें (Insert Link)</span>
               </button>
             </div>
           </div>

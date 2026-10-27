@@ -187,6 +187,17 @@ function AdminArticlesListContent() {
                 <span>Manage Categories</span>
               </button>
 
+              <a
+                href="https://search.google.com/search-console/links"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-all cursor-pointer shadow-2xs"
+                title="Google Search Console Inbound Links & Backlinks Report"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                <span className="hidden sm:inline">GSC Backlinks</span>
+              </a>
+
               <Link
                 href="/admin/articles/create"
                 className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all cursor-pointer"

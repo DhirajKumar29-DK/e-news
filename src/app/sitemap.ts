@@ -37,16 +37,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let articleEntries: MetadataRoute.Sitemap = [];
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
-    const res = await fetch(`${apiUrl}/articles?limit=100`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${apiUrl}/articles?status=PUBLISHED&limit=100`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data = await res.json();
       if (data?.data?.articles) {
-        articleEntries = data.data.articles.map((art: any) => ({
-          url: `${siteUrl}/article/${art.slug || art.id}`,
-          lastModified: new Date(art.updatedAt || art.publishedAt || art.createdAt),
-          changeFrequency: 'daily',
-          priority: 0.7
-        }));
+        articleEntries = data.data.articles
+          .filter((art: any) => art.isIndexed !== false)
+          .map((art: any) => ({
+            url: `${siteUrl}/article/${art.slug || art.id}`,
+            lastModified: new Date(art.updatedAt || art.publishedAt || art.createdAt),
+            changeFrequency: 'daily',
+            priority: 0.7
+          }));
       }
     }
   } catch (err) {

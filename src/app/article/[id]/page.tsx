@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { videoService, VideoData } from '@/services/videoService';
 import { isRegularVideo } from '@/utils/videoUtils';
 import { useLanguage } from '@/context/LanguageContext';
@@ -116,35 +117,8 @@ export default function ArticlePage() {
           if (typeof document !== 'undefined') {
             document.title = `${stripHtml(data.metaTitle || data.title)} | Vartiq`;
             let metaDesc = document.querySelector('meta[name="description"]');
-            if (!metaDesc) {
-              metaDesc = document.createElement('meta');
-              metaDesc.setAttribute('name', 'description');
-              document.head.appendChild(metaDesc);
-            }
-            metaDesc.setAttribute('content', stripHtml(data.metaDescription || data.subHeadline || '') || stripHtml(data.content).slice(0, 160));
-
-            // Canonical Link
-            if (data.canonicalUrl) {
-              let canonicalTag = document.querySelector('link[rel="canonical"]');
-              if (!canonicalTag) {
-                canonicalTag = document.createElement('link');
-                canonicalTag.setAttribute('rel', 'canonical');
-                document.head.appendChild(canonicalTag);
-              }
-              canonicalTag.setAttribute('href', data.canonicalUrl);
-            }
-
-            // Robots Indexing Tag
-            let robotsTag = document.querySelector('meta[name="robots"]');
-            if (data.isIndexed === false) {
-              if (!robotsTag) {
-                robotsTag = document.createElement('meta');
-                robotsTag.setAttribute('name', 'robots');
-                document.head.appendChild(robotsTag);
-              }
-              robotsTag.setAttribute('content', 'noindex, nofollow');
-            } else if (robotsTag) {
-              robotsTag.setAttribute('content', 'index, follow');
+            if (metaDesc) {
+              metaDesc.setAttribute('content', stripHtml(data.metaDescription || data.subHeadline || '') || stripHtml(data.content).slice(0, 160));
             }
           }
           const cat = data.category ? data.category.toLowerCase() : undefined;
@@ -237,6 +211,16 @@ export default function ArticlePage() {
       setLikes(prev => prev - 1);
       setHasLiked(false);
     }
+  };
+
+  const [copiedCitation, setCopiedCitation] = useState(false);
+
+  const handleCopyCitation = () => {
+    const canonical = typeof window !== 'undefined' ? window.location.href : `${SITE_URL}/article/${articleId}`;
+    const citationText = `Source: Vartiq News (${SITE_URL}) - "${article.title}" [Full Report: ${canonical}]`;
+    navigator.clipboard.writeText(citationText);
+    setCopiedCitation(true);
+    setTimeout(() => setCopiedCitation(false), 2500);
   };
 
   const handleCopyLink = () => {
@@ -566,11 +550,30 @@ export default function ArticlePage() {
                   </div>
                 </div>
 
-                {/* Share Button */}
-                <div className="flex items-center">
+                {/* Action Buttons: Cite & Share */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyCitation}
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md text-slate-700 dark:text-slate-200 transition-all shadow-xs flex items-center space-x-1.5 text-xs font-semibold cursor-pointer"
+                    title="Copy Citation with Link (उद्धरण कॉपी करें)"
+                  >
+                    {copiedCitation ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-600" />
+                        <span className="text-green-600 font-bold text-[11px]">Citation Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-[11px]">Cite Story</span>
+                      </>
+                    )}
+                  </button>
+
                   <button
                     onClick={() => setIsShareModalOpen(true)}
-                    className="p-1.5 sm:p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md text-slate-700 dark:text-slate-200 transition-all shadow-xs flex items-center justify-center group"
+                    className="p-1.5 sm:p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md text-slate-700 dark:text-slate-200 transition-all shadow-xs flex items-center justify-center group cursor-pointer"
                     title="Share Article"
                   >
                     <Share2 className="w-4 h-4 group-hover:text-jagran-red transition-colors" />
@@ -601,7 +604,7 @@ export default function ArticlePage() {
             {/* UNDER IMAGE: SPLIT INTO LEFT (RELATED ARTICLES) AND CENTER (CONTENT) */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start pt-3">
               
-              {/* INNER LEFT: RELATED ARTICLES (Sticky on desktop, text-only with generous spacing) */}
+              {/* INNER LEFT: RELATED ARTICLES (Crawlable Semantic Links for Googlebot) */}
               {dynamicRelated.length > 0 && (
                 <aside className="md:col-span-3 space-y-4 order-2 md:order-1 border-t md:border-t-0 md:border-r border-slate-200 dark:border-slate-800 pt-6 md:pt-0 md:pr-6 lg:md:pr-8 md:sticky md:top-24 self-start">
                   <div className="border-b-2 border-jagran-red pb-1.5 flex items-center space-x-1.5">
@@ -613,10 +616,10 @@ export default function ArticlePage() {
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {dynamicRelated.map((rel) => (
-                      <article
+                      <Link
                         key={rel.id}
-                        onClick={() => router.push(`/article/${rel.id}`)}
-                        className="py-3.5 first:pt-1 last:pb-1 cursor-pointer group space-y-1.5"
+                        href={`/article/${rel.id}`}
+                        className="block py-3.5 first:pt-1 last:pb-1 group space-y-1.5 cursor-pointer"
                       >
                         <h4 className="text-xs sm:text-[13px] font-bold font-serif text-slate-900 dark:text-slate-100 group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
                           {rel.title}
@@ -627,7 +630,7 @@ export default function ArticlePage() {
                             <span>{t(formatTimeAgo(rel.publishedAt))}</span>
                           </div>
                         )}
-                      </article>
+                      </Link>
                     ))}
                   </div>
                 </aside>
@@ -657,7 +660,7 @@ export default function ArticlePage() {
                 <article className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-200 font-serif">
                   {hasHtmlTags(article.rawContent) ? (
                     <div
-                      className="article-body max-w-none space-y-4 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:font-serif [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:font-serif [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-1.5 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-1.5 [&>blockquote:not(.twitter-tweet)]:border-l-4 [&>blockquote:not(.twitter-tweet)]:border-jagran-red [&>blockquote:not(.twitter-tweet)]:pl-4 [&>blockquote:not(.twitter-tweet)]:italic [&>blockquote:not(.twitter-tweet)]:text-slate-600 dark:[&>blockquote:not(.twitter-tweet)]:text-slate-400 [&_.twitter-tweet-container]:flex [&_.twitter-tweet-container]:justify-center [&_.twitter-tweet-container]:my-6 [&>img]:rounded-xl [&>img]:my-4"
+                      className="article-body max-w-none space-y-4 leading-relaxed [&>p]:mb-4 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:font-serif [&>h2]:text-slate-900 dark:[&>h2]:text-white [&>h2]:mt-6 [&>h2]:mb-3 [&>h3]:text-xl [&>h3]:font-bold [&>h3]:font-serif [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-5 [&>h3]:mb-2 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-1.5 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-1.5 [&>blockquote:not(.twitter-tweet)]:border-l-4 [&>blockquote:not(.twitter-tweet)]:border-jagran-red [&>blockquote:not(.twitter-tweet)]:pl-4 [&>blockquote:not(.twitter-tweet)]:italic [&>blockquote:not(.twitter-tweet)]:text-slate-600 dark:[&>blockquote:not(.twitter-tweet)]:text-slate-400 [&_.twitter-tweet-container]:flex [&_.twitter-tweet-container]:justify-center [&_.twitter-tweet-container]:my-6 [&>img]:rounded-xl [&>img]:my-4 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2 [&_a]:font-medium hover:[&_a]:text-blue-800 dark:hover:[&_a]:text-blue-300"
                       dangerouslySetInnerHTML={{ __html: formatArticleHtml(article.rawContent) }}
                     />
                   ) : (
