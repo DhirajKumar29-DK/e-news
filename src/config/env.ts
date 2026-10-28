@@ -42,7 +42,7 @@ export function getSiteUrl(): string {
     return window.location.origin.replace(/\/$/, '');
   }
   if (process.env.NODE_ENV === 'production') {
-    return 'https://e-news-ebon.vercel.app';
+    return 'https://news.aiwcrm.in';
   }
   return 'http://localhost:3000';
 }
@@ -55,11 +55,20 @@ export const SITE_URL: string = getSiteUrl();
  */
 export function getFullMediaUrl(path?: string | null): string {
   if (!path) return '';
+  // Fix historical localhost URLs in database
+  if (path.startsWith('http://localhost:5000/')) {
+    path = path.replace('http://localhost:5000/', `${BACKEND_URL}/`);
+  }
   // Already a full URL (CDN, Cloudinary, S3, external source, or data URL)
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  // In local development, fetch directly from local backend server
+  if (isClient && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `http://localhost:5000${cleanPath}`;
+  }
 
   // If path is an upload (/uploads/...), route through /backend-uploads/ proxy on client
   if (cleanPath.startsWith('/uploads/')) {

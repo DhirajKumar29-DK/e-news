@@ -46,9 +46,6 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  alternates: {
-    canonical: '/',
-  },
   icons: {
     icon: [
       { url: '/vartiq-icon.png', type: 'image/png' },

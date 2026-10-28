@@ -1,15 +1,13 @@
 import { MetadataRoute } from 'next';
-import { SITE_URL } from '@/config/env';
+import { PRODUCTION_CANONICAL_ORIGIN } from '@/utils/seoUtils';
 
 export default function robots(): MetadataRoute.Robots {
-  const siteUrl = SITE_URL;
-
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin/', '/api/']
+      disallow: ['/admin/', '/api/'],
     },
-    sitemap: `${siteUrl}/sitemap.xml`
+    sitemap: `${PRODUCTION_CANONICAL_ORIGIN}/sitemap.xml`,
   };
 }

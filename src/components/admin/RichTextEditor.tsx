@@ -79,7 +79,7 @@ export default function RichTextEditor({
       const underline = document.queryCommandState('underline');
       const ul = document.queryCommandState('insertUnorderedList');
       const ol = document.queryCommandState('insertOrderedList');
-      
+
       const blockValue = (document.queryCommandValue('formatBlock') || '').toLowerCase();
       const h2 = blockValue === 'h2' || blockValue.includes('h2');
       const h3 = blockValue === 'h3' || blockValue.includes('h3');
@@ -163,7 +163,7 @@ export default function RichTextEditor({
           sel.removeAllRanges();
           sel.addRange(savedRangeRef.current);
         }
-      } catch {}
+      } catch { }
     }
   };
 
@@ -292,7 +292,7 @@ export default function RichTextEditor({
             setInternalResults(res.articles);
           }
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setIsSearchingInternal(false));
     }, 250);
 
@@ -330,7 +330,7 @@ export default function RichTextEditor({
           setInternalResults(res.articles);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setIsSearchingInternal(false));
   };
 
@@ -341,20 +341,20 @@ export default function RichTextEditor({
 
     if (linkTab === 'internal') {
       if (!selectedInternalArticle) {
-        setLinkError('कृपया सूची में से कोई समाचार चुनें (Please select an article from the list).');
+        setLinkError('Please select a published article from the search list.');
         return;
       }
       finalUrl = `/article/${selectedInternalArticle.slug || selectedInternalArticle.id}`;
     } else {
       const raw = externalUrl.trim();
       if (!raw) {
-        setLinkError('कृपया वैध URL दर्ज करें (Please enter a valid URL).');
+        setLinkError('Please enter a target web address.');
         return;
       }
 
       // Block dangerous pseudo-protocols
       if (/^(javascript|vbscript|data):/i.test(raw)) {
-        setLinkError('अमान्य लिंक: यह प्रोटोकॉल सुरक्षा कारणों से प्रतिबंधित है (Dangerous protocol blocked).');
+        setLinkError('Security restriction: javascript: and data: protocols are not allowed.');
         return;
       }
 
@@ -362,13 +362,13 @@ export default function RichTextEditor({
         const full = raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('mailto:') || raw.startsWith('tel:') ? raw : `https://${raw}`;
         const parsed = new URL(full);
         if (!['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)) {
-          setLinkError('केवल http, https, mailto या tel लिंक मान्य हैं.');
+          setLinkError('Only http, https, mailto, or tel protocols are supported.');
           return;
         }
         finalUrl = parsed.toString();
         isInternal = parsed.hostname === 'news.aiercm.in' || (typeof window !== 'undefined' && parsed.hostname === window.location.hostname);
       } catch {
-        setLinkError('अमान्य वेब पता (Invalid web URL format).');
+        setLinkError('Invalid URL format. Please check the address and try again.');
         return;
       }
     }
@@ -487,9 +487,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => formatBlock('p')}
-          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${
-            activeFormats.p ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${activeFormats.p ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Normal Paragraph"
         >
           <Pilcrow className="w-3 h-3" />
@@ -499,9 +498,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => formatBlock('h2')}
-          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${
-            activeFormats.h2 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
-          }`}
+          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${activeFormats.h2 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
+            }`}
           title="Subheading (H2)"
         >
           <Heading2 className="w-3.5 h-3.5" />
@@ -511,9 +509,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => formatBlock('h3')}
-          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${
-            activeFormats.h3 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
-          }`}
+          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${activeFormats.h3 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
+            }`}
           title="Section Title (H3)"
         >
           <Heading3 className="w-3.5 h-3.5" />
@@ -528,9 +525,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => execCommand('bold')}
-          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
-            activeFormats.bold ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.bold ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Bold (Ctrl+B)"
         >
           <Bold className="w-3.5 h-3.5" />
@@ -539,9 +535,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => execCommand('italic')}
-          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
-            activeFormats.italic ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.italic ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Italic (Ctrl+I)"
         >
           <Italic className="w-3.5 h-3.5" />
@@ -550,9 +545,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => execCommand('underline')}
-          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
-            activeFormats.underline ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.underline ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Underline (Ctrl+U)"
         >
           <Underline className="w-3.5 h-3.5" />
@@ -624,9 +618,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => execCommand('insertUnorderedList')}
-          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
-            activeFormats.ul ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.ul ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Bullet Points"
         >
           <List className="w-3.5 h-3.5" />
@@ -635,9 +628,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => execCommand('insertOrderedList')}
-          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
-            activeFormats.ol ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.ol ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Numbered List"
         >
           <ListOrdered className="w-3.5 h-3.5" />
@@ -651,9 +643,8 @@ export default function RichTextEditor({
         <button
           type="button"
           onClick={() => formatBlock('blockquote')}
-          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${
-            activeFormats.blockquote ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
-          }`}
+          className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${activeFormats.blockquote ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
+            }`}
           title="Blockquote (Statement / Quote)"
         >
           <Quote className="w-3.5 h-3.5" />
@@ -742,7 +733,7 @@ export default function RichTextEditor({
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs focus-within:ring-2 focus-within:ring-red-500/20 focus-within:border-red-500 transition-all">
         {renderToolbar()}
 
-        <div 
+        <div
           className="relative cursor-text"
           onClick={(e) => {
             if (e.target === e.currentTarget && editorRef.current) {
@@ -818,7 +809,7 @@ export default function RichTextEditor({
             {renderToolbar()}
 
             {/* Modal Canvas */}
-            <div 
+            <div
               className="flex-1 p-6 sm:p-10 overflow-y-auto bg-slate-100/60 cursor-text"
               onClick={(e) => {
                 if (e.target === e.currentTarget && modalEditorRef.current) {
@@ -826,7 +817,7 @@ export default function RichTextEditor({
                 }
               }}
             >
-              <div 
+              <div
                 className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-xl p-8 shadow-xs min-h-[500px] relative cursor-text"
                 onClick={() => {
                   if (modalEditorRef.current && document.activeElement !== modalEditorRef.current) {
@@ -935,97 +926,96 @@ export default function RichTextEditor({
 
       {/* 🔗 Unified SEO Linking Modal (Internal Articles & External Sources) */}
       {isLinkModalOpen && (
-        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl p-5 space-y-4 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-[120] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200/90 shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80">
                   <LinkIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900">SEO Link Manager (लिंक जोड़ें)</h4>
-                  <p className="text-[11px] text-slate-500">Internal Article Search ya External Source link lagayein</p>
+                  <h4 className="text-sm font-bold text-slate-900 tracking-tight">Insert Link</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">Link to internal news stories or external web sources</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsLinkModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Link Mode Tabs */}
-            <div className="flex border-b border-slate-200 shrink-0">
+            {/* Segmented Pill Tabs */}
+            <div className="flex p-1 bg-slate-100/90 rounded-xl shrink-0">
               <button
                 type="button"
                 onClick={() => { setLinkTab('internal'); setLinkError(''); }}
-                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center space-x-1.5 border-b-2 transition-colors cursor-pointer ${
-                  linkTab === 'internal'
-                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
+                className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${linkTab === 'internal'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>आंतरिक समाचार (Internal Article)</span>
+                <FileText className={`w-3.5 h-3.5 ${linkTab === 'internal' ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>Internal Story</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setLinkTab('external'); setLinkError(''); }}
-                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center space-x-1.5 border-b-2 transition-colors cursor-pointer ${
-                  linkTab === 'external'
-                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
+                className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${linkTab === 'external'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
-                <Globe className="w-3.5 h-3.5" />
-                <span>बाहरी लिंक (External Web Link)</span>
+                <Globe className={`w-3.5 h-3.5 ${linkTab === 'external' ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>External Web URL</span>
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
-              {/* Anchor Text Input */}
+            <div className="space-y-3.5 overflow-y-auto flex-1 pr-1">
+              {/* Display / Anchor Text Input */}
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">
-                  Anchor Text (पाठकों को दिखने वाला टेक्स्ट):
+                <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                  Display Text (Anchor Text)
                 </label>
                 <input
                   type="text"
-                  placeholder="उदा: पूरी रिपोर्ट यहां पढ़ें, चक्रवात अलर्ट..."
+                  placeholder="e.g. Read full coverage, Live updates..."
                   value={linkAnchorText}
                   onChange={(e) => setLinkAnchorText(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                  className="w-full px-3.5 py-2 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
 
               {linkTab === 'internal' ? (
                 <div className="space-y-2">
-                  <label className="block text-[11px] font-bold text-slate-700">
-                    वेबसाइट के प्रकाशित समाचार खोजें:
+                  <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                    Search Published News
                   </label>
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
                       type="text"
                       autoFocus
-                      placeholder="शीर्षक या कीवर्ड से खोजें (उदा: चुनाव, बजट, मौसम)..."
+                      placeholder="Type headline or topic (e.g. 5G, Budget, Election)..."
                       value={internalSearch}
                       onChange={(e) => setInternalSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                      className="w-full pl-8 pr-8 py-2 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     />
                     {isSearchingInternal && (
-                      <Loader2 className="w-3.5 h-3.5 absolute right-3 top-3 animate-spin text-blue-600" />
+                      <Loader2 className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-600" />
                     )}
                   </div>
 
                   {/* Results list */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white">
+                  <div className="border border-slate-200/90 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white">
                     {internalResults.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-slate-400">
-                        {isSearchingInternal ? 'समाचार खोजे जा रहे हैं...' : 'कोई प्रकाशित समाचार नहीं मिला.'}
+                      <div className="py-6 px-4 text-center text-xs text-slate-400 font-medium">
+                        {isSearchingInternal ? 'Searching articles database...' : 'No published articles found.'}
                       </div>
                     ) : (
                       internalResults.map((art) => {
@@ -1039,19 +1029,18 @@ export default function RichTextEditor({
                                 setLinkAnchorText(art.title);
                               }
                             }}
-                            className={`p-2.5 hover:bg-blue-50/70 cursor-pointer transition-colors flex items-start space-x-2.5 ${
-                              isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                            }`}
+                            className={`p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start space-x-2.5 ${isSelected ? 'bg-blue-50/80 border-l-4 border-blue-600' : ''
+                              }`}
                           >
-                            <span className="shrink-0 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 mt-0.5">
+                            <span className="shrink-0 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 mt-0.5 border border-slate-200/60">
                               {art.category || 'NEWS'}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
+                              <p className="text-xs font-semibold text-slate-900 leading-snug line-clamp-2">
                                 {art.title}
                               </p>
                               <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                {art.publishedAt ? new Date(art.publishedAt).toLocaleDateString('hi-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                                {art.publishedAt ? new Date(art.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                                 {' • /article/'}{art.slug || art.id}
                               </p>
                             </div>
@@ -1067,65 +1056,71 @@ export default function RichTextEditor({
               ) : (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-700">
-                      बाहरी वेब पता (External Web URL):
+                    <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                      Target Web URL
                     </label>
                     <input
                       type="url"
                       autoFocus
-                      placeholder="उदा: https://pib.gov.in या सरकारी आदेश का लिंक"
+                      placeholder="https://example.com/source-report"
                       value={externalUrl}
                       onChange={(e) => setExternalUrl(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                      className="w-full px-3.5 py-2 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     />
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
-                    <label className="flex items-center space-x-2 text-xs font-medium text-slate-700 cursor-pointer">
+                  <div className="bg-slate-50/80 border border-slate-200/80 p-3 rounded-xl space-y-2.5">
+                    <label className="flex items-start space-x-2.5 text-xs text-slate-700 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={openInNewTab}
                         onChange={(e) => setOpenInNewTab(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
                       />
-                      <span>नए टैब में खोलें (Open in new window - target=&quot;_blank&quot;)</span>
+                      <div>
+                        <span className="font-semibold text-slate-800 block">Open in new tab</span>
+                        <span className="text-[11px] text-slate-400 block font-normal">Opens link in a new browser window (target=&quot;_blank&quot;)</span>
+                      </div>
                     </label>
 
-                    <label className="flex items-center space-x-2 text-xs font-medium text-slate-700 cursor-pointer">
+                    <label className="flex items-start space-x-2.5 text-xs text-slate-700 cursor-pointer pt-2 border-t border-slate-200/60">
                       <input
                         type="checkbox"
                         checked={isNofollow}
                         onChange={(e) => setIsNofollow(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
                       />
-                      <span>मार्क करें nofollow (rel=&quot;nofollow&quot; - स्पॉन्सर या असत्यापित लिंक हेतु)</span>
+                      <div>
+                        <span className="font-semibold text-slate-800 block">Mark as rel=&quot;nofollow&quot;</span>
+                        <span className="text-[11px] text-slate-400 block font-normal">Recommended for external, sponsored, or reference citations</span>
+                      </div>
                     </label>
                   </div>
                 </div>
               )}
 
               {linkError && (
-                <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
                   {linkError}
                 </div>
               )}
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 shrink-0">
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsLinkModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold text-xs cursor-pointer transition-colors"
               >
-                रद्द करें (Cancel)
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmLink}
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors flex items-center space-x-1.5 shadow-sm"
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-xs cursor-pointer transition-all flex items-center space-x-1.5 shadow-sm shadow-blue-600/20"
               >
-                <span>लिंक जोड़ें (Insert Link)</span>
+                <span>Insert Link</span>
               </button>
             </div>
           </div>

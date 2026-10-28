@@ -16,9 +16,9 @@ import { VideoModal } from './VideoModal';
 import { Search, Video, User, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
 
 interface HeaderProps {
-  onOpenSearch: () => void;
-  activeCategory: string;
-  onSelectCategory: (slug: string) => void;
+  onOpenSearch?: () => void;
+  activeCategory?: string;
+  onSelectCategory?: (slug: string) => void;
   showInFocus?: boolean;
 }
 
@@ -44,8 +44,15 @@ function getLiveFormattedDateTime(lang: string = 'en'): string {
   return `${dayName}, ${monthName} ${dateNum}, ${year} | Updated ${timeString} IST`;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, onSelectCategory, showInFocus }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeCategory = 'all', onSelectCategory, showInFocus }) => {
   const router = useRouter();
+  const handleCategorySelect = (slug: string) => {
+    if (onSelectCategory) {
+      onSelectCategory(slug);
+    } else {
+      router.push(slug === 'all' ? '/' : (slug === 'videos' ? '/videos' : `/${slug}`));
+    }
+  };
   const pathname = usePathname();
   const shouldShowInFocus = showInFocus !== undefined ? showInFocus : (pathname === '/');
   const { theme, toggleTheme } = useTheme();
@@ -351,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
             {/* Hamburger hidden on mobile per user request */}
 
             <div
-              onClick={() => onSelectCategory('all')}
+              onClick={() => handleCategorySelect('all')}
               className="flex items-center cursor-pointer shrink-0"
               title="Vartiq"
             >
@@ -562,7 +569,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 if (mobileCategoryContainerRef.current) {
                   mobileCategoryContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
                 }
-                onSelectCategory('all');
+                handleCategorySelect('all');
               }}
               data-active={activeCategory === 'all' ? 'true' : 'false'}
               className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center justify-center ${
@@ -591,7 +598,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                   key={`mobile-pill-${tab.id || tab.slug}`}
                   data-active={isActive ? 'true' : 'false'}
                   onClick={() => {
-                    onSelectCategory(tab.slug);
+                    handleCategorySelect(tab.slug);
                   }}
                   className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${
                     isActive
@@ -613,7 +620,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
               {/* Home Icon */}
               <li className="shrink-0">
                 <button
-                  onClick={() => onSelectCategory('all')}
+                  onClick={() => handleCategorySelect('all')}
                   className="py-2 px-2 flex items-center hover:opacity-80 transition-opacity"
                   title="Home"
                 >
@@ -636,7 +643,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 return (
                   <li key={tab.id || tab.slug} className="whitespace-nowrap shrink-0">
                     <button
-                      onClick={() => onSelectCategory(tab.slug)}
+                      onClick={() => handleCategorySelect(tab.slug)}
                       className={`block w-full text-left py-2 px-2 lg:px-2.5 transition-colors uppercase tracking-tight ${
                         isActive
                           ? 'text-jagran-red font-black'
@@ -702,7 +709,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                                 type="button"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  onSelectCategory(cat.slug);
+                                  handleCategorySelect(cat.slug);
                                   setIsMoreOpen(false);
                                 }}
                                 className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors uppercase whitespace-nowrap block ${
@@ -788,7 +795,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                 </div>
                 <button
                   onClick={() => {
-                    onSelectCategory('all');
+                    handleCategorySelect('all');
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors ${
@@ -816,7 +823,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeCategory, on
                     <button
                       key={`drawer-${cat.id || cat.slug}`}
                       onClick={() => {
-                        onSelectCategory(cat.slug);
+                        handleCategorySelect(cat.slug);
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold uppercase transition-colors ${

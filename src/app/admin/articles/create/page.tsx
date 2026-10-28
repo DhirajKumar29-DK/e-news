@@ -17,6 +17,7 @@ import { cleanHtmlToPlainText, stripHtml, formatArticleHtml } from '@/utils/text
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { CategoryManagerModal } from '@/components/admin/CategoryManagerModal';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import { PRODUCTION_CANONICAL_ORIGIN, slugifyHeadline } from '@/utils/seoUtils';
 
 function CreateArticleContent() {
   const router = useRouter();
@@ -183,7 +184,6 @@ function CreateArticleContent() {
         metaTitle: metaTitle.trim() || null,
         metaDescription: metaDescription.trim() || null,
         metaKeywords: metaKeywords.trim() || null,
-        canonicalUrl: canonicalUrl.trim() || null,
         isIndexed: Boolean(isIndexed)
       });
 
@@ -904,16 +904,25 @@ function CreateArticleContent() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
-                        Canonical URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://vartiq.com/article/slug (leave blank for default)"
-                        value={canonicalUrl}
-                        onChange={(e) => setCanonicalUrl(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                          Canonical URL
+                        </label>
+                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Automatic (Self-Canonical)
+                        </span>
+                      </div>
+                      <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="flex items-center space-x-2 text-xs font-mono text-slate-700 truncate select-all">
+                          <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">
+                            {PRODUCTION_CANONICAL_ORIGIN}/article/{slugifyHeadline(title) || 'slug'}-[id]
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          Derived automatically upon publish from authoritative saved slug. No manual entry needed.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Indexing Toggle */}
@@ -965,7 +974,7 @@ function CreateArticleContent() {
                         {previewTab === 'google' ? (
                           <div className="p-3 bg-white rounded-xl border border-slate-200 text-left space-y-1">
                             <div className="text-[10px] text-slate-500 truncate flex items-center space-x-1">
-                              <span className="font-semibold text-slate-700">vartiq.com</span>
+                              <span className="font-semibold text-slate-700">news.aiwcrm.in</span>
                               <span>› article › {slug || 'custom-permalink'}</span>
                             </div>
                             <div className="text-xs font-semibold text-blue-700 line-clamp-1 hover:underline cursor-pointer">

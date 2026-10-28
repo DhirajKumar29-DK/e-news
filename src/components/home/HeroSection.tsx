@@ -10,6 +10,7 @@ import { Play, TrendingUp, Video, Clock } from 'lucide-react';
 import { HomeArticlesResponse, ArticleData } from '@/services/articleService';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml } from '@/utils/textUtils';
+import { AdSlot } from '@/components/common';
 
 interface HeroSectionProps {
   dynamicData?: HomeArticlesResponse | null;
@@ -376,6 +377,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
         {/* 3. RIGHT COLUMN: 2X2 VIDEOS + 1-5 TOP NEWS (3 Cols)       */}
         {/* ========================================================= */}
         <div className="lg:col-span-3 lg:sticky lg:top-24 self-start space-y-4">
+
+          {/* Advertisement Slot Above Latest Videos */}
+          <AdSlot slot="LATEST_VIDEOS_TOP" />
 
           {/* LATEST VIDEOS (2x2 Grid) - DYNAMIC FROM DATABASE */}
           <div className="bg-white dark:bg-brand-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">

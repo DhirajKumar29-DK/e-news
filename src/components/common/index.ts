@@ -8,3 +8,5 @@ export { CapacitorBridge } from './CapacitorBridge';
 export { ExitConfirmationModal } from './ExitConfirmationModal';
 export { GlobalMobileBottomNav } from './GlobalMobileBottomNav';
 export { PullToRefresh } from './PullToRefresh';
+export { AdSlot } from './AdSlot';
+

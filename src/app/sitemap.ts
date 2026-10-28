@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next';
-import { SITE_URL, API_BASE_URL } from '@/config/env';
+import { API_BASE_URL } from '@/config/env';
+import { PRODUCTION_CANONICAL_ORIGIN, getArticleCanonicalUrl } from '@/utils/seoUtils';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = SITE_URL;
+  const origin = PRODUCTION_CANONICAL_ORIGIN;
   const now = new Date();
 
   // Static core routes & category channels
@@ -23,64 +24,114 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'explainer',
     'videos',
     'spiritual',
-    'horoscope'
+    'horoscope',
   ];
 
   const categoryEntries: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${siteUrl}/${cat}`,
+    url: `${origin}/${cat}`,
     lastModified: now,
     changeFrequency: 'hourly',
-    priority: 0.8
+    priority: 0.8,
   }));
 
-  // Dynamic published news articles
-  let articleEntries: MetadataRoute.Sitemap = [];
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
-    const res = await fetch(`${apiUrl}/articles?status=PUBLISHED&limit=100`, { next: { revalidate: 3600 } });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.data?.articles) {
-        articleEntries = data.data.articles
-          .filter((art: any) => art.isIndexed !== false)
-          .map((art: any) => ({
-            url: `${siteUrl}/article/${art.slug || art.id}`,
-            lastModified: new Date(art.updatedAt || art.publishedAt || art.createdAt),
-            changeFrequency: 'daily',
-            priority: 0.7
-          }));
+  // Dynamic published news articles with full multi-page pagination
+  const articleEntries: MetadataRoute.Sitemap = [];
+  const seenUrls = new Set<string>();
+
+  let currentPage = 1;
+  let totalPages = 1;
+  const limit = 100;
+
+  while (currentPage <= totalPages) {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/articles?status=PUBLISHED&limit=${limit}&page=${currentPage}`,
+        { next: { revalidate: 3600 } }
+      );
+
+      if (!res.ok) {
+        console.error(`[Sitemap] Failed to fetch articles on page ${currentPage}: HTTP ${res.status}`);
+        break;
       }
+
+      const json = await res.json();
+      const articles = json?.data?.articles || [];
+      const pagination = json?.data?.pagination;
+
+      if (pagination?.totalPages && typeof pagination.totalPages === 'number') {
+        totalPages = pagination.totalPages;
+      }
+
+      for (const art of articles) {
+        // Exclude unpublished articles and explicitly non-indexed articles
+        if (art.status !== 'PUBLISHED' || art.isIndexed === false) {
+          continue;
+        }
+
+        const canonicalUrl = getArticleCanonicalUrl(art);
+
+        if (!seenUrls.has(canonicalUrl)) {
+          seenUrls.add(canonicalUrl);
+          const rawDate = art.updatedAt || art.publishedAt || art.createdAt;
+          const parsedDate = rawDate ? new Date(rawDate) : now;
+          const lastModified = isNaN(parsedDate.getTime()) ? now : parsedDate;
+
+          articleEntries.push({
+            url: canonicalUrl,
+            lastModified,
+            changeFrequency: 'daily',
+            priority: 0.7,
+          });
+        }
+      }
+
+      // Safeguard against infinite pagination
+      if (articles.length === 0) break;
+      currentPage++;
+    } catch (err) {
+      console.error(`[Sitemap] Network/parse error on page ${currentPage}:`, err);
+      break;
     }
-  } catch (err) {
-    console.warn('Could not fetch articles for sitemap:', err);
   }
 
   return [
     {
-      url: `${siteUrl}/`,
+      url: `${origin}/`,
       lastModified: now,
       changeFrequency: 'always',
-      priority: 1.0
+      priority: 1.0,
     },
     {
-      url: `${siteUrl}/privacy-policy`,
+      url: `${origin}/editorial-guidelines`,
       lastModified: now,
       changeFrequency: 'monthly',
-      priority: 0.5
+      priority: 0.5,
     },
     {
-      url: `${siteUrl}/refund-policy`,
+      url: `${origin}/corrections`,
       lastModified: now,
       changeFrequency: 'monthly',
-      priority: 0.5
+      priority: 0.5,
     },
     {
-      url: `${siteUrl}/terms`,
+      url: `${origin}/privacy-policy`,
       lastModified: now,
       changeFrequency: 'monthly',
-      priority: 0.5
+      priority: 0.5,
+    },
+    {
+      url: `${origin}/refund-policy`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${origin}/terms`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.5,
     },
     ...categoryEntries,
-    ...articleEntries
+    ...articleEntries,
   ];
 }

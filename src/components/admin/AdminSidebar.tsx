@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X
+  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
@@ -29,6 +29,7 @@ export const AdminSidebar: React.FC = () => {
     { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Articles CMS', href: '/admin/articles', icon: FileText },
     { label: 'Video Studio', href: '/admin/videos', icon: Video },
+    { label: 'Ad Studio', href: '/admin/ads', icon: Megaphone },
     { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles },
     { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper },
   ];

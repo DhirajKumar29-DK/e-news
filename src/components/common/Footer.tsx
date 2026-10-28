@@ -114,8 +114,14 @@ export const Footer: React.FC = () => {
                   <Link href="/privacy-policy" className="hover:text-amber-400 transition-colors underline decoration-slate-600 underline-offset-2">
                     {std}
                   </Link>
+                ) : std === 'Corrections & Clarifications' ? (
+                  <Link href="/corrections" className="hover:text-amber-400 transition-colors underline decoration-slate-600 underline-offset-2">
+                    {std}
+                  </Link>
                 ) : (
-                  <span>{std}</span>
+                  <Link href="/editorial-guidelines" className="hover:text-amber-400 transition-colors underline decoration-slate-600 underline-offset-2">
+                    {std}
+                  </Link>
                 )}
               </li>
             ))}
@@ -164,18 +170,22 @@ export const Footer: React.FC = () => {
             </a>
           </div>
 
-          {/* Right: PP (Privacy Policy), RP (Refund Policy) & T&C (Terms & Conditions) */}
-          <div className="flex items-center justify-center md:justify-end space-x-3 text-xs text-slate-400">
+          {/* Right: Policy Links */}
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-2.5 gap-y-1 text-xs text-slate-400">
+            <Link href="/editorial-guidelines" className="hover:text-amber-400 transition-colors">
+              Editorial Guidelines
+            </Link>
+            <span>•</span>
+            <Link href="/corrections" className="hover:text-amber-400 transition-colors">
+              Corrections
+            </Link>
+            <span>•</span>
             <Link href="/privacy-policy" className="hover:text-amber-400 transition-colors">
               Privacy Policy
             </Link>
             <span>•</span>
-            <Link href="/refund-policy" className="hover:text-amber-400 transition-colors">
-              Refund Policy
-            </Link>
-            <span>•</span>
             <Link href="/terms" className="hover:text-amber-400 transition-colors">
-              Terms &amp; Conditions
+              Terms
             </Link>
           </div>
         </div>
