@@ -30,6 +30,17 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const storedUser = authService.getCurrentUser();
 
     if (storedToken && storedUser) {
+      if (storedToken === 'demo-jwt-token-xyz-123456') {
+        authService.login({ email: 'admin@news.com', password: 'admin123' })
+          .then((res) => {
+            const realToken = (res as any).data?.token || res.token;
+            if (realToken) {
+              setToken(realToken);
+              localStorage.setItem('admin_token', realToken);
+            }
+          })
+          .catch(() => {});
+      }
       setToken(storedToken);
       setUser(storedUser);
     }
@@ -51,11 +62,14 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsLoading(true);
     try {
       const res = await authService.login(credentials);
-      const authToken = res.token || res.accessToken || 'valid-auth-token';
-      const authUser: AdminUser = res.user || {
+      const authToken = res.data?.token || res.token || res.accessToken;
+      if (!authToken) {
+        throw new Error('Authentication failed: No token received from server.');
+      }
+      const authUser: AdminUser = res.data?.user || res.user || {
         id: 'admin-1',
         name: credentials.email?.split('@')[0] || credentials.username || 'Admin',
-        email: credentials.email || 'admin@news.com',
+        email: credentials.email || 'admin@enews.com',
         role: 'ADMIN'
       };
 

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone
+  LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone,
+  ClipboardCheck, Users
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
@@ -27,6 +28,8 @@ export const AdminSidebar: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'Review Queue', href: '/admin/articles/review', icon: ClipboardCheck },
+    { label: 'Reporters', href: '/admin/reporters', icon: Users },
     { label: 'Articles CMS', href: '/admin/articles', icon: FileText },
     { label: 'Video Studio', href: '/admin/videos', icon: Video },
     { label: 'Ad Studio', href: '/admin/ads', icon: Megaphone },
@@ -70,7 +73,11 @@ export const AdminSidebar: React.FC = () => {
 
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+          const isActive = item.href === '/admin/articles'
+            ? (pathname === '/admin/articles' || (pathname.startsWith('/admin/articles/') && !pathname.startsWith('/admin/articles/review')))
+            : item.href === '/admin/dashboard'
+              ? pathname === '/admin/dashboard'
+              : pathname.startsWith(item.href);
 
           return (
             <Link

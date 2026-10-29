@@ -4,14 +4,27 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    // If the path is under /reporter, strictly use reporter_token; if under /admin, strictly use admin_token
+    const isReporterPath = window.location.pathname.startsWith('/reporter');
+    const isAdminPath = window.location.pathname.startsWith('/admin');
+
+    if (isReporterPath) {
+      token = localStorage.getItem('reporter_token');
+    } else if (isAdminPath) {
+      token = localStorage.getItem('admin_token');
+    } else {
+      token = localStorage.getItem('admin_token') || localStorage.getItem('reporter_token');
+    }
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {})
   };
 
-  if (token) {
+  if (token && !headers['Authorization']) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -38,7 +51,10 @@ export async function apiRequest<T = any>(
     }
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || `HTTP error! Status: ${response.status}`);
+      const errorObj: any = new Error(data.message || data.error || `HTTP error! Status: ${response.status}`);
+      errorObj.status = response.status;
+      errorObj.code = data.errors?.code || data.code;
+      throw errorObj;
     }
 
     return data as T;

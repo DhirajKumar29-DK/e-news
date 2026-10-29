@@ -16,6 +16,10 @@ export interface AuthResponse {
   success?: boolean;
   token?: string;
   accessToken?: string;
+  data?: {
+    token?: string;
+    user?: AdminUser;
+  };
   user?: AdminUser;
   message?: string;
 }

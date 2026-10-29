@@ -13,7 +13,7 @@ import { articleService } from '@/services/articleService';
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
-import { Search, Video, User, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun } from 'lucide-react';
+import { Search, Video, User, CircleUser, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun, PenSquare } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSearch?: () => void;
@@ -517,6 +517,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeC
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping ml-0.5" />
             </button>
 
+            {/* Reporter Desk Action Button (Placed right next to Videos) */}
+            <Link
+              href="/reporter/login"
+              className="hidden sm:flex items-center space-x-1.5 h-9 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-bold transition-all shadow-xs group cursor-pointer"
+              title="Reporter Desk / Login"
+            >
+              <CircleUser className="w-4 h-4 text-slate-700 dark:text-slate-200 group-hover:text-jagran-red transition-colors" />
+              <span className="tracking-wide notranslate" translate="no">
+                {language === 'hi' ? 'संवाददाता' : 'Reporter Desk'}
+              </span>
+            </Link>
+
             {/* Mobile ePaper Quick Action Button (compact & small) */}
             <button
               onClick={handleOpenEPaper}
@@ -556,6 +568,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeC
               <Globe className={`w-3 h-3 mr-1 text-slate-600 dark:text-slate-400 ${isTranslating ? 'animate-spin text-jagran-red' : ''}`} />
               <span className="notranslate" translate="no">{language === 'hi' ? 'EN' : 'हि'}</span>
             </button>
+
+            {/* Mobile Reporter Desk Login Button */}
+            <Link
+              href="/reporter/login"
+              className="sm:hidden flex items-center justify-center w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs shrink-0 cursor-pointer"
+              title="Reporter Desk / Login"
+              aria-label="Reporter Desk Login"
+            >
+              <CircleUser className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+            </Link>
           </div>
 
         </div>
@@ -809,6 +831,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeC
                     <span>Home</span>
                   </span>
                 </button>
+
+                <Link
+                  href="/reporter/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center space-x-2">
+                    <CircleUser className="w-4 h-4 text-jagran-red" />
+                    <span>{language === 'hi' ? 'संवाददाता पोर्टल' : 'Reporter Desk'}</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-jagran-red bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-md">
+                    Login
+                  </span>
+                </Link>
 
                 {(navCategories.length > 0
                   ? navCategories.filter(c => c.slug !== 'all' && c.isActive)

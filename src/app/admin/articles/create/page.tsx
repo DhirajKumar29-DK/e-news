@@ -522,54 +522,11 @@ function CreateArticleContent() {
               </div>
 
               {/* 3. Story Content / Body (Centerpiece) */}
+              {/* 3. Executive Key Highlights (Bullet Points) - Above Rich Text Editor */}
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-red-600" />
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                      Story Content & Editorial Body <span className="text-red-500">*</span>
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-black uppercase">
-                    WYSIWYG Active
-                  </span>
-                </div>
-
-                <RichTextEditor
-                  value={content}
-                  onChange={setContent}
-                  label="Story Content / Body"
-                  placeholder="Write the complete news story here... Use H2/H3 for subheadings, bullet points for lists, quotes for statements, or embed X posts."
-                />
-
-                {/* Word Count Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
-                  <div className="flex items-center space-x-3">
-                    <span className="flex items-center space-x-1 text-slate-800">
-                      <FileText className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{wordCount} Words</span>
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center space-x-1 text-slate-800">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>~{readTimeMinutes} Min Read</span>
-                    </span>
-                    <span>•</span>
-                    <span className="text-slate-400 font-mono">
-                      {charCount} Characters
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    Calculated for standard reading pace
-                  </span>
-                </div>
-              </div>
-
-              {/* 4. Quick Takeaways / Key Highlights */}
-              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400" />
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                       Executive Key Highlights (Bullet Points)
                     </h3>
@@ -624,6 +581,50 @@ function CreateArticleContent() {
                   <Plus className="w-4 h-4" />
                   <span>Add Another Highlight Point</span>
                 </button>
+              </div>
+
+              {/* 4. Story Content & Editorial Body (WYSIWYG) */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-red-600" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Story Content & Editorial Body <span className="text-red-500">*</span>
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-black uppercase">
+                    WYSIWYG Active
+                  </span>
+                </div>
+
+                <RichTextEditor
+                  value={content}
+                  onChange={setContent}
+                  label="Story Content / Body"
+                  placeholder="Write the complete news story here... Use H2/H3 for subheadings, bullet points for lists, quotes for statements, or embed X posts."
+                />
+
+                {/* Word Count Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
+                  <div className="flex items-center space-x-3">
+                    <span className="flex items-center space-x-1 text-slate-800">
+                      <FileText className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{wordCount} Words</span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center space-x-1 text-slate-800">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>~{readTimeMinutes} Min Read</span>
+                    </span>
+                    <span>•</span>
+                    <span className="text-slate-400 font-mono">
+                      {charCount} Characters
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Calculated for standard reading pace
+                  </span>
+                </div>
               </div>
 
             </div>
