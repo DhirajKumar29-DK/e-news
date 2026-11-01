@@ -122,4 +122,6 @@ export interface AIAgentPayload {
   activeSlot?: AIAgentSlotContext | null;
   history?: Array<{ sender: 'user' | 'agent' | string; text: string }>;
   apiKey?: string;
+  targetDate?: string;
+  editionCity?: string;
 }

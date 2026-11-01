@@ -15,16 +15,18 @@ import {
   Move, ArrowUpLeft, Move3D, RotateCcw,
   Edit3, Bold, Italic, Underline, Highlighter, Palette, Type, Eraser,
   Columns, AlignJustify,
-  Menu, ChevronLeft, ExternalLink
+  Menu, ChevronLeft, ExternalLink, Zap
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
+import AIPageGeneratorModal from '@/components/admin/AIPageGeneratorModal';
 import EPaperRichTextEditor, { formatToRichEditorHtml } from '@/components/admin/EPaperRichTextEditor';
 import { EPaperHeaderConfig } from '@/types/epaper';
 import { getEffectiveHeaderConfig, getPageHeaderMetrics } from '@/utils/epaperHeader';
 import BroadsheetHeader from '@/components/common/BroadsheetHeader';
 import BroadsheetFooter from '@/components/common/BroadsheetFooter';
 import HeaderSettingsModal from '@/components/admin/HeaderSettingsModal';
+import { getEditorialStoryImage } from '@/utils/editorialPhotos';
 
 export interface EPaperSlotData {
   id: string;
@@ -171,6 +173,30 @@ function formatHindiDateString(dateStr: string) {
   } catch {
     return dateStr;
   }
+}
+
+// Utility to clean forced dateline brackets from headlines/subheadlines
+export function cleanDatelineBrackets(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/^[【\[][^】\]]*[】\]]\s*:?\s*/gi, '')
+    .replace(/【[^】]*】\s*:?\s*/gi, '')
+    .replace(/\[[^\]]*\]\s*:?\s*/gi, '')
+    .replace(/^[\u0900-\u097F\w\s]{2,15}\s*•\s*[\d\u0900-\u097F\w\s]{4,30}\s*[:\-]\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Utility to strip all markdown formatting and review notes
+export function stripMarkdown(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/^[\s#*_\-]+/gm, '')
+    .replace(/[*_#\`]/g, '')
+    .replace(/\b(?:संपादकीय समीक्षा|तथ्य जांच|Fact-Check|Editorial Review)[^\n]*\n*/gi, '')
+    .replace(/###?\s*(?:संशोधित|अंतिम|प्रकाशन|Revised)[^\n]*\n*/gi, '')
+    .trim();
 }
 
 // Utility to strip all raw HTML tags like <p>, </p>, <mark>, <div>, etc. and preserve paragraph breaks
@@ -382,7 +408,8 @@ function measureSlotHeaderHeight(s: EPaperSlotData, cardContentW: number): numbe
   const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
   const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
   const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 22}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
-  const subHtml = s.subHeadline ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${s.subHeadline}</p>` : '';
+  const cleanSub = cleanDatelineBrackets(s.subHeadline || '');
+  const subHtml = cleanSub ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${cleanSub}</p>` : '';
 
   div.style.width = `${cardContentW}px`;
   div.style.height = 'auto';
@@ -953,12 +980,26 @@ function FullStudioInner() {
       if (isMounted) {
         const cleanedLoadedPages = loadedPages.map(pg => ({
           ...pg,
-          slots: (pg.slots || []).map(s => {
-            const formatted = formatToRichEditorHtml(decodeHtmlEntities(s.summary || s.contentText || ''));
+          slots: (pg.slots || []).map((s: any, sIdx: number) => {
+            const cleanHl = cleanDatelineBrackets(stripMarkdown(s.headline || ''));
+            const cleanSub = cleanDatelineBrackets(stripMarkdown(s.subHeadline || ''));
+            const rawBody = decodeHtmlEntities(s.summary || s.contentText || '');
+            const cleanBody = cleanDatelineBrackets(stripMarkdown(stripHtmlTagsToPlainText(rawBody)));
+            const formatted = formatToRichEditorHtml(cleanBody);
+            const healedImg = getEditorialStoryImage({
+              topic: s.categoryBadge || s.categoryTag,
+              headline: cleanHl,
+              category: s.categoryBadge || s.categoryTag,
+              rawImageUrl: s.imageUrl,
+              slotIndex: sIdx
+            });
             return {
               ...s,
+              headline: cleanHl,
+              subHeadline: cleanSub,
               summary: formatted,
-              contentText: formatted
+              contentText: formatted,
+              imageUrl: healedImg
             };
           })
         }));
@@ -1144,6 +1185,7 @@ function FullStudioInner() {
   const [showSlotGuides, setShowSlotGuides] = useState<boolean>(true);
   const [showPagesSidebar, setShowPagesSidebar] = useState<boolean>(true);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
+  const [isAiPageGeneratorOpen, setIsAiPageGeneratorOpen] = useState<boolean>(false);
   const [isHeaderSettingsOpen, setIsHeaderSettingsOpen] = useState<boolean>(false);
   const [publishModal, setPublishModal] = useState<{
     isOpen: boolean;
@@ -1525,11 +1567,22 @@ function FullStudioInner() {
 
     const targetSlot = activeSlot;
     const isTopSpan = news.imageWrapMode === 'top-span' || (news.imageWidth && targetSlot.width && news.imageWidth >= targetSlot.width - 40);
-    const newHl = (news.headline && news.headline.trim()) ? news.headline : (targetSlot.headline || formHeadline || '');
-    const newSub = (news.subHeadline && news.subHeadline.trim()) ? news.subHeadline : (targetSlot.subHeadline || formSubHeadline || '');
-    const newCategory = (news.categoryBadge && news.categoryBadge.trim()) ? news.categoryBadge : (targetSlot.categoryBadge || formCategory || '');
-    const newSummary = (news.content && news.content.trim()) ? stripHtmlTagsToPlainText(news.content) : (targetSlot.summary || formSummary || '');
-    const newImg = (news.imageUrl && news.imageUrl.trim()) ? news.imageUrl : (targetSlot.imageUrl || formImageUrl || '');
+    const rawHl = (news.headline && news.headline.trim()) ? news.headline : (targetSlot.headline || formHeadline || '');
+    const rawSub = (news.subHeadline && news.subHeadline.trim()) ? news.subHeadline : (targetSlot.subHeadline || formSubHeadline || '');
+    const rawCategory = (news.categoryBadge && news.categoryBadge.trim()) ? news.categoryBadge : (targetSlot.categoryBadge || formCategory || '');
+    const rawSummary = (news.content && news.content.trim()) ? news.content : (targetSlot.summary || formSummary || '');
+    const rawImg = (news.imageUrl && news.imageUrl.trim()) ? news.imageUrl : (targetSlot.imageUrl || formImageUrl || '');
+
+    const newHl = cleanDatelineBrackets(stripMarkdown(rawHl));
+    const newSub = cleanDatelineBrackets(stripMarkdown(rawSub));
+    const newCategory = stripMarkdown(rawCategory);
+    const newSummary = cleanDatelineBrackets(stripMarkdown(stripHtmlTagsToPlainText(rawSummary)));
+    const newImg = getEditorialStoryImage({
+      topic: newCategory,
+      headline: newHl,
+      category: newCategory,
+      rawImageUrl: rawImg
+    });
     const newAlign = isTopSpan ? 'Center Wrap' : (news.imageAlignment ? (news.imageAlignment === 'Center' ? 'Center Wrap' : news.imageAlignment) : (targetSlot.imageAlignment || formImageAlign || 'Left'));
     const newVertAlign = isTopSpan ? 'top' : (news.imageVertAlign || targetSlot.imageVertAlign || formImageVertAlign || 'top');
     const newCols = news.columnsCount || targetSlot.columnsCount || formColumnsCount || (isTopSpan ? 2 : 1);
@@ -1580,6 +1633,70 @@ function FullStudioInner() {
     }));
 
     triggerToast(`🎉 AI: स्लॉट #${activeSlot.slotNumber} में समाचार सफलतापूर्वक लागू हो गया!`);
+  };
+
+  // ⚡ AI AUTO-PAGE GENERATOR: Apply full generated broadsheet slots to active page
+  const handleApplyAiGeneratedPage = (generatedSlots: EPaperSlotData[], mode: 'replace' | 'append') => {
+    if (!generatedSlots || !generatedSlots.length) return;
+
+    const sanitizedGenerated = (generatedSlots || []).map((s: any, sIdx: number) => {
+      const cleanHl = cleanDatelineBrackets(stripMarkdown(s.headline || ''));
+      const cleanSub = cleanDatelineBrackets(stripMarkdown(s.subHeadline || ''));
+      const cleanBody = cleanDatelineBrackets(stripMarkdown(stripHtmlTagsToPlainText(s.summary || s.contentText || '')));
+      const cleanImg = getEditorialStoryImage({
+        topic: s.categoryBadge || s.categoryTag,
+        headline: cleanHl,
+        category: s.categoryBadge || s.categoryTag,
+        rawImageUrl: s.imageUrl,
+        slotIndex: sIdx
+      });
+      return {
+        ...s,
+        headline: cleanHl,
+        subHeadline: cleanSub,
+        summary: cleanBody,
+        contentText: cleanBody,
+        imageUrl: cleanImg
+      };
+    });
+
+    setPages(prevPages => prevPages.map(pg => {
+      if (pg.id !== activePageId) return pg;
+
+      let newSlots: EPaperSlotData[] = [];
+      if (mode === 'replace') {
+        newSlots = sanitizedGenerated;
+      } else {
+        const baseNum = (pg.slots || []).reduce((max, s) => Math.max(max, s.slotNumber || 0), 0);
+        const renumbered = sanitizedGenerated.map((s, idx) => ({
+          ...s,
+          slotNumber: baseNum + idx + 1,
+          slotBadge: `Slot ${baseNum + idx + 1}`
+        }));
+        newSlots = [...(pg.slots || []), ...renumbered];
+      }
+
+      return {
+        ...pg,
+        slots: newSlots
+      };
+    }));
+
+    if (generatedSlots.length > 0) {
+      setActiveSlotId(generatedSlots[0].id);
+      setFormHeadline(generatedSlots[0].headline || '');
+      setFormSubHeadline(generatedSlots[0].subHeadline || '');
+      setFormCategory(generatedSlots[0].categoryBadge || '');
+      setFormSummary(generatedSlots[0].summary || '');
+      setFormImageUrl(generatedSlots[0].imageUrl || '');
+      setFormX(generatedSlots[0].x);
+      setFormY(generatedSlots[0].y);
+      setFormW(generatedSlots[0].width);
+      setFormH(generatedSlots[0].height);
+      setFormColumnsCount(generatedSlots[0].columnsCount || 1);
+    }
+
+    triggerToast(`🎉 AI: ${generatedSlots.length} स्लॉट्स के साथ संपूर्ण पेज सफलतापूर्वक तैयार हो गया!`);
   };
 
   // GLOBAL MOUSEMOVE AND MOUSEUP LISTENER FOR 100% FREE CANVAS DRAG & RESIZE
@@ -2649,6 +2766,16 @@ function FullStudioInner() {
                 <Palette className="w-3.5 h-3.5 text-amber-400" />
                 <span>🎨 Header Settings</span>
               </button>
+                            {/* ⚡ AI Broadsheet Auto-Page Generator */}
+              <button
+                type="button"
+                onClick={() => setIsAiPageGeneratorOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black shadow-md shadow-amber-500/20 transform hover:scale-105 active:scale-95 border border-amber-300/40"
+                title="1-क्लिक में लाइव खबरों से 6-7 स्लॉट्स का संपूर्ण पेज जनरेट करें"
+              >
+                <Zap className="w-3.5 h-3.5 text-slate-950 fill-slate-950 animate-bounce" />
+                <span>⚡ AI ऑटो-पेज</span>
+              </button>
               {/* ⚡ AI News Editor Agent (Gemini Powered) */}
               <button
                 type="button"
@@ -2906,7 +3033,7 @@ function FullStudioInner() {
                               color: s.headlineColor || '#020617'
                             }}
                             className="font-black text-slate-950 leading-tight break-words"
-                            dangerouslySetInnerHTML={{ __html: s.headline || '' }}
+                            dangerouslySetInnerHTML={{ __html: cleanDatelineBrackets(stripMarkdown(s.headline || '')) }}
                           />
 
                           {s.subHeadline && (
@@ -2917,7 +3044,7 @@ function FullStudioInner() {
                                 color: s.subHeadlineColor || '#b91c1c'
                               }}
                               className="font-bold text-red-700 leading-tight block break-words text-justify my-0.5"
-                              dangerouslySetInnerHTML={{ __html: s.subHeadline || '' }}
+                              dangerouslySetInnerHTML={{ __html: cleanDatelineBrackets(s.subHeadline || '') }}
                             />
                           )}
                         </div>
@@ -3007,7 +3134,7 @@ function FullStudioInner() {
                                 >
                                   <div className="w-full h-full overflow-hidden rounded-[4px] relative pointer-events-none">
                                     <img
-                                      src={s.imageUrl}
+                                      src={getEditorialStoryImage({ topic: s.categoryBadge, headline: s.headline, rawImageUrl: s.imageUrl })}
                                       alt="Slot photo"
                                       draggable={false}
                                       className="w-full h-full object-cover pointer-events-none select-none block"
@@ -3180,7 +3307,7 @@ function FullStudioInner() {
                               >
                                 <div className="w-full h-full overflow-hidden rounded-[4px] relative pointer-events-none">
                                   <img
-                                    src={s.imageUrl}
+                                    src={getEditorialStoryImage({ topic: s.categoryBadge, headline: s.headline, rawImageUrl: s.imageUrl })}
                                     alt="Slot photo"
                                     draggable={false}
                                     className="w-full h-full object-cover pointer-events-none select-none block"
@@ -4287,12 +4414,24 @@ function FullStudioInner() {
         </div>
       )}
 
+            {/* 4.0. AI BROADSHEET FULL-PAGE AUTO-GENERATOR MODAL */}
+      <AIPageGeneratorModal
+        isOpen={isAiPageGeneratorOpen}
+        onClose={() => setIsAiPageGeneratorOpen(false)}
+        pageNumber={activePage.pageNumber || 1}
+        editionCity={currentEditionInfo.city || 'पटना'}
+        date={archiveDate}
+        onApplySlots={handleApplyAiGeneratedPage}
+      />
+
       {/* 4. CONVERSATIONAL AI NEWS EDITOR AGENT DRAWER (Gemini Powered) */}
       <AIAgentDrawer
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}
         activeSlot={activeSlot && activeSlot.id !== 'temp' ? activeSlot : null}
         onApplyToSlot={handleApplyAiNewsToActiveSlot}
+        date={archiveDate}
+        editionCity={currentEditionInfo.city || 'पटना'}
       />
 
       {/* 5. DYNAMIC BROADSHEET HEADER SETTINGS MODAL */}

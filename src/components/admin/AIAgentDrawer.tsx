@@ -7,6 +7,129 @@ import {
   ExternalLink, ChevronRight, Settings
 } from 'lucide-react';
 import { callAIAgent } from '@/services/epaperService';
+import { getEditorialStoryImage } from '@/utils/editorialPhotos';
+
+// Clean dateline brackets like 【पटना • 29 अक्टूबर 2026】 :
+export function cleanDatelineBrackets(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/^[【\[][^】\]]*[】\]]\s*:?\s*/gi, '')
+    .replace(/【[^】]*】\s*:?\s*/gi, '')
+    .replace(/\[[^\]]*\]\s*:?\s*/gi, '')
+    .replace(/^[\u0900-\u097F\w\s]{2,15}\s*•\s*[\d\u0900-\u097F\w\s]{4,30}\s*[:\-]\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Strip markdown characters (*, **, #, ###, _, etc.) and review headings
+export function stripMarkdown(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/^[\s#*_\-]+/gm, '')
+    .replace(/[*_#\`]/g, '')
+    .replace(/\b(?:संपादकीय समीक्षा|तथ्य जांच|Fact-Check|Editorial Review)[^\n]*\n*/gi, '')
+    .replace(/###?\s*(?:संशोधित|अंतिम|प्रकाशन|Revised)[^\n]*\n*/gi, '')
+    .trim();
+}
+
+// Strip HTML tags to clean plain text
+export function stripHtmlTags(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/<\/?p[^>]*>/gi, '\n\n')
+    .replace(/&lt;\/?p[^&]*&gt;/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+    .replace(/<\/?mark[^>]*>/gi, '')
+    .replace(/&lt;\/?mark[^&]*&gt;/gi, '')
+    .replace(/<\/?b>/gi, '')
+    .replace(/&lt;\/?b&gt;/gi, '')
+    .replace(/<\/?strong>/gi, '')
+    .replace(/&lt;\/?strong&gt;/gi, '')
+    .replace(/<\/?span[^>]*>/gi, '')
+    .replace(/&lt;\/?span[^&]*&gt;/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;[^&]*&gt;/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+
+export function parseEditorialNewsResponse(rawText: string, activeSlot: any = null): { reviewCritique: string; parsedNews: ParsedNewsPayload | null } {
+  if (!rawText) return { reviewCritique: '', parsedNews: null };
+
+  let critique = '';
+  let newsSection = rawText;
+
+  const hasReviewCritique = /(?:तथ्य एवं भाषा समीक्षा|संपादकीय समीक्षा|Fact-?Check|Review|समीक्षा)/i.test(rawText);
+  if (hasReviewCritique) {
+    const splitMatch = rawText.match(/(?:###?\s*(?:संशोधित|अंतिम|प्रकाशन|Revised)[\s\S]*?(?:\n|$)|(?:\*{0,3}शीर्षक[\s\S]*?\*{0,3}\s*[:：\-]))/i);
+    if (splitMatch && typeof splitMatch.index === 'number' && splitMatch.index > 0) {
+      const splitIdx = splitMatch.index;
+      critique = rawText.substring(0, splitIdx).trim();
+      newsSection = rawText.substring(splitIdx).trim();
+    }
+  }
+
+  newsSection = newsSection.replace(/^###?\s*(?:संशोधित|अंतिम|प्रकाशन|Revised)[^\n]*\n+/i, '').trim();
+
+  let headline = '';
+  let subHeadline = '';
+  let content = '';
+
+  const sections = newsSection.split(/\n+(?=\*{0,3}(?:शीर्षक|उप-?शीर्षक|सामग्री|विवरण|Headline|Sub-?headline|Body|Content)\*{0,3}[:：\-])/i);
+
+  for (const sec of sections) {
+    const trimmed = sec.trim();
+    if (/^\*{0,3}(?:शीर्षक|Headline)\*{0,3}[:：\-]/i.test(trimmed)) {
+      headline = cleanDatelineBrackets(stripMarkdown(trimmed.replace(/^\*{0,3}(?:शीर्षक|Headline)\*{0,3}[:：\-]?/i, '')));
+    } else if (/^\*{0,3}(?:उप-?शीर्षक|Sub-?headline)\*{0,3}[:：\-]/i.test(trimmed)) {
+      subHeadline = cleanDatelineBrackets(stripMarkdown(trimmed.replace(/^\*{0,3}(?:उप-?शीर्षक|Sub-?headline)\*{0,3}[:：\-]?/i, '')));
+    } else if (/^\*{0,3}(?:सामग्री|विवरण|Body|Content)\*{0,3}[:：\-]/i.test(trimmed)) {
+      content = cleanDatelineBrackets(stripMarkdown(stripHtmlTags(trimmed.replace(/^\*{0,3}(?:सामग्री|विवरण|Body|Content)\*{0,3}[:：\-]?/i, ''))));
+    } else if (!headline && trimmed.length > 0 && trimmed.length < 150) {
+      headline = cleanDatelineBrackets(stripMarkdown(trimmed));
+    } else if (headline && !content) {
+      content = cleanDatelineBrackets(stripMarkdown(stripHtmlTags(trimmed)));
+    }
+  }
+
+  if (!headline && !content) {
+    return { reviewCritique: critique || rawText, parsedNews: null };
+  }
+
+  const category = activeSlot?.categoryBadge || 'संपादित';
+  const resolvedImg = getEditorialStoryImage({
+    topic: category,
+    headline: headline || activeSlot?.headline || '',
+    category,
+    rawImageUrl: activeSlot?.imageUrl || ''
+  });
+
+  return {
+    reviewCritique: critique,
+    parsedNews: {
+      actionType: 'UPDATE_SLOT',
+      categoryBadge: category,
+      headline: headline || activeSlot?.headline || '',
+      subHeadline: subHeadline || activeSlot?.subHeadline || '',
+      content: content || activeSlot?.summary || '',
+      imageUrl: resolvedImg,
+      imageAlignment: activeSlot?.imageAlignment || 'Right',
+      imageVertAlign: activeSlot?.imageVertAlign || 'top',
+      imageWidth: activeSlot?.imageWidth || 180,
+      imageHeight: activeSlot?.imageHeight || 140,
+      columnsCount: activeSlot?.columnsCount || 2
+    }
+  };
+}
 
 export interface ParsedNewsPayload {
   actionType?: 'UPDATE_SLOT' | 'CREATE_NEW_SLOT';
@@ -38,13 +161,17 @@ interface AIAgentDrawerProps {
   onClose: () => void;
   activeSlot: any | null;
   onApplyToSlot: (news: ParsedNewsPayload) => void;
+  date?: string;
+  editionCity?: string;
 }
 
 export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
   isOpen,
   onClose,
   activeSlot,
-  onApplyToSlot
+  onApplyToSlot,
+  date,
+  editionCity
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -121,7 +248,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
 
       let effectivePrompt = textToSend;
       if (isProofreadOnly) {
-        effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to check/find mistakes. Answer conversationally in chat text detailing the specific errors. Set "hasNewsContent": false in the JSON block so the slot on the canvas is NOT modified!]`;
+        effectivePrompt += `\n[EDITORIAL DIRECTIVE: The user wants to check/correct errors in the news. Briefly explain the corrections in your chat reply AND ALWAYS provide the 100% corrected, polished, ready-to-publish news story inside the JSON block with "hasNewsContent": true so the user can click "Apply to Slot" to update their slot!]`;
       } else if (isHeadlineOnly) {
         effectivePrompt += `\n[STRICT SCOPE DIRECTIVE: The user ONLY asked to write/check the HEADLINE. Return ONLY "headline" in the JSON block with "hasNewsContent": true. Leave subHeadline, content, and imageUrl empty/null so other slot fields are preserved!]`;
       } else if (isSubHeadlineOnly) {
@@ -166,69 +293,63 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
           height: activeSlot.height
         } : null,
         history: historyPayload,
-        apiKey: apiKey || undefined
+        apiKey: apiKey || undefined,
+        targetDate: date,
+        editionCity: editionCity
       });
 
-      // Helper to strip all <p>, </p>, <mark>, etc. to pure clean newspaper text
-      const stripHtmlTags = (str: string): string => {
-        if (!str) return '';
-        return str
-          .replace(/<\/?p[^>]*>/gi, '\n\n')
-          .replace(/&lt;\/?p[^&]*&gt;/gi, '\n\n')
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/&lt;br\s*\/?&gt;/gi, '\n')
-          .replace(/<\/?mark[^>]*>/gi, '')
-          .replace(/&lt;\/?mark[^&]*&gt;/gi, '')
-          .replace(/<\/?b>/gi, '')
-          .replace(/&lt;\/?b&gt;/gi, '')
-          .replace(/<\/?strong>/gi, '')
-          .replace(/&lt;\/?strong&gt;/gi, '')
-          .replace(/<\/?span[^>]*>/gi, '')
-          .replace(/&lt;\/?span[^&]*&gt;/gi, '')
-          .replace(/<[^>]+>/g, '')
-          .replace(/&lt;[^&]*&gt;/g, '')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&amp;/g, '&')
-          .split(/\n+/)
-          .map(line => line.trim())
-          .filter(Boolean)
-          .join('\n\n')
-          .trim();
-      };
+      let resolvedNews = aiResponse.parsedNews || null;
+      let replyText = aiResponse.reply || aiResponse.fullText || 'Response generated.';
 
-      // Always direct news payload into the user's selected slot (never create new slots)
-      if (aiResponse.parsedNews) {
-        aiResponse.parsedNews.actionType = 'UPDATE_SLOT';
-        aiResponse.parsedNews.content = stripHtmlTags(aiResponse.parsedNews.content || '');
+      // If backend did not parse structured news or if JSON was absent, parse from text
+      if (!resolvedNews) {
+        const parsedFromText = parseEditorialNewsResponse(replyText, activeSlot);
+        if (parsedFromText.parsedNews) {
+          resolvedNews = parsedFromText.parsedNews;
+          if (parsedFromText.reviewCritique) {
+            replyText = parsedFromText.reviewCritique;
+          }
+        }
+      }
+
+      // Always sanitize resolvedNews
+      if (resolvedNews) {
+        resolvedNews.actionType = 'UPDATE_SLOT';
+        resolvedNews.headline = cleanDatelineBrackets(stripMarkdown(resolvedNews.headline || ''));
+        resolvedNews.subHeadline = cleanDatelineBrackets(stripMarkdown(resolvedNews.subHeadline || ''));
+        resolvedNews.content = cleanDatelineBrackets(stripMarkdown(stripHtmlTags(resolvedNews.content || '')));
+        resolvedNews.imageUrl = getEditorialStoryImage({
+          topic: resolvedNews.categoryBadge,
+          headline: resolvedNews.headline,
+          rawImageUrl: resolvedNews.imageUrl
+        });
 
         if (isTopSpanRequested) {
-          aiResponse.parsedNews.imageWrapMode = 'top-span';
-          aiResponse.parsedNews.imageAlignment = 'Center';
-          aiResponse.parsedNews.imageVertAlign = 'top';
-          aiResponse.parsedNews.columnsCount = requestedCols;
+          resolvedNews.imageWrapMode = 'top-span';
+          resolvedNews.imageAlignment = 'Center';
+          resolvedNews.imageVertAlign = 'top';
+          resolvedNews.columnsCount = requestedCols;
           if (activeSlot?.width) {
-            aiResponse.parsedNews.imageWidth = Math.max(100, activeSlot.width - 24);
+            resolvedNews.imageWidth = Math.max(100, activeSlot.width - 24);
           }
         }
 
         // Dynamically calibrate recommendedHeight based on actual generated content
-        const rawContent = (aiResponse.parsedNews.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const rawContent = (resolvedNews.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         const wordCount = rawContent.split(/\s+/).filter(Boolean).length;
         if (wordCount > 250) {
           const minEstH = Math.min(2200, Math.round(wordCount * 1.05 + 320));
-          aiResponse.parsedNews.recommendedHeight = Math.max(aiResponse.parsedNews.recommendedHeight || 0, minEstH);
+          resolvedNews.recommendedHeight = Math.max(resolvedNews.recommendedHeight || 0, minEstH);
         } else if (wordCount > 0 && wordCount < 180) {
-          aiResponse.parsedNews.recommendedHeight = Math.min(aiResponse.parsedNews.recommendedHeight || 300, 320);
+          resolvedNews.recommendedHeight = Math.min(resolvedNews.recommendedHeight || 300, 320);
         }
       }
 
       const aiMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: aiResponse.reply || aiResponse.fullText || 'Response generated.',
-        parsedNews: aiResponse.parsedNews || null,
+        text: replyText,
+        parsedNews: resolvedNews,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -268,6 +389,23 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
     onApplyToSlot(news);
     setAppliedToast(true);
     setTimeout(() => setAppliedToast(false), 2500);
+  };
+
+  const handleApplyRawTextToSlot = (rawText: string) => {
+    if (!rawText || !activeSlot) return;
+    const { parsedNews } = parseEditorialNewsResponse(rawText, activeSlot);
+    if (parsedNews) {
+      handleApplyNews(parsedNews);
+    } else {
+      const cleanContent = cleanDatelineBrackets(stripMarkdown(stripHtmlTags(rawText)));
+      handleApplyNews({
+        actionType: 'UPDATE_SLOT',
+        headline: activeSlot.headline || '',
+        subHeadline: activeSlot.subHeadline || '',
+        content: cleanContent,
+        categoryBadge: activeSlot.categoryBadge || 'संपादित'
+      });
+    }
   };
 
   const handleCopyText = (id: string, text: string) => {
@@ -314,6 +452,15 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
           </div>
 
           <div className="flex items-center space-x-1">
+            <a
+              href="/admin/ai-settings"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-slate-200/70 transition-colors cursor-pointer"
+              title="Configure AI Models & Keys"
+            >
+              <Settings className="w-4 h-4 text-slate-600 hover:text-red-600" />
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -540,6 +687,38 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Fallback Action Buttons for pure text AI responses (ALWAYS show Apply to Slot!) */}
+                  {!isUser && !msg.parsedNews && msg.text && msg.text.trim().length > 15 && (
+                    <div className="pt-2 flex items-center space-x-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        disabled={!activeSlot}
+                        onClick={() => handleApplyRawTextToSlot(msg.text)}
+                        className={`flex-1 py-2.5 px-3.5 ${
+                          activeSlot
+                            ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-600/20 cursor-pointer hover:scale-[1.01]'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        } font-black text-xs rounded-xl flex items-center justify-center space-x-2 transition-all transform`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        <span>
+                          {activeSlot
+                            ? `🚀 Apply to Slot #${activeSlot.slotNumber}`
+                            : '⚠️ Select a slot on canvas first'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        className="p-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl cursor-pointer"
+                        title="Copy Text"
+                      >
+                        {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-700" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -558,6 +737,7 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
 
         {/* 4. BOTTOM INPUT BOX */}
         <div className="p-3 bg-white border-t border-slate-200 shrink-0 space-y-2">
+
           <div className="relative flex items-end bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl p-2.5 focus-within:border-red-500 focus-within:bg-white focus-within:ring-3 focus-within:ring-red-500/10 shadow-xs transition-all">
             <textarea
               ref={textareaRef}

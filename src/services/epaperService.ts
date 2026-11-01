@@ -232,6 +232,38 @@ export async function callAIAgent(payload: AIAgentPayload): Promise<any> {
   }
 }
 
+export interface AutoGeneratePagePayload {
+  prompt?: string;
+  topic?: string;
+  customPrompt?: string;
+  pageNumber?: number;
+  editionCity?: string;
+  slotCount?: number | null;
+  date?: string;
+  apiKey?: string;
+}
+
+/**
+ * AI Broadsheet Full-Page Auto-Generator endpoint
+ * Generates 6-7 slots with real-time news wires and pixel-perfect geometry
+ */
+export async function autoGenerateEpaperPage(payload: AutoGeneratePagePayload): Promise<any> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.autoGeneratePage}`), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || `Error (${res.status})`);
+  }
+  return data.data;
+}
+
 /**
  * PDF generate karo (multipart/form-data)
  */

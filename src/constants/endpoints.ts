@@ -25,6 +25,17 @@ export const ENDPOINTS = {
     publishIssue: '/epaper/admin/publish-issue',
     generatePdf: '/epaper/generate-pdf',
     aiAgent: '/epaper/ai-agent',
+    autoGeneratePage: '/epaper/admin/auto-generate-page',
     tts: (text: string) => `/epaper/tts?text=${encodeURIComponent(text)}`,
+  },
+
+  aiSettings: {
+    get: '/ai-settings',
+    usage: (provider?: string) => provider ? `/ai-settings/usage?provider=${encodeURIComponent(provider)}` : '/ai-settings/usage',
+    update: '/ai-settings',
+    models: '/ai-settings/models',
+    testConnection: '/ai-settings/test-connection',
+    revealKey: '/ai-settings/reveal-key',
+    providers: '/ai-settings/providers'
   },
 } as const;

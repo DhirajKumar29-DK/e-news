@@ -14,20 +14,36 @@ interface AdminHeaderProps {
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ title = 'Dashboard Overview' }) => {
   const router = useRouter();
   const { user, logout } = useAdminAuth();
+  const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
 
   useEffect(() => {
-    const updateTime = () => {
+    const updateDateTime = () => {
       const now = new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setDateStr(
+        now.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      );
+      setTimeStr(
+        now.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        })
+      );
     };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
+    updateDateTime();
+    const timer = setInterval(updateDateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
+    <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0 shadow-xs">
       
       {/* Active Page Title & Hamburger for Mobile */}
       <div className="flex items-center space-x-2 sm:space-x-3">
@@ -45,7 +61,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ title = 'Dashboard Ove
         </h1>
         <span className="text-slate-300 font-bold hidden sm:inline">•</span>
         <span className="text-xs text-slate-500 font-mono hidden sm:inline">
-          Tue, Sep 22, 2026 {timeStr && `| ${timeStr}`}
+          {dateStr} {timeStr && `| ${timeStr}`}
         </span>
       </div>
 
