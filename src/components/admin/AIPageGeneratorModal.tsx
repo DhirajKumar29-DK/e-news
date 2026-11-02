@@ -107,7 +107,7 @@ export default function AIPageGeneratorModal({
 
     let count = 6;
     const slotMatch = text.match(/(\d{1,2})\s*(?:slots?|स्लॉट्स?|स्लॉट)/i) || 
-                      text.match(/(?:^|\s)(\d{1,2})\s*(?:news|खबरें|कहानियां|stories)/i) ||
+                      text.match(/(?:^|\s)(\d{1,2})\s*(?:news|खबरें|कहानियां|stories|story|posts?)/i) ||
                       text.match(/\btop\s*(\d{1,2})\b/i);
     if (slotMatch) {
       const p = parseInt(slotMatch[1], 10);
@@ -137,27 +137,41 @@ export default function AIPageGeneratorModal({
     }
 
     let clean = text
-      .replace(/\[(?:MANDATORY|LAYOUT|DIRECTIVE)[^\]]*\]/gi, ' ')
-      .replace(/\b(?:with|for|in|me|mein|pe|par|ke\s*liye)\s*(?=\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां)\b)/gi, ' ')
-      .replace(/\b(?:add|insert|create|generate|put|write|chahiye|lao|bana|banao|dalo|lagao|karo|kro|likho)\b/gi, ' ')
-      .replace(/\b\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां|stories)\b/gi, ' ')
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(/(\d{1,4})\s*(?:words?|शब्द|shabd|varn|slots?|स्लॉट्स?|स्लॉट|news|खबरें|stories)\b/gi, ' ')
       .replace(/\btop\s*\d{1,2}\b/gi, ' ')
-      .replace(/\b(?:se\s*related|se\s*judi|se\s*jurhi|se\s*sambandhit)\b/gi, ' ')
+      .replace(/\b(?:add|create|generate|write|put|insert|bana\s*do|banao|bana|dalo|dal\s*do|lagao|laga\s*do|likho|likh\s*do|chahiye|lao|karo|kro|kar\s*do)\b/gi, ' ')
+      .replace(/\b(?:bhai\s*mere|bhai|samjhe|please|plz|zara|thoda|kripya)\b/gi, ' ')
+      .replace(/\b(?:k\s+jo\s+sabse|jo\s+sabse|sabse\s+top|wo\s+bas|\bwo\b|\bbas\b|\bsirf\b|only)\b/gi, ' ')
+      .replace(/\b(?:se\s*related|se\s*judi|se\s*jurhi|se\s*sambandhit|ke\s*baare\s*me|ke\s*bare\s*me|about|regarding)\b/gi, ' ')
       .replace(/\b(?:iss\s*page\s*me|page\s*me|page\s*par|page\s*pe)\b/gi, ' ')
-      .replace(/\b(?:k\s+jo\s+sabse|jo\s+sabse|sabse\s+top|wo\s+bas|\bwo\b|\bbas\b|\bsirf\b)\b/gi, ' ')
-      .replace(/\b(?:bhai|samjhe|please|plz)\b/gi, ' ')
-      .replace(/\b(?:aaj\s*ki|aaj\s*ke|aaj\s*ka|today|kal\s*ki|yesterday)\b/gi, ' ')
-      .replace(/\b(?:bada\s*lekh|in\s*depth|vishesh|deep)\b/gi, ' ')
-      .replace(/\b(?:me|pe|par|ki|ka|ke|ko|aur|ya|and|or|with|for|hai|h|hain)\b/gi, ' ')
+      .replace(/\b(?:aaj\s*ki|aaj\s*ke|aaj\s*ka|today|kal\s*ki|kal\s*ka|yesterday)\b/gi, ' ')
+      .replace(/\b(20\d\d)[-\/](0?[1-9]|1[0-2])[-\/](0?[1-9]|[12]\d|3[01])\b/gi, ' ')
+      .replace(/(?:bada\s*lekh|in\s*depth|vishesh|deep\s*analysis)/gi, ' ')
+      .replace(/\b(?:in|with|for|me|mein|pe|par|ke\s*liye|ko|ki|ka|ke|hai|h|hain)\b/gi, ' ')
       .replace(/[.,;!?]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    clean = clean.replace(/\b(?:with|for|me|mein|pe|par|ke\s*liye)\s*$/gi, '').trim();
+    clean = clean.replace(/\b(?:with|for|me|mein|pe|par|ke\s*liye|and|aur|hai|h|in)\s*$/gi, '').trim();
 
     let displayTopic = clean || text || 'Top Headlines';
-    if (/^(?:top\s*)?breaking\s*news(?:\s*in\s*india)?$/i.test(clean)) {
+    if (/^(?:top\s*)?breaking(?:\s*news)?(?:\s*in\s*india)?$/i.test(clean) || /^india\s+breaking$/i.test(clean)) {
       displayTopic = 'Top Breaking News in India';
+    } else if (/^cricket(?:\s+news)?$/i.test(clean)) {
+      displayTopic = 'Cricket News';
+    } else if (/^patna(?:\s+top)?(?:\s+news)?(?:\s+breaking)?$/i.test(clean)) {
+      displayTopic = 'Patna Top Breaking News';
+    } else if (/share\s*market|sensex/i.test(clean)) {
+      displayTopic = 'Share Market & Economy';
+    } else if (/bihar\s*rajneeti|vidhansabha/i.test(clean)) {
+      displayTopic = 'Bihar Politics & Vidhansabha';
+    } else if (/hajipur.*vaishali|vaishali.*hajipur/i.test(clean)) {
+      displayTopic = 'Hajipur & Vaishali News';
+    } else if (/world/i.test(clean) && /breaking|news/i.test(clean)) {
+      displayTopic = 'World Breaking News';
+    } else if (clean.length > 0) {
+      displayTopic = clean.charAt(0).toUpperCase() + clean.slice(1);
     }
 
     return {
