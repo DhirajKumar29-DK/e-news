@@ -409,9 +409,9 @@ function measureSlotHeaderHeight(s: EPaperSlotData, cardContentW: number): numbe
 
   const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
   const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
-  const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 22}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
+  const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 23}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
   const cleanSub = cleanDatelineBrackets(s.subHeadline || '');
-  const subHtml = cleanSub ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${cleanSub}</p>` : '';
+  const subHtml = cleanSub ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 19}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${cleanSub}</p>` : '';
 
   div.style.width = `${cardContentW}px`;
   div.style.height = 'auto';
@@ -432,9 +432,9 @@ function computeSlotSections(s: EPaperSlotData) {
   const cardContentW = Math.max(100, s.width - 16);
   const showDivider = s.showColumnDivider || false;
 
-  const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
-  const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 13;
-  const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
+  const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 23;
+  const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 19;
+  const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 15;
   const lineH = getSummaryLineHeight(summaryFont);
 
   let measuredH = measureSlotHeaderHeight(s, cardContentW);
@@ -1242,11 +1242,11 @@ function FullStudioInner() {
   const [formIsAd, setFormIsAd] = useState(activeSlot.isAd || false);
 
   // Text Styling States (Font Sizes & Colors)
-  const [formHeadlineFontSize, setFormHeadlineFontSize] = useState<number>(activeSlot.headlineFontSize || 22);
+  const [formHeadlineFontSize, setFormHeadlineFontSize] = useState<number>(activeSlot.headlineFontSize || 23);
   const [formHeadlineColor, setFormHeadlineColor] = useState<string>(activeSlot.headlineColor || '#0f172a');
-  const [formSubHeadlineFontSize, setFormSubHeadlineFontSize] = useState<number>(activeSlot.subHeadlineFontSize || 13);
+  const [formSubHeadlineFontSize, setFormSubHeadlineFontSize] = useState<number>(activeSlot.subHeadlineFontSize || 19);
   const [formSubHeadlineColor, setFormSubHeadlineColor] = useState<string>(activeSlot.subHeadlineColor || '#b91c1c');
-  const [formSummaryFontSize, setFormSummaryFontSize] = useState<number>(activeSlot.summaryFontSize || (activeSlot as any).bodyFontSize || 14);
+  const [formSummaryFontSize, setFormSummaryFontSize] = useState<number>(activeSlot.summaryFontSize || (activeSlot as any).bodyFontSize || 15);
   const [formSummaryColor, setFormSummaryColor] = useState<string>(activeSlot.summaryColor || '#1e293b');
 
   // Newspaper Multi-Column & Wrap States
@@ -3042,7 +3042,7 @@ function FullStudioInner() {
                           <h2
                             style={{
                               fontFamily: "'Noto Serif Devanagari', 'Merriweather', serif",
-                              fontSize: `${s.headlineFontSize || 22}px`,
+                              fontSize: `${s.headlineFontSize || 23}px`,
                               color: s.headlineColor || '#020617'
                             }}
                             className="font-black text-slate-950 leading-tight break-words"
@@ -3053,7 +3053,7 @@ function FullStudioInner() {
                             <p
                               style={{
                                 fontFamily: "'Mukta', 'Inter', sans-serif",
-                                fontSize: `${s.subHeadlineFontSize || 13}px`,
+                                fontSize: `${s.subHeadlineFontSize || 19}px`,
                                 color: s.subHeadlineColor || '#b91c1c'
                               }}
                               className="font-bold text-red-700 leading-tight block break-words text-justify my-0.5"
