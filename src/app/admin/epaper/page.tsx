@@ -16,7 +16,7 @@ import {
   Move, ArrowUpLeft, Move3D, RotateCcw,
   Edit3, Bold, Italic, Underline, Highlighter, Palette, Type, Eraser,
   Columns, AlignJustify,
-  Menu, ChevronLeft, ExternalLink, Zap, CalendarClock
+  Menu, ChevronLeft, ExternalLink, Zap, CalendarClock, Minus
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
@@ -1161,6 +1161,9 @@ function FullStudioInner() {
   const paperWidth = 1344;
   const customMinPaperHeight = 2112;
 
+  // Visual Canvas Viewport Scale (Default 80% to fit screen cleanly on standard displays)
+  const [canvasZoom, setCanvasZoom] = useState<number>(0.8);
+
   // Interactive Free Drag-Move & Resize State
   const [dragState, setDragState] = useState<{
     mode: 'move' | 'resize-w' | 'resize-h' | 'resize-corner' | 'drag-card-img' | 'resize-img-corner' | 'resize-img-w' | 'resize-img-h';
@@ -1712,8 +1715,8 @@ function FullStudioInner() {
     const handleMouseMove = (e: MouseEvent) => {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        const deltaX = e.clientX - dragState.startMouseX;
-        const deltaY = e.clientY - dragState.startMouseY;
+        const deltaX = (e.clientX - dragState.startMouseX) / (canvasZoom || 1);
+        const deltaY = (e.clientY - dragState.startMouseY) / (canvasZoom || 1);
 
         setPages(prevPages => prevPages.map(pg => {
           if (!pg.slots.some(s => s.id === dragState.slotId)) return pg;
@@ -1867,7 +1870,7 @@ function FullStudioInner() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, activePageId, activeSlotId]);
+  }, [dragState, activePageId, activeSlotId, canvasZoom]);
 
   // KEYBOARD ARROW CONTROLS FOR PIXEL-PERFECT SMOOTH MOVEMENT (LEFT, RIGHT, UP, DOWN)
   useEffect(() => {
@@ -2755,9 +2758,59 @@ function FullStudioInner() {
 
           {/* FIXED SOLID STATUS & ACTION CONTROL BAR (Fixed above canvas, NEVER overlaps content) */}
           <div className="bg-white border-b border-slate-300/80 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20 shadow-xs">
-            <div className="flex items-center space-x-2 text-xs font-mono text-slate-700 font-bold uppercase">
-              <Newspaper className="w-4 h-4 text-red-600 animate-pulse" />
-              <span>CANVAS (14" x 22" • ~35cm x 56cm • {paperWidth}px x {FIXED_BROADSHEET_HEIGHT}px)</span>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 text-xs font-mono text-slate-700 font-bold uppercase">
+                <Newspaper className="w-4 h-4 text-red-600 animate-pulse" />
+                <span>CANVAS ({paperWidth}px x {FIXED_BROADSHEET_HEIGHT}px)</span>
+              </div>
+
+              {/* Canvas Viewport Zoom Controls */}
+              <div className="flex items-center bg-white border border-slate-300 rounded-lg p-0.5 shadow-xs text-xs font-bold text-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom(z => Math.max(0.5, Math.round((z - 0.05) * 100) / 100))}
+                  className="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="px-1.5 font-mono text-[11px] text-slate-900 min-w-[38px] text-center font-bold">
+                  {Math.round(canvasZoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom(z => Math.min(1.5, Math.round((z + 0.05) * 100) / 100))}
+                  className="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                  title="Zoom In"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <div className="h-3.5 w-px bg-slate-200 mx-1" />
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom(0.8)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    Math.round(canvasZoom * 100) === 80
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'hover:bg-slate-100 text-slate-600'
+                  }`}
+                  title="80% Fit (Default Screen Fit)"
+                >
+                  80% Fit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom(1.0)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    Math.round(canvasZoom * 100) === 100
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'hover:bg-slate-100 text-slate-600'
+                  }`}
+                  title="100% Print Size"
+                >
+                  100%
+                </button>
+              </div>
             </div>
             <div className="flex items-center space-x-3">
               {/* 🎨 Header Settings Button */}
@@ -2818,18 +2871,33 @@ function FullStudioInner() {
           <div className="flex-1 bg-[#eaeff5] p-6 overflow-x-auto overflow-y-auto min-h-0 select-none no-scrollbar relative">
             <div className="min-w-full w-max flex flex-col items-center min-h-full">
 
-              {/* THE REAL PRINT BROADSHEET SHEET CANVAS (Absolute Positioned Container) */}
+              {/* Scaled Canvas Container: defines actual layout footprint according to canvasZoom */}
               <div
                 style={{
-                  width: `${paperWidth}px`,
-                  minWidth: `${paperWidth}px`,
-                  maxWidth: `${paperWidth}px`,
-                  height: `${FIXED_BROADSHEET_HEIGHT}px`,
-                  minHeight: `${FIXED_BROADSHEET_HEIGHT}px`,
-                  maxHeight: `${FIXED_BROADSHEET_HEIGHT}px`
+                  width: `${Math.round(paperWidth * canvasZoom)}px`,
+                  minWidth: `${Math.round(paperWidth * canvasZoom)}px`,
+                  maxWidth: `${Math.round(paperWidth * canvasZoom)}px`,
+                  height: `${Math.round(FIXED_BROADSHEET_HEIGHT * canvasZoom)}px`,
+                  minHeight: `${Math.round(FIXED_BROADSHEET_HEIGHT * canvasZoom)}px`,
+                  position: 'relative',
+                  marginBottom: '5rem',
+                  flexShrink: 0
                 }}
-                className="bg-white text-slate-950 border border-slate-300/80 shadow-2xl ring-1 ring-slate-900/5 pt-2.5 px-6 sm:px-10 pb-10 font-serif rounded-sm relative mb-20 shrink-0 overflow-hidden"
               >
+                {/* THE REAL PRINT BROADSHEET SHEET CANVAS (Absolute Positioned Container) */}
+                <div
+                  style={{
+                    width: `${paperWidth}px`,
+                    minWidth: `${paperWidth}px`,
+                    maxWidth: `${paperWidth}px`,
+                    height: `${FIXED_BROADSHEET_HEIGHT}px`,
+                    minHeight: `${FIXED_BROADSHEET_HEIGHT}px`,
+                    maxHeight: `${FIXED_BROADSHEET_HEIGHT}px`,
+                    transform: `scale(${canvasZoom})`,
+                    transformOrigin: 'top left'
+                  }}
+                  className="bg-white text-slate-950 border border-slate-300/80 shadow-2xl ring-1 ring-slate-900/5 pt-2.5 px-6 sm:px-10 pb-10 font-serif rounded-sm relative overflow-hidden"
+                >
 
                 {/* DYNAMIC BROADSHEET HEADER (Page 1 Grand Masthead OR Page 2+ Sleek Section Header with customizable text, colors, font size, border & margin) */}
                 <BroadsheetHeader
@@ -3462,6 +3530,7 @@ function FullStudioInner() {
                 </div>
 
               </div>
+            </div>
             </div>
           </div>
         </div>
