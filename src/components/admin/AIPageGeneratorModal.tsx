@@ -28,11 +28,12 @@ interface AIPageGeneratorModalProps {
 }
 
 const SAMPLE_PROMPTS = [
-  'पटना और बिहार के प्रमुख प्रशासनिक व विकास कार्य 4 slots',
-  'आज की राष्ट्रीय राजनीति और संसद की बड़ी खबरें 5 slots',
-  'क्रीड़ा जगत: राष्ट्रीय व अंतरराष्ट्रीय खेल समाचार 4 slots',
-  'अर्थव्यवस्था, शेयर बाजार और व्यापार जगत की हलचल 4 slots',
-  'विश्व पटल की प्रमुख कूटनीतिक और वैश्विक हलचल 5 slots'
+  'top breaking news in india with 10 slots',
+  'national politics and parliament session 5 slots',
+  'patna and bihar governance and development 4 slots',
+  'sports arena: cricket and football highlights 4 slots',
+  'economy, stock market and business updates 4 slots',
+  'world news and global diplomacy 5 slots'
 ];
 
 function cleanDateline(str: string): string {
@@ -57,7 +58,7 @@ export default function AIPageGeneratorModal({
   date: initialDate,
   onApplySlots
 }: AIPageGeneratorModalProps) {
-  // Start with clean empty input - NEVER pre-fill hardcoded cricket prompt
+  // Clean empty input - strictly user-driven
   const [userPrompt, setUserPrompt] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || new Date().toISOString().split('T')[0]);
   const [applyMode, setApplyMode] = useState<'replace' | 'append'>('replace');
@@ -106,7 +107,7 @@ export default function AIPageGeneratorModal({
 
     let count = 6;
     const slotMatch = text.match(/(\d{1,2})\s*(?:slots?|स्लॉट्स?|स्लॉट)/i) || 
-                      text.match(/(?:^|\s)(\d{1,2})\s*(?:news|खबरें|कहानियां)/i) ||
+                      text.match(/(?:^|\s)(\d{1,2})\s*(?:news|खबरें|कहानियां|stories)/i) ||
                       text.match(/\btop\s*(\d{1,2})\b/i);
     if (slotMatch) {
       const p = parseInt(slotMatch[1], 10);
@@ -136,25 +137,27 @@ export default function AIPageGeneratorModal({
     }
 
     let clean = text
-      .replace(/\b(?:with|for|in|me|mein|pe|par|ke liye)\s*(?=\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां)\b)/gi, '')
-      .replace(/\b\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां)\b/gi, '')
-      .replace(/\btop\s*\d{1,2}\b/gi, '')
-      .replace(/(?:se related|se judi|se jurhi|se sambandhit)/gi, '')
-      .replace(/(?:iss page me|page me|page par|page pe)/gi, '')
-      .replace(/\b(?:k\s+jo\s+sabse|jo\s+sabse|sabse\s+top|wo\s+bas|\bwo\b|\bbas\b|\bsirf\b)\b/gi, '')
-      .replace(/(?:add karo|add kro|kro|bhai|samjhe|bana do|banao|lagao|dalo|likho|chahiye|set karo|karo)/gi, '')
-      .replace(/(?:aaj ki|aaj ke|aaj ka|today|kal ki|yesterday)/gi, '')
-      .replace(/\b(20\d\d)[-\/](0?[1-9]|1[0-2])[-\/](0?[1-9]|[12]\d|3[01])\b/gi, '')
-      .replace(/(?:bada lekh|in depth|vishesh|deep)/gi, '')
+      .replace(/\[(?:MANDATORY|LAYOUT|DIRECTIVE)[^\]]*\]/gi, ' ')
+      .replace(/\b(?:with|for|in|me|mein|pe|par|ke\s*liye)\s*(?=\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां)\b)/gi, ' ')
+      .replace(/\b(?:add|insert|create|generate|put|write|chahiye|lao|bana|banao|dalo|lagao|karo|kro|likho)\b/gi, ' ')
+      .replace(/\b\d{1,2}\s*(?:slots?|स्लॉट्स?|स्लॉट|news|खबरें|कहानियां|stories)\b/gi, ' ')
+      .replace(/\btop\s*\d{1,2}\b/gi, ' ')
+      .replace(/\b(?:se\s*related|se\s*judi|se\s*jurhi|se\s*sambandhit)\b/gi, ' ')
+      .replace(/\b(?:iss\s*page\s*me|page\s*me|page\s*par|page\s*pe)\b/gi, ' ')
+      .replace(/\b(?:k\s+jo\s+sabse|jo\s+sabse|sabse\s+top|wo\s+bas|\bwo\b|\bbas\b|\bsirf\b)\b/gi, ' ')
+      .replace(/\b(?:bhai|samjhe|please|plz)\b/gi, ' ')
+      .replace(/\b(?:aaj\s*ki|aaj\s*ke|aaj\s*ka|today|kal\s*ki|yesterday)\b/gi, ' ')
+      .replace(/\b(?:bada\s*lekh|in\s*depth|vishesh|deep)\b/gi, ' ')
       .replace(/\b(?:me|pe|par|ki|ka|ke|ko|aur|ya|and|or|with|for|hai|h|hain)\b/gi, ' ')
+      .replace(/[.,;!?]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    clean = clean.replace(/\b(?:with|for|me|mein|pe|par|ke liye)\s*$/gi, '').trim();
+    clean = clean.replace(/\b(?:with|for|me|mein|pe|par|ke\s*liye)\s*$/gi, '').trim();
 
-    let displayTopic = clean || text || 'आज की प्रमुख खबरें';
+    let displayTopic = clean || text || 'Top Headlines';
     if (/^(?:top\s*)?breaking\s*news(?:\s*in\s*india)?$/i.test(clean)) {
-      displayTopic = 'भारत की टॉप ब्रेकिंग न्यूज़';
+      displayTopic = 'Top Breaking News in India';
     }
 
     return {
@@ -168,10 +171,10 @@ export default function AIPageGeneratorModal({
 
   if (!isOpen) return null;
 
-  // Explicit Generation trigger ONLY upon explicit button click
+  // Explicit Generation trigger ONLY upon button click
   const handleGenerate = async () => {
     if (!userPrompt.trim()) {
-      setErrorMsg('कृपया कोई विषय या निर्देश दर्ज करें (उदा. "पटना की आज की खबरें 4 slots")');
+      setErrorMsg('Please enter a topic or page instruction (e.g., "top breaking news in india with 10 slots")');
       return;
     }
 
@@ -187,7 +190,7 @@ export default function AIPageGeneratorModal({
       const result = await autoGenerateEpaperPage({
         prompt: userPrompt.trim(),
         pageNumber,
-        editionCity: editionCity || 'पटना',
+        editionCity: editionCity || 'Patna',
         slotCount: liveParsed.slots,
         date: liveParsed.date || selectedDate,
         apiKey: apiKey || undefined
@@ -213,12 +216,12 @@ export default function AIPageGeneratorModal({
           realtimeSourceCount: result.realtimeSourceCount || result.slots.length
         });
       } else {
-        throw new Error('सर्वर से स्लॉट्स डेटा प्राप्त नहीं हुआ। कृपया पुनः प्रयास करें।');
+        throw new Error('No slots returned from news engine. Please try another prompt.');
       }
     } catch (err: any) {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
-      setErrorMsg(err.message || 'पेज जनरेट करने में त्रुटि आई। कृपया पुनः प्रयास करें।');
+      setErrorMsg(err.message || 'Error generating broadsheet page. Please retry.');
     } finally {
       setIsLoading(false);
     }
@@ -267,15 +270,15 @@ export default function AIPageGeneratorModal({
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  <span>लाइव संस्करण</span>
+                  <span>Live Edition</span>
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-sans mt-0.5 flex items-center space-x-2">
-                <span>पेज {pageNumber} ({editionCity} संस्करण)</span>
+                <span>Page {pageNumber} ({editionCity} Edition)</span>
                 <span>•</span>
                 <span className="text-amber-300 font-semibold flex items-center space-x-1">
                   <Calendar className="w-3 h-3 inline" />
-                  <span>संस्करण दिनांक: {liveParsed.date}</span>
+                  <span>Edition Date: {liveParsed.date}</span>
                 </span>
               </p>
             </div>
@@ -300,7 +303,7 @@ export default function AIPageGeneratorModal({
           </div>
         </div>
 
-        {/* API KEY SETTINGS POPOVER (IF TOGGLED) */}
+        {/* API KEY SETTINGS POPOVER */}
         {showSettings && (
           <div className="bg-slate-50 border-b border-slate-200 px-6 py-3 shrink-0 flex items-center justify-between">
             <div className="flex items-center space-x-2 flex-1 max-w-lg">
@@ -314,7 +317,7 @@ export default function AIPageGeneratorModal({
               />
             </div>
             <p className="text-[11px] text-slate-500 ml-4 hidden sm:block">
-              डिफ़ॉल्ट रूप से सर्वर में एक्टिव AI इंजन का उपयोग होगा।
+              Default active AI engine configured in Server Settings will be used.
             </p>
           </div>
         )}
@@ -327,11 +330,11 @@ export default function AIPageGeneratorModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center space-x-1.5 font-sans">
-                  <span>पेज निर्देश दर्ज करें (Topic, Slots, Date):</span>
+                  <span>Enter Page Instructions (Topic, Slots, Date):</span>
                 </label>
                 <div className="flex items-center space-x-1.5 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
                   <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-[11px] font-bold">दिनांक:</span>
+                  <span className="text-[11px] font-bold">Date:</span>
                   <input
                     type="date"
                     value={selectedDate}
@@ -347,7 +350,7 @@ export default function AIPageGeneratorModal({
                   rows={3}
                   value={userPrompt}
                   onChange={e => setUserPrompt(e.target.value)}
-                  placeholder="उदा: पटना और बिहार के विकास कार्य 4 slots&#10;या: आज की राष्ट्रीय राजनीति और संसद सत्र 5 slots&#10;या: क्रीड़ा जगत के मुख्य मुकाबले 4 slots... (अपनी भाषा में लिखें)"
+                  placeholder="e.g.: top breaking news in india with 10 slots&#10;or: bihar politics and state assembly session 5 slots&#10;or: cricket world cup & sports round-up 4 slots... (Write in your own words)"
                   className="w-full text-sm font-sans text-slate-900 bg-slate-50 border-2 border-slate-300 focus:border-red-600 focus:bg-white rounded-xl p-3.5 focus:outline-none transition-all shadow-inner leading-relaxed resize-none"
                 />
               </div>
@@ -355,24 +358,24 @@ export default function AIPageGeneratorModal({
               {/* LIVE INTEL BADGES */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <div className="flex items-center space-x-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
-                  <span className="font-bold text-blue-700">विषय (Topic):</span>
+                  <span className="font-bold text-blue-700">Topic:</span>
                   <span className="font-semibold text-blue-950">
-                    "{liveParsed.hasPrompt ? liveParsed.topic : 'निर्देश लिखें...'}"
+                    "{liveParsed.hasPrompt ? liveParsed.topic : 'Write instruction...'}"
                   </span>
                 </div>
 
                 <div className="flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900">
                   <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                  <span className="font-bold text-emerald-700">संस्करण दिनांक:</span>
+                  <span className="font-bold text-emerald-700">Edition Date:</span>
                   <span className="font-bold text-emerald-950">{liveParsed.date}</span>
                 </div>
 
                 <div className="flex items-center space-x-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
-                  <span className="font-bold text-amber-700">स्लॉट विभाजन:</span>
-                  <span className="font-extrabold text-amber-950">{liveParsed.slots} स्लॉट्स</span>
+                  <span className="font-bold text-amber-700">Layout:</span>
+                  <span className="font-extrabold text-amber-950">{liveParsed.slots} Slots</span>
                   {liveParsed.isLongForm && (
                     <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 bg-amber-600 text-white rounded">
-                      विस्तृत लीड संपादकीय (800+ शब्द)
+                      Long-form Feature Editorial (800+ words)
                     </span>
                   )}
                 </div>
@@ -381,7 +384,7 @@ export default function AIPageGeneratorModal({
               {/* QUICK CLICK INSPIRATION CHIPS */}
               <div className="pt-2">
                 <span className="text-[11px] font-bold text-slate-400 block mb-1.5 uppercase tracking-wider">
-                  त्वरित सुझाव (क्लिक करके चुनें):
+                  Quick Suggestions (Click to test):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {SAMPLE_PROMPTS.map((sample, i) => (
@@ -409,13 +412,13 @@ export default function AIPageGeneratorModal({
 
               <div className="space-y-1">
                 <h3 className="font-bold text-base text-slate-900 font-serif">
-                  {loadingStep === 1 && `दिनांक ${liveParsed.date} के प्रामाणिक समाचार स्रोतों से कनेक्ट हो रहे हैं...`}
-                  {loadingStep === 2 && `"${liveParsed.topic}" के प्रमुख तथ्यों का संपादकीय सत्यापन...`}
-                  {loadingStep === 3 && `${liveParsed.slots} स्लॉट्स के लिए ब्रॉडशीट कॉलम ज्यामिति व शब्द-सीमा तय हो रही है...`}
-                  {loadingStep >= 4 && 'अखबार लेआउट पूर्ण हो रहा है...'}
+                  {loadingStep === 1 && `Connecting to verified real-time news sources for ${liveParsed.date}...`}
+                  {loadingStep === 2 && `Fact-checking and verifying headlines for "${liveParsed.topic}"...`}
+                  {loadingStep === 3 && `Calculating broadsheet column geometry & word limits for ${liveParsed.slots} slots...`}
+                  {loadingStep >= 4 && 'Typesetting newspaper broadsheet page...'}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Live News Wires + Multi-Source Editorial Desk (संस्करण दिनांक: {liveParsed.date})
+                  Live News Wires + Multi-Source Editorial Desk (Edition Date: {liveParsed.date})
                 </p>
               </div>
 
@@ -440,7 +443,7 @@ export default function AIPageGeneratorModal({
               <div className="flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
                 <div className="text-xs">
-                  <div className="font-bold text-rose-950">जनरेशन में समस्या आई (Generation Notice)</div>
+                  <div className="font-bold text-rose-950">Generation Notice</div>
                   <div className="text-rose-700 mt-0.5">{errorMsg}</div>
                 </div>
               </div>
@@ -451,7 +454,7 @@ export default function AIPageGeneratorModal({
                 className="self-end sm:self-center px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shrink-0 flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>पुनः प्रयास करें (Retry)</span>
+                <span>Retry</span>
               </button>
             </div>
           )}
@@ -464,10 +467,10 @@ export default function AIPageGeneratorModal({
                   <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                   <div>
                     <h4 className="font-bold text-sm text-emerald-950 font-sans">
-                      🎉 "{generatedData.topic}" के {generatedData.slots.length} स्लॉट्स सफलतापूर्वक तैयार!
+                      Ready: "{generatedData.topic}" ({generatedData.slots.length} Slots Prepared)
                     </h4>
                     <p className="text-xs text-emerald-700">
-                      संस्करण: <b>{generatedData.formattedDateHindi || generatedData.date}</b> • इंजन: {generatedData.generatedWith}
+                      Edition Date: <b>{generatedData.date}</b> • Engine: {generatedData.generatedWith}
                     </p>
                   </div>
                 </div>
@@ -476,18 +479,18 @@ export default function AIPageGeneratorModal({
                     type="button"
                     onClick={() => setGeneratedData(null)}
                     className="px-3 py-1.5 text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg shadow-xs flex items-center space-x-1.5 cursor-pointer"
-                    title="प्रॉम्प्ट में बदलाव करें"
+                    title="Change prompt and regenerate"
                   >
-                    <span>✏️ प्रॉम्प्ट बदलें</span>
+                    <span>✏️ Change Prompt</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleGenerate}
                     className="px-3 py-1.5 text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg shadow-xs flex items-center space-x-1.5 cursor-pointer"
-                    title="इसी प्रॉम्प्ट से पुनः जनरेट करें"
+                    title="Regenerate with current prompt"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>पुनः जनरेट करें</span>
+                    <span>Regenerate</span>
                   </button>
                 </div>
               </div>
@@ -496,10 +499,10 @@ export default function AIPageGeneratorModal({
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                 <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                    तैयार स्लॉट्स का पूर्वावलोकन ({generatedData.slots.length} स्लॉट्स • {generatedData.date})
+                    Prepared Slots Preview ({generatedData.slots.length} Slots • {generatedData.date})
                   </span>
                   <span className="text-xs text-slate-500 font-mono">
-                    कैन्वस: 1344px × 2112px
+                    Canvas: 1344px × 2112px
                   </span>
                 </div>
 
@@ -516,7 +519,7 @@ export default function AIPageGeneratorModal({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center space-x-2">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700 shrink-0">
-                              {slot.categoryBadge || 'समाचार'}
+                              {slot.categoryBadge || 'News'}
                             </span>
                             <span className="text-xs font-bold text-slate-900 truncate">
                               {slot.headline}
@@ -530,7 +533,7 @@ export default function AIPageGeneratorModal({
 
                       <div className="text-right text-[11px] text-slate-500 font-mono shrink-0">
                         <div>{slot.width}×{slot.height}px</div>
-                        <div className="text-slate-400">{slot.columnsCount} कॉलम</div>
+                        <div className="text-slate-400">{slot.columnsCount} Col{slot.columnsCount && slot.columnsCount > 1 ? 's' : ''}</div>
                       </div>
                     </div>
                   ))}
@@ -539,7 +542,7 @@ export default function AIPageGeneratorModal({
 
               {/* APPLY MODE RADIO */}
               <div className="p-3.5 bg-slate-100 rounded-xl flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">पेज पर लागू करने का तरीका:</span>
+                <span className="text-xs font-bold text-slate-700">Apply to Newspaper Page:</span>
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center space-x-1.5 text-xs text-slate-800 cursor-pointer font-medium">
                     <input
@@ -550,7 +553,7 @@ export default function AIPageGeneratorModal({
                       onChange={() => setApplyMode('replace')}
                       className="text-red-600 focus:ring-red-500"
                     />
-                    <span>पेज के सभी स्लॉट रिप्लेस करें (अनुशंसित)</span>
+                    <span>Replace all slots (Recommended)</span>
                   </label>
                   <label className="flex items-center space-x-1.5 text-xs text-slate-800 cursor-pointer font-medium">
                     <input
@@ -561,7 +564,7 @@ export default function AIPageGeneratorModal({
                       onChange={() => setApplyMode('append')}
                       className="text-red-600 focus:ring-red-500"
                     />
-                    <span>मौजूदा स्लॉट्स के साथ जोड़ें</span>
+                    <span>Append to existing slots</span>
                   </label>
                 </div>
               </div>
@@ -569,7 +572,7 @@ export default function AIPageGeneratorModal({
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs flex items-center space-x-2">
                 <Zap className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>
-                  <b>पूर्ण संपादकीय नियंत्रण:</b> कैन्वस पर आने के बाद आप किसी भी स्लॉट को ड्रैग (Move), रीसाइज, अथवा टेक्स्ट और फोटो को कभी भी स्वतंत्र रूप से संपादित कर सकते हैं।
+                  <b>Full Editorial Control:</b> Once applied, you can freely move, resize, edit headlines, photos, and body copy on the broadsheet canvas.
                 </span>
               </div>
             </div>
@@ -584,7 +587,7 @@ export default function AIPageGeneratorModal({
             onClick={onClose}
             className="px-4 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
           >
-            रद्द करें (Cancel)
+            Cancel
           </button>
 
           {!generatedData ? (
@@ -597,10 +600,10 @@ export default function AIPageGeneratorModal({
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>
                 {isLoading
-                  ? 'पेज तैयार हो रहा है (Generating...)'
+                  ? 'Generating Page...'
                   : userPrompt.trim()
-                    ? `⚡ "${liveParsed.topic}" का ${liveParsed.slots} स्लॉट पेज बनाएँ (${liveParsed.date})`
-                    : '⚡ निर्देश दर्ज करें और पेज बनाएँ (Generate Page)'}
+                    ? `⚡ Generate ${liveParsed.slots}-Slot Broadsheet Page (${liveParsed.date})`
+                    : '⚡ Enter Instructions & Generate Page'}
               </span>
             </button>
           ) : (
@@ -610,7 +613,7 @@ export default function AIPageGeneratorModal({
               className="px-6 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-600/30 flex items-center space-x-2 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>अखबार कैन्वस पर लागू करें (Apply to Page)</span>
+              <span>Apply to Newspaper Canvas</span>
             </button>
           )}
         </div>
