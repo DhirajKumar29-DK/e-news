@@ -71,6 +71,7 @@ interface EPaperPageData {
   id: string;
   pageNumber: number;
   title: string;
+  sectionTitle?: string;
   templateKey: string;
   slots: EPaperSlotData[];
   headerConfig?: EPaperHeaderConfig;
@@ -896,6 +897,8 @@ function FullStudioInner() {
               id: p.id || `page-${p.pageNumber}`,
               pageNumber: p.pageNumber,
               title: p.title || `Page ${p.pageNumber}`,
+              sectionTitle: p.sectionTitle || p.title || `Page ${p.pageNumber}`,
+              headerConfig: p.headerConfig,
               templateKey: p.templateKey || 'layout_1',
               slots: (p.slots || []).map((s: any, idx: number) => ({
                 id: s.id || `slot-${p.pageNumber}-${s.slotIndex || (idx + 1)}`,

@@ -207,7 +207,7 @@ export function formatHindiDateParts(dateStr?: string): { day: string; date: str
 }
 
 export function getEffectiveHeaderConfig(
-  page: { pageNumber?: number; headerConfig?: EPaperHeaderConfig },
+  page: { pageNumber?: number; title?: string; sectionTitle?: string; headerConfig?: EPaperHeaderConfig },
   editionCity?: string,
   dateStr?: string
 ): HeaderMetrics {
@@ -265,8 +265,13 @@ export function getEffectiveHeaderConfig(
     };
   }
 
-  // OPTION 2: CUSTOM SECTION HEADER (TYPE YOURSELF IN HINDI OR ENGLISH)
-  // Grand Masthead is NOT shown here at all. User types whatever section title they want.
+  // OPTION 2: CUSTOM SECTION HEADER (FOLIO BAR / SECTION HEADER)
+  // Check if page has an authentic title/sectionTitle from Blueprint or Canvas Editor:
+  const rawPageTitle = page?.sectionTitle || page?.title || '';
+  const cleanPageTitle = (rawPageTitle && !/^page\s*\d+$/i.test(rawPageTitle) && rawPageTitle !== 'Lead Cover')
+    ? rawPageTitle.replace(/\s*\([^)]*\)/g, '').trim()
+    : '';
+
   let autoPrefix = 'अपना';
   let autoMain = defaultCity;
 
@@ -287,13 +292,19 @@ export function getEffectiveHeaderConfig(
     autoMain = 'संपादकीय';
   }
 
-  // Unified single Title handling (English or Hindi typed directly by user)
-  let rawTitle = (cfg.title !== undefined && cfg.title !== null) ? String(cfg.title).trim() : '';
+  // Unified single Title handling (Prioritize Explicit Header Title -> Blueprint Page Title -> Template Fallback)
+  let rawTitle = (cfg.title !== undefined && cfg.title !== null && String(cfg.title).trim() !== '') 
+    ? String(cfg.title).trim() 
+    : '';
+
   if (!rawTitle) {
     if (cfg.titlePrefix && cfg.titleMain) {
       rawTitle = `${cfg.titlePrefix} ${cfg.titleMain}`.trim();
     } else if (cfg.titleMain) {
       rawTitle = cfg.titleMain.trim();
+    } else if (cleanPageTitle) {
+      // Prioritize the page title configured by Admin in Blueprint!
+      rawTitle = cleanPageTitle;
     } else {
       rawTitle = autoPrefix ? `${autoPrefix} ${autoMain}` : autoMain;
     }
