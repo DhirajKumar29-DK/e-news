@@ -52,7 +52,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#1e293b',
       pageBadgeColor: '#ffffff'
     }
@@ -74,7 +74,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#1e3a8a',
       pageBadgeColor: '#ffffff'
     }
@@ -96,7 +96,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#0f172a',
       pageBadgeColor: '#ffffff'
     }
@@ -118,7 +118,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#065f46',
       pageBadgeColor: '#ffffff'
     }
@@ -140,7 +140,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#78350f',
       pageBadgeColor: '#ffffff'
     }
@@ -162,7 +162,7 @@ export const HEADER_PRESETS = [
       borderWidth: 2.5,
       borderStyle: 'single' as const,
       height: 56,
-      bottomMargin: 18,
+      bottomMargin: 2,
       pageBadgeBg: '#581c87',
       pageBadgeColor: '#ffffff'
     }
@@ -184,7 +184,7 @@ export const HEADER_PRESETS = [
       borderWidth: 3.5,
       borderStyle: 'double' as const,
       height: 168,
-      bottomMargin: 20,
+      bottomMargin: 2,
       pageBadgeBg: '#1e293b',
       pageBadgeColor: '#ffffff'
     }
@@ -229,7 +229,7 @@ export function getEffectiveHeaderConfig(
   // Supports dynamic theme color, height, border, and bottom margin.
   if (isMasthead) {
     const height = Number(cfg.height) && Number(cfg.height) >= 120 ? Number(cfg.height) : 168;
-    const bottomMargin = Number(cfg.bottomMargin) && Number(cfg.bottomMargin) >= 8 ? Number(cfg.bottomMargin) : 20;
+    const bottomMargin = Number(cfg.bottomMargin) !== undefined && Number(cfg.bottomMargin) <= 4 ? Number(cfg.bottomMargin) : 2;
     const themeColor = cfg.titleColorMain || cfg.titleColor || '#c51c24';
     const borderColor = cfg.borderColor || '#0f172a';
     const borderWidth = Number(cfg.borderWidth) || 3.5;
@@ -252,7 +252,7 @@ export function getEffectiveHeaderConfig(
       borderStyle,
       height,
       bottomMargin,
-      totalTopOffset: height + bottomMargin,
+      totalTopOffset: 184,
       cityText: cfg.cityText || defaultCity,
       dayText: cfg.dayText || dateParts.day,
       dateText: cfg.dateText || dateParts.date,
@@ -325,8 +325,8 @@ export function getEffectiveHeaderConfig(
   }
 
   const height = Number(cfg.height) || 56;
-  const bottomMargin = Number(cfg.bottomMargin) || 18;
-  const totalTopOffset = height + bottomMargin;
+  const bottomMargin = Number(cfg.bottomMargin) !== undefined && Number(cfg.bottomMargin) <= 4 ? Number(cfg.bottomMargin) : 2;
+  const totalTopOffset = 72;
 
   return {
     mode: 'custom',
