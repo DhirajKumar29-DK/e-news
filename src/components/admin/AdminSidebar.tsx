@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone,
-  ClipboardCheck, Users, Bot
+  ClipboardCheck, Users, Bot, CalendarClock
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
@@ -35,6 +35,7 @@ export const AdminSidebar: React.FC = () => {
     { label: 'Ad Studio', href: '/admin/ads', icon: Megaphone },
     { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles },
     { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper },
+    { label: 'E-Paper Scheduler', href: '/admin/epaper/automation', icon: CalendarClock },
     { label: 'AI Settings & Agent', href: '/admin/ai-settings', icon: Bot },
   ];
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { apiRequest } from '@/services/api';
@@ -15,7 +16,7 @@ import {
   Move, ArrowUpLeft, Move3D, RotateCcw,
   Edit3, Bold, Italic, Underline, Highlighter, Palette, Type, Eraser,
   Columns, AlignJustify,
-  Menu, ChevronLeft, ExternalLink, Zap
+  Menu, ChevronLeft, ExternalLink, Zap, CalendarClock
 } from 'lucide-react';
 
 import { AIAgentDrawer, ParsedNewsPayload } from '@/components/admin/AIAgentDrawer';
@@ -2766,7 +2767,16 @@ function FullStudioInner() {
                 <Palette className="w-3.5 h-3.5 text-amber-400" />
                 <span>🎨 Header Settings</span>
               </button>
-                            {/* ⚡ AI Broadsheet Auto-Page Generator */}
+                            {/* ⏰ AI E-Paper Scheduler & Automation Settings Link */}
+              <Link
+                href="/admin/epaper/automation"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer bg-slate-900 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700 shadow-xs"
+                title="AI Automatic Newspaper Scheduler & Blueprint Settings"
+              >
+                <CalendarClock className="w-3.5 h-3.5 text-amber-400" />
+                <span>⏰ AI शेड्यूलर</span>
+              </Link>
+              {/* ⚡ AI Broadsheet Auto-Page Generator */}
               <button
                 type="button"
                 onClick={() => setIsAiPageGeneratorOpen(true)}

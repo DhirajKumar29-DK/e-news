@@ -27,6 +27,10 @@ export const ENDPOINTS = {
     aiAgent: '/epaper/ai-agent',
     autoGeneratePage: '/epaper/admin/auto-generate-page',
     tts: (text: string) => `/epaper/tts?text=${encodeURIComponent(text)}`,
+    automationConfig: (editionSlug: string) => `/epaper/admin/automation-config?edition=${editionSlug}`,
+    updateAutomationConfig: '/epaper/admin/automation-config',
+    automationHistory: (editionSlug: string, limit = 15) => `/epaper/admin/automation-history?edition=${editionSlug}&limit=${limit}`,
+    automationTrigger: '/epaper/admin/automation-trigger',
   },
 
   aiSettings: {
