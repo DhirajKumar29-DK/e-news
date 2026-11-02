@@ -30,6 +30,7 @@ export const ENDPOINTS = {
     automationConfig: (editionSlug: string) => `/epaper/admin/automation-config?edition=${editionSlug}`,
     updateAutomationConfig: '/epaper/admin/automation-config',
     automationHistory: (editionSlug: string, limit = 15) => `/epaper/admin/automation-history?edition=${editionSlug}&limit=${limit}`,
+    deleteAutomationHistory: (id: string | number, deleteIssue = true) => `/epaper/admin/automation-history/${id}?deleteIssue=${deleteIssue}`,
     automationTrigger: '/epaper/admin/automation-trigger',
   },
 

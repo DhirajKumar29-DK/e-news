@@ -28,7 +28,7 @@ export interface AutomationConfig {
 }
 
 export interface ScheduleJobLog {
-  id: number;
+  id: string | number;
   configId?: number;
   editionSlug: string;
   targetDate: string;
@@ -133,6 +133,23 @@ export const epaperAutomationService = {
   /**
    * Manually trigger full edition generation
    */
+  /**
+   * Delete a job execution log (and optionally clear draft issue)
+   */
+  async deleteHistory(id: string | number, deleteIssue: boolean = true): Promise<any> {
+    const endpoint = ENDPOINTS.epaper.deleteAutomationHistory(id, deleteIssue);
+    const url = getCleanUrl(`${API_BASE_URL}${endpoint}`);
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to delete automation job log');
+    }
+    return json.data;
+  },
+
   async triggerGeneration(editionSlug: string = 'patna-main', targetDate?: string): Promise<any> {
     const endpoint = ENDPOINTS.epaper.automationTrigger;
     const url = getCleanUrl(`${API_BASE_URL}${endpoint}`);

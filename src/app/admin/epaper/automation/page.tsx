@@ -165,6 +165,24 @@ function AutomationDashboardContent() {
     }
   };
 
+    const [deletingJobId, setDeletingJobId] = useState<string | number | null>(null);
+
+  const handleDeleteJob = async (jobId: string | number, targetDate: string) => {
+    if (!window.confirm(`Kya aap is run (${targetDate}) ko delete karna chahte hain? Isse iska draft issue bhi clear ho jayega taaki aap fresh test kar sakein.`)) {
+      return;
+    }
+    setDeletingJobId(jobId);
+    try {
+      await epaperAutomationService.deleteHistory(jobId, true);
+      setHistory(prev => prev.filter(j => j.id !== jobId));
+      setFeedback({ type: 'success', message: `Run (${targetDate}) safalta-purvak delete ho gaya!` });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to delete job log' });
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
+
   // Blueprint Helpers
   const handleUpdateBlueprint = (index: number, patch: Partial<PageBlueprint>) => {
     setBlueprints(prev => {
@@ -794,6 +812,16 @@ function AutomationDashboardContent() {
                             <span>Open Canvas</span>
                             <ExternalLink className="w-3 h-3" />
                           </Link>
+                          <button
+                            type="button"
+                            disabled={deletingJobId === job.id}
+                            onClick={() => handleDeleteJob(job.id, job.targetDate)}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:text-white hover:bg-red-600 bg-red-50 border border-red-200 rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                            title="Delete this run and clear draft"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>{deletingJobId === job.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
                         </td>
                       </tr>
                     ))}
