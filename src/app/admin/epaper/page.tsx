@@ -933,7 +933,7 @@ function FullStudioInner() {
             }));
 
             // Set loaded pages directly from DB for this edition & date if it has slots
-            if (dbPages && dbPages.length > 0 && dbPages.some((p: any) => p.slots && p.slots.length > 0)) {
+            if (dbPages && dbPages.length > 0) {
               loadedPages = dbPages;
             }
           }
@@ -960,7 +960,7 @@ function FullStudioInner() {
               const dbTotalSlots = (loadedPages || []).reduce((acc: number, p: any) => acc + (p.slots?.length || 0), 0);
 
               // If DB had 0 slots OR local has more slots than DB, prefer local draft so slots are never lost
-              if (!loadedPages || localTotalSlots > dbTotalSlots) {
+              if (!loadedPages) {
                 loadedPages = localPages;
               }
             }
@@ -2082,17 +2082,23 @@ function FullStudioInner() {
 
   // 4. Delete Specific Slot (Allows removing any slot so page can be made blank)
   const handleDeleteSlotById = (slotId: string) => {
-    setPages(prevPages => prevPages.map(pg => {
-      if (pg.id === activePageId) {
-        const updatedSlots = pg.slots.filter(s => s.id !== slotId).map((s, idx) => ({
-          ...s,
-          slotNumber: idx + 1,
-          slotBadge: `Slot ${idx + 1}`
-        }));
-        return { ...pg, slots: updatedSlots };
-      }
-      return pg;
-    }));
+    let computedPages: EPaperPageData[] = [];
+    setPages(prevPages => {
+      computedPages = prevPages.map(pg => {
+        if (pg.id === activePageId) {
+          const updatedSlots = pg.slots.filter(s => s.id !== slotId).map((s, idx) => ({
+            ...s,
+            slotNumber: idx + 1,
+            slotBadge: `Slot ${idx + 1}`
+          }));
+          return { ...pg, slots: updatedSlots };
+        }
+        return pg;
+      });
+      return computedPages;
+    });
+
+    safeSaveToLocalStorage(storageKey, computedPages);
 
     const remainingSlots = activePage.slots.filter(s => s.id !== slotId);
     if (remainingSlots.length > 0) {
@@ -2100,6 +2106,24 @@ function FullStudioInner() {
     } else {
       setActiveSlotId('');
     }
+
+    // Immediately persist slot deletion to Backend MySQL DB so refresh never resurrects deleted slot!
+    savePagesBulk({
+      issue_id: 0,
+      edition_slug: currentEditionInfo.slug,
+      editionSlug: currentEditionInfo.slug,
+      date: archiveDate,
+      publish_date: archiveDate,
+      pages: (computedPages.length > 0 ? computedPages : pages).map(pg => ({
+        ...pg,
+        clearAllSlots: (pg.id === activePageId && remainingSlots.length === 0) || (pg.slots || []).length === 0,
+        slots: (pg.id === activePageId ? remainingSlots : (pg.slots || [])).map((s, idx) => ({
+          ...s,
+          slotNumber: idx + 1,
+          slotBadge: `Slot ${idx + 1}`
+        }))
+      }))
+    }).catch(err => console.warn('Failed to persist slot deletion to DB:', err));
 
     triggerToast(`Deleted slot from canvas`);
   };
