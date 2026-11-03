@@ -27,6 +27,7 @@ import { getEffectiveHeaderConfig, getPageHeaderMetrics } from '@/utils/epaperHe
 import BroadsheetHeader from '@/components/common/BroadsheetHeader';
 import BroadsheetFooter from '@/components/common/BroadsheetFooter';
 import HeaderSettingsModal from '@/components/admin/HeaderSettingsModal';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 import { getEditorialStoryImage } from '@/utils/editorialPhotos';
 
 export interface EPaperSlotData {
@@ -1129,32 +1130,37 @@ function FullStudioInner() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [pages, currentEditionInfo.slug, archiveDate]);
 
+  const [isResetDraftModalOpen, setIsResetDraftModalOpen] = useState(false);
+
   // Reset Draft back to initial template
   const handleResetDraft = () => {
-    if (confirm(`Are you sure you want to reset "${currentEditionInfo.name}" (${archiveDate}) draft? All custom pages & slots will be reset.`)) {
-      const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
-      try {
-        localStorage.removeItem(storageKey);
-      } catch { }
-      const freshPages: EPaperPageData[] = [
-        {
-          id: 'page-1',
-          pageNumber: 1,
-          title: 'Page 1',
-          templateKey: 'layout_1',
-          slots: []
-        }
-      ];
-      setPages(freshPages);
-      setActivePageId('page-1');
-      setActiveSlotId('');
-      setFormHeadline('');
-      setFormCategory('');
-      setFormSubHeadline('');
-      setFormSummary('');
-      setFormImageUrl('');
-      triggerToast('ड्राफ्ट रीसेट हो गया (Clean Blank Paper)');
-    }
+    setIsResetDraftModalOpen(true);
+  };
+
+  const confirmResetDraft = () => {
+    const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
+    try {
+      localStorage.removeItem(storageKey);
+    } catch { }
+    const freshPages: EPaperPageData[] = [
+      {
+        id: 'page-1',
+        pageNumber: 1,
+        title: 'Page 1',
+        templateKey: 'layout_1',
+        slots: []
+      }
+    ];
+    setPages(freshPages);
+    setActivePageId('page-1');
+    setActiveSlotId('');
+    setFormHeadline('');
+    setFormCategory('');
+    setFormSubHeadline('');
+    setFormSummary('');
+    setFormImageUrl('');
+    setIsResetDraftModalOpen(false);
+    triggerToast('ड्राफ्ट रीसेट हो गया (Clean Blank Paper)');
   };
 
   // Permanent Uniform Standard Real Broadsheet Dimensions (14" x 22" -> 1344px x 2112px • ~35cm x 56cm)
@@ -2098,6 +2104,7 @@ function FullStudioInner() {
       return computedPages;
     });
 
+    const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
     safeSaveToLocalStorage(storageKey, computedPages);
 
     const remainingSlots = activePage.slots.filter(s => s.id !== slotId);

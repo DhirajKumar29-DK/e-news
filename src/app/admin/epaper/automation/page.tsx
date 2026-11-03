@@ -13,6 +13,7 @@ import {
   ScheduleJobLog
 } from '@/services/epaperAutomationService';
 import { fetchAdminEditions } from '@/services/epaperService';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 import {
   CalendarClock, Clock, Sparkles, CheckCircle2, AlertTriangle,
   RefreshCw, Play, Save, Plus, Trash2, ArrowUp, ArrowDown,
@@ -165,21 +166,22 @@ function AutomationDashboardContent() {
     }
   };
 
-    const [deletingJobId, setDeletingJobId] = useState<string | number | null>(null);
+      const [deleteTarget, setDeleteTarget] = useState<{ id: string | number; targetDate: string } | null>(null);
+  const [isDeletingJob, setIsDeletingJob] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
-  const handleDeleteJob = async (jobId: string | number, targetDate: string) => {
-    if (!window.confirm(`Kya aap is run (${targetDate}) ko delete karna chahte hain? Isse iska draft issue bhi clear ho jayega taaki aap fresh test kar sakein.`)) {
-      return;
-    }
-    setDeletingJobId(jobId);
+  const confirmDeleteJob = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingJob(true);
     try {
-      await epaperAutomationService.deleteHistory(jobId, true);
-      setHistory(prev => prev.filter(j => j.id !== jobId));
-      setFeedback({ type: 'success', message: `Run (${targetDate}) safalta-purvak delete ho gaya!` });
+      await epaperAutomationService.deleteHistory(deleteTarget.id, true);
+      setHistory(prev => prev.filter(j => j.id !== deleteTarget.id));
+      setFeedback({ type: 'success', message: `Run (${deleteTarget.targetDate}) safalta-purvak delete ho gaya!` });
+      setDeleteTarget(null);
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to delete job log' });
     } finally {
-      setDeletingJobId(null);
+      setIsDeletingJob(false);
     }
   };
 
@@ -194,16 +196,16 @@ function AutomationDashboardContent() {
 
   const handleAddPage = () => {
     setBlueprints(prev => {
-      const nextNum = prev.length + 1;
+      const nextIdx = prev.length + 1;
       return [
         ...prev,
         {
-          pageNumber: nextNum,
-          pageTitle: `Page ${nextNum} Special`,
+          pageNumber: nextIdx,
+          pageTitle: `Page ${nextIdx} Special`,
           headerType: 'folio',
-          targetTopic: 'latest breaking news',
+          targetTopic: 'district breaking news and local developments',
           slotCount: 6,
-          order: nextNum,
+          order: nextIdx,
           isActive: true
         }
       ];
@@ -212,7 +214,7 @@ function AutomationDashboardContent() {
 
   const handleDeletePage = (index: number) => {
     if (blueprints.length <= 1) {
-      alert('At least 1 page blueprint is required.');
+      setFeedback({ type: 'error', message: 'At least 1 page must be configured' });
       return;
     }
     setBlueprints(prev => {
@@ -222,9 +224,9 @@ function AutomationDashboardContent() {
   };
 
   const handleMovePage = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === blueprints.length - 1) return;
-
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === blueprints.length - 1)) {
+      return;
+    }
     setBlueprints(prev => {
       const next = [...prev];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -236,9 +238,12 @@ function AutomationDashboardContent() {
   };
 
   const handleResetBlueprints = () => {
-    if (confirm('Reset to standard 8-page newspaper blueprint template?')) {
-      setBlueprints(DEFAULT_STARTER_BLUEPRINTS);
-    }
+    setIsResetModalOpen(true);
+  };
+
+  const confirmResetBlueprints = () => {
+    setBlueprints(DEFAULT_STARTER_BLUEPRINTS);
+    setIsResetModalOpen(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -814,13 +819,13 @@ function AutomationDashboardContent() {
                           </Link>
                           <button
                             type="button"
-                            disabled={deletingJobId === job.id}
-                            onClick={() => handleDeleteJob(job.id, job.targetDate)}
+                            disabled={isDeletingJob && deleteTarget?.id === job.id}
+                            onClick={() => setDeleteTarget({ id: job.id, targetDate: job.targetDate })}
                             className="inline-flex items-center space-x-1 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:text-white hover:bg-red-600 bg-red-50 border border-red-200 rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                             title="Delete this run and clear draft"
                           >
                             <Trash2 className="w-3 h-3" />
-                            <span>{deletingJobId === job.id ? 'Deleting...' : 'Delete'}</span>
+                            <span>{isDeletingJob && deleteTarget?.id === job.id ? 'Deleting...' : 'Delete'}</span>
                           </button>
                         </td>
                       </tr>
@@ -831,6 +836,34 @@ function AutomationDashboardContent() {
             )}
           </div>
         </main>
+
+        
+        {/* DELETE RUN CONFIRMATION MODAL (Matching Articles CMS Design) */}
+        <ConfirmDeleteModal
+          isOpen={Boolean(deleteTarget)}
+          title="Delete Automated Run?"
+          description={
+            deleteTarget ? (
+              <span>
+                Kya aap is run (<strong className="text-slate-800">{deleteTarget.targetDate}</strong>) ko delete karna chahte hain? Isse iska draft issue bhi clear ho jayega taaki aap fresh test kar sakein.
+              </span>
+            ) : ''
+          }
+          confirmLabel="Delete Run"
+          isDeleting={isDeletingJob}
+          onConfirm={confirmDeleteJob}
+          onClose={() => setDeleteTarget(null)}
+        />
+
+        {/* RESET BLUEPRINTS CONFIRMATION MODAL */}
+        <ConfirmDeleteModal
+          isOpen={isResetModalOpen}
+          title="Reset Blueprints?"
+          description="Are you sure you want to reset all pages to standard 8-page newspaper blueprint template?"
+          confirmLabel="Reset Template"
+          onConfirm={confirmResetBlueprints}
+          onClose={() => setIsResetModalOpen(false)}
+        />
 
         {/* LOG DETAILS MODAL */}
         {selectedJobLog && (
