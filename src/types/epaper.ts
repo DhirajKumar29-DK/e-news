@@ -97,6 +97,8 @@ export interface SavePagesBulkPayload {
   editionSlug?: string;
   date?: string;
   publish_date?: string;
+  allowPagePruning?: boolean;
+  clearExtraPages?: boolean;
   pages: any[];
 }
 

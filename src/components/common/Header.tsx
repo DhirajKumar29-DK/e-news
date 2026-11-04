@@ -13,7 +13,7 @@ import { articleService } from '@/services/articleService';
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { prewarmBackend } from '@/services/epaperService';
 import { VideoModal } from './VideoModal';
-import { Search, Video, User, CircleUser, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun, PenSquare } from 'lucide-react';
+import { Search, Video, User, CircleUser, Home, Sun, Moon, FileText, Newspaper, Menu, X, ChevronDown, Languages, Globe, Play, Sparkles, MoreVertical, CloudSun, PenSquare, Megaphone } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSearch?: () => void;
@@ -529,6 +529,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeC
               </span>
             </Link>
 
+            {/* Advertise Action Button (Placed to the right of Reporter Desk) */}
+            <Link
+              href="/advertise"
+              className="hidden sm:flex items-center space-x-1.5 h-9 px-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-md text-xs font-bold transition-all shadow-xs group cursor-pointer"
+              title="Advertise with us / विज्ञापन दें"
+            >
+              <Megaphone className="w-3.5 h-3.5 text-white group-hover:scale-110 transition-transform" />
+              <span className="tracking-wide notranslate" translate="no">
+                {language === 'hi' ? 'विज्ञापन दें' : 'Advertise'}
+              </span>
+            </Link>
+
             {/* Mobile ePaper Quick Action Button (compact & small) */}
             <button
               onClick={handleOpenEPaper}
@@ -843,6 +855,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch = () => {}, activeC
                   </span>
                   <span className="text-[10px] uppercase font-bold text-jagran-red bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-md">
                     Login
+                  </span>
+                </Link>
+
+                <Link
+                  href="/advertise"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center space-x-2">
+                    <Megaphone className="w-4 h-4 text-red-600" />
+                    <span>{language === 'hi' ? 'विज्ञापन दें (Business Promotion)' : 'Advertise with us'}</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-white bg-red-600 px-2 py-0.5 rounded-md">
+                    ₹599
                   </span>
                 </Link>
 

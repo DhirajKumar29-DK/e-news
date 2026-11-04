@@ -116,6 +116,8 @@ export interface HomeArticlesResponse {
 export type CreateArticleInput = Omit<Partial<ArticleData>, 'bulletPoints' | 'tags'> & {
   bulletPoints?: string[] | string | null;
   tags?: string[] | string | null;
+  sendNotification?: boolean;
+  sendPushNotification?: boolean;
 };
 
 function sanitizeArticlePayload(data: CreateArticleInput): Record<string, any> {
@@ -134,6 +136,12 @@ function sanitizeArticlePayload(data: CreateArticleInput): Record<string, any> {
   }
   if (typeof payload.isIndexed !== 'undefined') {
     payload.isIndexed = Boolean(payload.isIndexed);
+  }
+  if (typeof payload.sendNotification !== 'undefined') {
+    payload.sendNotification = Boolean(payload.sendNotification);
+  }
+  if (typeof payload.sendPushNotification !== 'undefined') {
+    payload.sendPushNotification = Boolean(payload.sendPushNotification);
   }
   return payload;
 }

@@ -129,11 +129,18 @@ export async function fetchArchiveDates(editionSlug: string): Promise<any[]> {
  */
 export async function fetchEpaperIssue(
   editionSlug: string,
-  date: string
+  date: string,
+  skipCache: boolean = false
 ): Promise<any | null> {
   try {
     const url = `${API_BASE_URL}${ENDPOINTS.epaper.issue(editionSlug, date)}`;
-    const data = await cachedFetch(url, 60000);
+    let data;
+    if (skipCache) {
+      const res = await fetch(getCleanUrl(url), { cache: 'no-store' });
+      data = await res.json();
+    } else {
+      data = await cachedFetch(url, 60000);
+    }
     if (!data?.success || !data.data) return null;
     return data.data;
   } catch (err) {

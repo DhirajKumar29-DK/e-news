@@ -94,6 +94,38 @@ export const reporterAuthService = {
     return data.data.fileUrl;
   },
 
+  async sendOtp(phone: string): Promise<{ phone: string; otp?: string }> {
+    const res = await apiRequest<{ success: boolean; data: { phone: string; otp?: string } }>('/auth/reporter/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone })
+    });
+    return res.data;
+  },
+
+  async verifyOtp(phone: string, otp: string): Promise<boolean> {
+    const res = await apiRequest<{ success: boolean; data: { verified: boolean } }>('/auth/reporter/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp })
+    });
+    return res.data?.verified || false;
+  },
+
+  async sendEmailOtp(email: string): Promise<{ email: string }> {
+    const res = await apiRequest<{ success: boolean; data: { email: string } }>('/auth/reporter/send-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    return res.data;
+  },
+
+  async verifyEmailOtp(email: string, otp: string): Promise<boolean> {
+    const res = await apiRequest<{ success: boolean; data: { verified: boolean } }>('/auth/reporter/verify-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp })
+    });
+    return res.data?.verified || false;
+  },
+
   async getMe(): Promise<ReporterUser> {
     const res = await apiRequest<{ success: boolean; data: ReporterUser }>('/auth/me');
     if (res.data && typeof window !== 'undefined') {
@@ -117,10 +149,11 @@ export const reporterAuthService = {
   },
 
   async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    return await apiRequest('/auth/reset-password', {
+    await apiRequest('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ token, newPassword })
     });
+    return { success: true, message: 'Password reset successfully' };
   },
 
   logout(): void {

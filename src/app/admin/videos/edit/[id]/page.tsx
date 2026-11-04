@@ -11,7 +11,7 @@ import {
   ArrowLeft, Upload, Link2, Youtube, Sparkles, Check,
   AlertCircle, Film, Image as ImageIcon, Eye, Play,
   Globe, Tag, Search, Clock, MapPin, User, Sliders, Layers,
-  ExternalLink, Video, CheckCircle, FileText
+  ExternalLink, Video, CheckCircle, FileText, Bell
 } from 'lucide-react';
 
 const BADGE_PRESETS = [
@@ -58,6 +58,7 @@ function AdminVideoEditContent() {
   // Toggles
   const [isFeaturedHero, setIsFeaturedHero] = useState(false);
   const [isTrending, setIsTrending] = useState(true);
+  const [sendNotification, setSendNotification] = useState(false);
   const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT' | 'ARCHIVED'>('PUBLISHED');
 
   // Upload States
@@ -209,7 +210,8 @@ function AdminVideoEditContent() {
         tags: tags.trim() || undefined,
         isFeaturedHero,
         isTrending,
-        status: publishStatus
+        status: publishStatus,
+        sendNotification: publishStatus === 'PUBLISHED' ? sendNotification : false
       });
 
       router.push('/admin/videos');
@@ -275,6 +277,21 @@ function AdminVideoEditContent() {
 
             {/* Actions */}
             <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-auto">
+              {/* Push Notification Quick Checkbox */}
+              <label
+                title="पाठकों को तुरंत नोटिफिकेशन भेजें"
+                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 text-slate-800 font-bold text-xs cursor-pointer transition-all shadow-2xs select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={sendNotification}
+                  onChange={(e) => setSendNotification(e.target.checked)}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600"
+                />
+                <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
+                <span className="hidden sm:inline">Push Alert</span>
+              </label>
+
               <button
                 type="button"
                 disabled={isSubmitting || isUploadingVideo || isUploadingThumb}
@@ -625,6 +642,26 @@ function AdminVideoEditContent() {
                           className="sr-only peer"
                         />
                         <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Push Notification Switch */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 transition-colors">
+                      <div className="space-y-0.5 pr-2">
+                        <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
+                          <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
+                          <span>Push Notification (लाइव अलर्ट भेजें)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 block">अपडेट/पब्लिश होते ही पाठकों को तुरंत वीडियो का नोटिफिकेशन जाएगा</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={sendNotification}
+                          onChange={(e) => setSendNotification(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
                       </label>
                     </div>
                   </div>

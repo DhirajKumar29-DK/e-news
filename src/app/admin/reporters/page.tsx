@@ -11,7 +11,7 @@ import {
   Users, UserCheck, Clock, UserX, AlertOctagon, Search, Plus,
   Filter, CheckCircle, XCircle, AlertCircle, ExternalLink, ShieldCheck,
   MapPin, Phone, Mail, FileText, ChevronRight, RefreshCw, Trash2, Eye,
-  Lock, X
+  Lock, X, FileCheck
 } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/timeAgo';
 
@@ -363,13 +363,17 @@ function AdminReportersContent() {
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between animate-in fade-in">
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>{fetchError}</span>
+                <span>
+                  {fetchError.toLowerCase().includes('token')
+                    ? 'आपका एडमिन सेशन समाप्त (Expired) हो गया है। कृपया दोबारा लॉगिन करें।'
+                    : fetchError}
+                </span>
               </div>
               <button
-                onClick={fetchReporters}
+                onClick={fetchError.toLowerCase().includes('token') ? () => { window.location.href = '/admin/login'; } : fetchReporters}
                 className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0 cursor-pointer"
               >
-                Retry
+                {fetchError.toLowerCase().includes('token') ? 'लॉगिन करें (Sign In Again)' : 'Retry'}
               </button>
             </div>
           )}
@@ -463,17 +467,32 @@ function AdminReportersContent() {
                           {/* ID Proof Document Preview */}
                           <td className="py-3.5 px-4">
                             {rep.idProofUrl ? (
-                              <a
-                                href={resolveProofUrl(rep.idProofUrl)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold transition-colors group"
-                                title="View Submitted Aadhaar / Press ID"
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
-                                <span>{rep.idProofType || 'Aadhaar / ID'}</span>
-                                <ExternalLink className="w-3 h-3 text-red-400 group-hover:text-red-700" />
-                              </a>
+                              rep.idProofUrl.trim().startsWith('{') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedReporter(rep);
+                                    setIsViewModalOpen(true);
+                                  }}
+                                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold transition-colors cursor-pointer group"
+                                  title="Review all 4 uploaded accreditation documents"
+                                >
+                                  <FileCheck className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>4 Docs (Review)</span>
+                                </button>
+                              ) : (
+                                <a
+                                  href={resolveProofUrl(rep.idProofUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold transition-colors group"
+                                  title="View Submitted Aadhaar / Press ID"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
+                                  <span>{rep.idProofType || 'Aadhaar / ID'}</span>
+                                  <ExternalLink className="w-3 h-3 text-red-400 group-hover:text-red-700" />
+                                </a>
+                              )
                             ) : (
                               <span className="text-rose-500 font-bold text-[11px] flex items-center space-x-1">
                                 <AlertCircle className="w-3 h-3" />
@@ -703,17 +722,59 @@ function AdminReportersContent() {
                 )}
 
                 {selectedReporter.idProofUrl ? (
-                  <div className="space-y-2 pt-1">
-                    <a
-                      href={resolveProofUrl(selectedReporter.idProofUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>Open Document in Full Viewer</span>
-                    </a>
-                  </div>
+                  (() => {
+                    let docs = null;
+                    if (selectedReporter.idProofUrl.trim().startsWith('{')) {
+                      try { docs = JSON.parse(selectedReporter.idProofUrl); } catch (_) {}
+                    }
+                    if (docs && typeof docs === 'object') {
+                      const labels: Record<string, string> = {
+                        pressIdUrl: '1. News Reporter ID Card',
+                        aadharFrontUrl: '2. Aadhaar Card (Front)',
+                        aadharBackUrl: '3. Aadhaar Card (Back)',
+                        panUrl: '4. PAN Card',
+                        reporterProofUrl: '5. Ground Reporting Proof'
+                      };
+                      return (
+                        <div className="space-y-2 pt-1">
+                          <span className="text-[11px] font-bold text-slate-700 block">Uploaded Accreditation Documents:</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {Object.entries(docs).map(([k, u]) => {
+                              if (!u) return null;
+                              return (
+                                <a
+                                  key={k}
+                                  href={resolveProofUrl(String(u))}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center justify-between p-2.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-slate-800 transition-colors shadow-2xs group"
+                                >
+                                  <div className="truncate pr-2">
+                                    <span className="block text-[11px] font-bold text-slate-800 truncate">{labels[k] || k}</span>
+                                    <span className="text-[10px] text-red-600 font-semibold group-hover:underline">View File →</span>
+                                  </div>
+                                  <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-red-600 shrink-0" />
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <a
+                          href={resolveProofUrl(selectedReporter.idProofUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Open Document in Full Viewer</span>
+                        </a>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <p className="text-rose-600 font-bold">No verification file uploaded.</p>
                 )}

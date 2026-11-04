@@ -9,4 +9,5 @@ export { ExitConfirmationModal } from './ExitConfirmationModal';
 export { GlobalMobileBottomNav } from './GlobalMobileBottomNav';
 export { PullToRefresh } from './PullToRefresh';
 export { AdSlot } from './AdSlot';
-
+export { NotificationPermissionModal } from './NotificationPermissionModal';
+export { PasswordStrengthIndicator, evaluatePassword } from './PasswordStrengthIndicator';

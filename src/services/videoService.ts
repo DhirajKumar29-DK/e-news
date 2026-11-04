@@ -63,6 +63,8 @@ export interface FeaturedAndTrendingResponse {
 
 export type CreateVideoInput = Omit<Partial<VideoData>, 'tags'> & {
   tags?: string[] | string | null;
+  sendNotification?: boolean;
+  sendPushNotification?: boolean;
 };
 
 export const videoService = {

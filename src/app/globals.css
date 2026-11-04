@@ -207,13 +207,12 @@ strong {
   margin-bottom: 0 !important;
 }
 
-/* Broadsheet Story Paragraph Separation & Strict Newspaper Baseline Grid Register */
+/* Broadsheet Story Paragraph Separation & Authentic Newspaper Baseline Flow */
 .broadsheet-story-text p,
 [data-story-body] p,
 .whitespace-pre-line p {
   margin-top: 0 !important;
-  margin-bottom: 1.5em !important;
-  margin-bottom: var(--story-line-h, 1lh) !important;
+  margin-bottom: 0.35em !important;
   line-height: inherit !important;
 }
 

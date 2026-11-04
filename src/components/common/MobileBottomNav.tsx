@@ -15,7 +15,8 @@ import {
   ChevronRight,
   ShieldCheck,
   RotateCcw,
-  Scale
+  Scale,
+  Megaphone
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
@@ -134,7 +135,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
         }}
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg text-slate-700 dark:text-white border-t border-slate-200/90 dark:border-slate-800/90 shadow-2xl px-2 pt-2 transition-colors duration-200"
       >
-        <div className="grid grid-cols-4 items-center text-center text-[10px] font-bold uppercase tracking-wider">
+        <div className="grid grid-cols-5 items-center text-center text-[10px] font-bold uppercase tracking-wider">
           
           {/* 1. Home Tab */}
           <Link
@@ -178,7 +179,29 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
             <span>VIDEOS</span>
           </Link>
 
-          {/* 4. Menu (Hamburger) Tab */}
+          {/* 4. Advertise Tab (Right next to Videos) */}
+          <Link
+            href="/advertise"
+            className={`flex flex-col items-center justify-center py-1 space-y-0.5 transition-colors cursor-pointer ${
+              pathname?.startsWith('/advertise')
+                ? 'text-jagran-red font-black'
+                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+            }`}
+          >
+            <div className="relative">
+              <Megaphone
+                className={`w-5 h-5 ${
+                  pathname?.startsWith('/advertise')
+                    ? 'text-jagran-red stroke-[2.5]'
+                    : 'text-red-600 dark:text-red-400 stroke-[2.2]'
+                }`}
+              />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            </div>
+            <span className="text-[9px] font-black tracking-tight">विज्ञापन</span>
+          </Link>
+
+          {/* 5. Menu (Hamburger) Tab */}
           <button
             type="button"
             onClick={() => setIsMenuOpen(true)}
@@ -268,6 +291,27 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                   <span>Home</span>
                 </span>
                 {pathname === '/' && <span className="w-2 h-2 rounded-full bg-jagran-red" />}
+              </button>
+
+              {/* Advertise Button in Drawer */}
+              <button
+                onClick={() => {
+                  router.push('/advertise');
+                  setIsMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer ${
+                  pathname?.startsWith('/advertise')
+                    ? 'bg-red-50 dark:bg-red-950/50 text-jagran-red font-black border border-red-200 dark:border-red-900/40'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="flex items-center space-x-2.5">
+                  <Megaphone className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <span>विज्ञापन दें (Advertise)</span>
+                </span>
+                <span className="text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded-md">
+                  ₹599/माह
+                </span>
               </button>
 
               {/* Dynamic categories list */}

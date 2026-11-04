@@ -11,7 +11,7 @@ import {
   ArrowLeft, Save, Send, Image as ImageIcon, Sparkles, Plus, Trash2,
   Star, TrendingUp, CheckCircle, AlertCircle, FileText, Tag, HelpCircle,
   UploadCloud, Link as LinkIcon, Wand2, Zap, Search, Clock, Globe, Share2,
-  Eye, Check, ChevronDown, Layers, Sliders, ExternalLink
+  Eye, Check, ChevronDown, Layers, Sliders, ExternalLink, Bell
 } from 'lucide-react';
 import { cleanHtmlToPlainText, stripHtml, formatArticleHtml } from '@/utils/textUtils';
 import { categoryService, CategoryData } from '@/services/categoryService';
@@ -67,6 +67,7 @@ function EditArticleContent() {
   const [isLeadStory, setIsLeadStory] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
   const [isQuickHighlight, setIsQuickHighlight] = useState(false);
+  const [sendNotification, setSendNotification] = useState(false);
   const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
 
   // SEO Metadata Fields
@@ -259,7 +260,8 @@ function EditArticleContent() {
         metaTitle: metaTitle.trim() || null,
         metaDescription: metaDescription.trim() || null,
         metaKeywords: metaKeywords.trim() || null,
-        isIndexed: Boolean(isIndexed)
+        isIndexed: Boolean(isIndexed),
+        sendNotification: publishStatus === 'PUBLISHED' ? sendNotification : false
       });
 
       setStatus(publishStatus);
@@ -352,6 +354,21 @@ function EditArticleContent() {
               >
                 <Trash2 className="w-4 h-4" />
               </button>
+
+              {/* Push Notification Quick Checkbox */}
+              <label
+                title="पाठकों को तुरंत नोटिफिकेशन भेजें"
+                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 text-slate-800 font-bold text-xs cursor-pointer transition-all shadow-2xs select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={sendNotification}
+                  onChange={(e) => setSendNotification(e.target.checked)}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600"
+                />
+                <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
+                <span className="hidden sm:inline">Push Alert</span>
+              </label>
 
               <button
                 type="button"
@@ -937,6 +954,28 @@ function EditArticleContent() {
                           className="sr-only peer"
                         />
                         <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Push Notification Switch */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 transition-colors">
+                      <div className="space-y-0.5 pr-3">
+                        <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                          <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
+                          <span>Push Notification (लाइव अलर्ट भेजें)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-snug">
+                          पब्लिश/अपडेट होते ही सभी सब्सक्राइबर्स के फोन और कंप्यूटर पर तुरंत नोटिफिकेशन जाएगा।
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={sendNotification}
+                          onChange={(e) => setSendNotification(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
                       </label>
                     </div>
                   </div>

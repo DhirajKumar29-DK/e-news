@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, Plus, User, LogOut, CheckCircle2,
-  Sparkles, LayoutDashboard, ChevronRight, ShieldCheck, ExternalLink
+  Sparkles, LayoutDashboard, ChevronRight, ShieldCheck, ArrowLeft
 } from 'lucide-react';
 import { ReporterAuthProvider, useReporterAuth } from '@/context/ReporterAuthContext';
 
@@ -40,12 +40,9 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
         {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
         <div className="lg:hidden mb-6 bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <Link href="/" className="flex items-center">
-              <img
-                src="/vartiq-logo.png"
-                alt="Vartiq News"
-                className="h-7 w-auto object-contain select-none"
-              />
+            <Link href="/" className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 hover:text-red-600 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Home</span>
             </Link>
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wider">
               <Sparkles className="w-3 h-3 text-red-600" />
@@ -106,24 +103,17 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
           {/* LEFT SIDEBAR (The Organized Reporter Navigation Panel) */}
           <aside className="hidden lg:flex flex-col w-72 shrink-0 space-y-4 sticky top-6">
             
-            {/* 1. Brand Logo Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center justify-between">
-              <Link href="/" className="flex items-center shrink-0" title="Back to Vartiq Homepage">
-                <img
-                  src="/vartiq-logo.png"
-                  alt="Vartiq News"
-                  className="h-8 w-auto object-contain select-none"
-                />
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[11px] font-bold transition-colors cursor-pointer"
-                title="View Public Website"
-              >
-                <span>Live Site</span>
-                <ExternalLink className="w-3 h-3" />
-              </Link>
-            </div>
+            {/* 1. Back to Home Navigation Card */}
+            <Link
+              href="/"
+              className="bg-white hover:bg-slate-50/90 rounded-2xl border border-slate-200 p-3.5 shadow-xs flex items-center space-x-3 text-xs font-bold text-slate-700 hover:text-red-600 transition-all group cursor-pointer"
+              title="Back to Home Page"
+            >
+              <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center group-hover:bg-red-50 group-hover:border-red-200 transition-colors shrink-0">
+                <ArrowLeft className="w-4 h-4 text-slate-600 group-hover:text-red-600 transition-colors" />
+              </div>
+              <span className="truncate">Back to Home</span>
+            </Link>
 
             {/* 2. Reporter Profile & Accreditation Card */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3.5">
@@ -223,10 +213,7 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
 
       </div>
 
-      {/* Subtle Portal Footer */}
-      <footer className="border-t border-slate-200/80 bg-white/50 py-4 text-center text-xs text-slate-400 mt-auto">
-        <p>© 2026 Vartiq Newsroom. Accredited Journalist &amp; Contributor Desk.</p>
-      </footer>
+
 
     </div>
   );

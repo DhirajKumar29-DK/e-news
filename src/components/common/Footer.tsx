@@ -170,22 +170,18 @@ export const Footer: React.FC = () => {
             </a>
           </div>
 
-          {/* Right: Policy Links */}
+          {/* Right: Legal & Commercial Policy Links */}
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-2.5 gap-y-1 text-xs text-slate-400">
-            <Link href="/editorial-guidelines" className="hover:text-amber-400 transition-colors">
-              Editorial Guidelines
-            </Link>
-            <span>•</span>
-            <Link href="/corrections" className="hover:text-amber-400 transition-colors">
-              Corrections
-            </Link>
-            <span>•</span>
             <Link href="/privacy-policy" className="hover:text-amber-400 transition-colors">
               Privacy Policy
             </Link>
             <span>•</span>
+            <Link href="/refund-policy" className="hover:text-amber-400 transition-colors">
+              Refund Policy
+            </Link>
+            <span>•</span>
             <Link href="/terms" className="hover:text-amber-400 transition-colors">
-              Terms
+              Terms &amp; Conditions
             </Link>
           </div>
         </div>

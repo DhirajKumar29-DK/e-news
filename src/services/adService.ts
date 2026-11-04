@@ -19,7 +19,10 @@ export type AdSlotType =
   | 'ARTICLE_LATEST_VIDEOS'
   | 'ARTICLE_BOTTOM'
   | string;
-export type AdFormatType = 'IMAGE' | 'SCRIPT';
+
+export type AdFormatType = 'IMAGE' | 'SCRIPT' | 'VIDEO';
+export type AdApprovalStatus = 'ACTIVE' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED';
+export type AdActionType = 'WHATSAPP' | 'WEBSITE' | 'CALL' | 'LOCATION' | 'LEAD_FORM' | 'SHOP';
 
 export interface AdvertisementData {
   id: string;
@@ -34,6 +37,24 @@ export interface AdvertisementData {
   isActive: boolean;
   viewsCount: number;
   clicksCount: number;
+
+  // Self-Serve Advertisements & Payment verification
+  description?: string | null;
+  advertiserName?: string | null;
+  advertiserPhone?: string | null;
+  advertiserEmail?: string | null;
+  targetDistrict?: string | null;
+  actionType?: AdActionType;
+  allowCall?: boolean;
+  amountPaid?: number;
+  paymentMethod?: string;
+  paymentRefNumber?: string | null;
+  paymentProofUrl?: string | null;
+  approvalStatus?: AdApprovalStatus;
+  rejectionReason?: string | null;
+  leadFormConfig?: string | null;
+  isSelfServe?: boolean;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +76,16 @@ export interface AdsResponse {
   };
 }
 
+export interface SelfServeOrdersResponse {
+  orders: AdvertisementData[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export const adService = {
   // Public: Get active ad for a slot
   async getPublicAd(slot: AdSlotType): Promise<AdvertisementData | null> {
@@ -68,12 +99,72 @@ export const adService = {
     }
   },
 
+  // Public: Check real-time slot availability map for advertiser booking
+  async getSlotAvailability(): Promise<Record<string, { isOccupied: boolean; adId?: string; endDate?: string | null; startDate?: string | null }>> {
+    try {
+      const res = await apiRequest<{ success: boolean; data: Record<string, { isOccupied: boolean; adId?: string; endDate?: string | null; startDate?: string | null }> }>('/ads/slots/availability');
+      return res.data || {};
+    } catch {
+      return {};
+    }
+  },
+
   // Public: Record click
   async recordClick(id: string): Promise<void> {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
       fetch(`${apiUrl}/ads/${id}/click`, { method: 'POST', keepalive: true }).catch(() => {});
     } catch {}
+  },
+
+  // Public: Submit Self-Serve Ad Order (from /advertise page)
+  async submitSelfServeAd(formData: FormData): Promise<AdvertisementData> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
+    const res = await fetch(`${apiUrl}/ads/self-serve`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Failed to submit advertisement order');
+    }
+    return data.data;
+  },
+
+  // Admin: Get Self-Serve Ad Orders
+  async getSelfServeOrders(query: { page?: number; limit?: number; status?: string; search?: string } = {}): Promise<SelfServeOrdersResponse> {
+    const params = new URLSearchParams();
+    if (query.page) params.append('page', String(query.page));
+    if (query.limit) params.append('limit', String(query.limit));
+    if (query.status) params.append('status', query.status);
+    if (query.search) params.append('search', query.search);
+
+    const res = await apiRequest<{ success: boolean; data: SelfServeOrdersResponse }>(
+      `/ads/self-serve/orders?${params.toString()}`
+    );
+    return res.data;
+  },
+
+  // Admin: Verify Payment & Publish Live (triggers automatic email)
+  async verifyAndPublishAd(id: string): Promise<AdvertisementData> {
+    const res = await apiRequest<{ success: boolean; data: AdvertisementData }>(
+      `/ads/${id}/verify-publish`,
+      { method: 'PATCH' }
+    );
+    return res.data;
+  },
+
+  // Admin: Reject Ad (triggers rejection email)
+  async rejectAd(id: string, reason: string): Promise<AdvertisementData> {
+    const res = await apiRequest<{ success: boolean; data: AdvertisementData }>(
+      `/ads/${id}/reject`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ reason })
+      }
+    );
+    return res.data;
   },
 
   // Admin: List all ads
@@ -109,10 +200,13 @@ export const adService = {
 
   // Admin: Update ad
   async updateAd(id: string, data: Partial<AdvertisementData>): Promise<AdvertisementData> {
-    const res = await apiRequest<{ success: boolean; data: AdvertisementData }>(`/ads/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
+    const res = await apiRequest<{ success: boolean; data: AdvertisementData }>(
+      `/ads/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }
+    );
     return res.data;
   },
 

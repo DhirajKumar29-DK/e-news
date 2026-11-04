@@ -51,6 +51,19 @@ export async function apiRequest<T = any>(
     }
 
     if (!response.ok) {
+      if (response.status === 401 && typeof window !== 'undefined') {
+        const msg = (data.message || '').toLowerCase();
+        if (msg.includes('token') || msg.includes('unauthorized') || msg.includes('expired')) {
+          if (window.location.pathname.startsWith('/admin') && !window.location.pathname.startsWith('/admin/login')) {
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+          } else if (window.location.pathname.startsWith('/reporter') && !window.location.pathname.startsWith('/reporter/login')) {
+            localStorage.removeItem('reporter_token');
+            localStorage.removeItem('reporter_user');
+          }
+        }
+      }
+
       const errorObj: any = new Error(data.message || data.error || `HTTP error! Status: ${response.status}`);
       errorObj.status = response.status;
       errorObj.code = data.errors?.code || data.code;

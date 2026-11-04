@@ -327,7 +327,10 @@ function findBestTokenFit(
 ): number {
   if (startTokenIdx >= tokens.length) return tokens.length;
   const lineH = getSummaryLineHeight(fontSize);
-  if (height < lineH) return startTokenIdx;
+  // Apply a tight 1.5px safety buffer so bottom descenders/matras are never cut off by overflow:hidden,
+  // while maximizing vertical fill so zero dead space is left at the bottom of the card!
+  const safeH = Math.max(lineH, height - 1.5);
+  if (safeH < lineH) return startTokenIdx;
 
   const div = getReaderMeasureDiv();
   if (!div) {
@@ -335,7 +338,7 @@ function findBestTokenFit(
   }
 
   const targetW = Math.max(50, width);
-  const targetH = height;
+  const targetH = safeH;
 
   div.style.width = `${targetW}px`;
   if (cols > 1) {
@@ -413,7 +416,7 @@ function measureSlotHeaderHeight(s: any, cardContentW: number): number {
   const hasBadge = Boolean((s.categoryBadge || (s as any).categoryTag)?.trim());
   const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
   const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 22}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
-  const subHtml = s.subHeadline ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${s.subHeadline}</p>` : '';
+  const subHtml = s.subHeadline ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 13}px;font-weight:bold;line-height:1.25;margin:4px 0 2px 0;word-break:break-word">${s.subHeadline}</p>` : '';
 
   div.style.width = `${cardContentW}px`;
   div.style.height = 'auto';
@@ -432,12 +435,28 @@ function computeSlotSections(rawS: any) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
   const cardH = s.height || 400;
-  const cardContentW = Math.max(100, s.width - 16);
+  const cardContentW = Math.max(100, s.width - 24);
   const showDivider = s.showColumnDivider || false;
 
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 22;
   const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 13;
-  const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
+  let summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 14;
+
+  const rawText = s.summary || s.contentText || (s.content?.body) || (s.content?.summary) || '';
+  const decoded = decodeHtmlEntities(rawText);
+  const tokens = sliceHtmlTokens(decoded);
+
+  // Smart Content Density Auto-Fit:
+  // If story has sparse text relative to tall slot (e.g. 180-220 words in a 550px+ broadsheet card),
+  // adapt font size (from default 14px to 15.5px/16px) and line height so card is gracefully filled without 300px voids!
+  if (!s.summaryFontSize && tokens.length > 0 && cardH >= 480) {
+    const estWords = tokens.length * 0.7;
+    if (estWords < 240 && cardH >= 550) {
+      summaryFont = 16;
+    } else if (estWords < 320) {
+      summaryFont = 15.5;
+    }
+  }
   const lineH = getSummaryLineHeight(summaryFont);
 
   let measuredH = measureSlotHeaderHeight(s, cardContentW);
@@ -455,8 +474,8 @@ function computeSlotSections(rawS: any) {
     measuredH = badgeH + hlH + subH;
   }
 
-  // Available story height inside the slot (top 8px, bottom 4px, headerGap 4px)
-  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 4));
+  // Available story height inside the slot (top pt-2=8px, pb-0.5=2px, space-y-1=4px, bottom clearance=1.5px)
+  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 2 + 1.5));
 
   const imgW = s.imageWidth || 180;
   const imgH = s.imageHeight || 140;
@@ -468,11 +487,7 @@ function computeSlotSections(rawS: any) {
   const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
   const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
-  const rawText = s.summary || s.contentText || (s.content?.body) || (s.content?.summary) || '';
-  const decoded = decodeHtmlEntities(rawText);
-  const tokens = sliceHtmlTokens(decoded);
-
-  if (colsCount === 1 || isFullCardPhoto) {
+  if (!hasImage || colsCount === 1 || isFullCardPhoto) {
     const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
@@ -526,23 +541,21 @@ function computeSlotSections(rawS: any) {
   const rightSectionW = rightCols > 0 ? (rightCols * singleColW) + ((rightCols - 1) * colGap) : 0;
   const vertAlign = s.imageVertAlign || 'top';
 
+  // Section capacities weighted by number of columns:
   let text1 = '';
   let text2 = '';
   let text2b = '';
   let text3 = '';
   let currentTokenIdx = 0;
 
-  if (leftCols > 0) {
-    if (photoCols > 0 || rightCols > 0) {
-      const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
-      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
-      currentTokenIdx = fit1;
-    } else {
-      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-      currentTokenIdx = tokens.length;
-    }
+  // 1. Left Section (Columns before Photo): 100% Sequential fill to bottom border
+  if (leftCols > 0 && currentTokenIdx < tokens.length) {
+    const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
+    text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
+    currentTokenIdx = fit1;
   }
 
+  // 2. Photo Section (Text under or around photo): 100% Sequential fill to bottom border
   if (vertAlign === 'middle') {
     const midTopH = Math.max(20, Math.floor(underPhotoH / 2));
     const midBottomH = Math.max(20, Math.ceil(underPhotoH / 2));
@@ -554,32 +567,24 @@ function computeSlotSections(rawS: any) {
     }
 
     if (currentTokenIdx < tokens.length) {
-      if (rightCols > 0) {
-        const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
-        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
-        currentTokenIdx = fit2b;
-      } else {
-        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-        currentTokenIdx = tokens.length;
-      }
+      const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
+      text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
+      currentTokenIdx = fit2b;
     }
   } else {
+    // Top or Bottom Photo: Fills 100% of photo column space down to the bottom border FIRST
     if (underPhotoH >= minRequiredH && currentTokenIdx < tokens.length) {
-      if (rightCols > 0) {
-        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-        currentTokenIdx = fit2;
-      } else {
-        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-        currentTokenIdx = fit2;
-      }
+      const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+      currentTokenIdx = fit2;
     }
   }
 
+  // 3. Right Section (Columns after Photo): Fills with whatever text remains AFTER earlier columns are full!
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
     const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
     text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
+    currentTokenIdx = fit3;
   }
 
   return {
@@ -767,7 +772,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                   whiteSpace: 'pre-line',
                   boxSizing: 'border-box',
                   paddingRight: '2px',
-                  paddingBottom: '4px'
+                  paddingBottom: '0px'
                 }}
                 className="broadsheet-story-text leading-normal h-full w-full overflow-hidden whitespace-pre-line text-justify"
                 dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
@@ -834,7 +839,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
                 whiteSpace: 'pre-line',
                 boxSizing: 'border-box',
                 paddingRight: '2px',
-                paddingBottom: '4px'
+                paddingBottom: '0px'
               }}
               className="broadsheet-story-text leading-normal flex-1 w-full overflow-hidden break-words whitespace-pre-line text-justify"
               dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
@@ -876,7 +881,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
             paddingRight: '2px',
-            paddingBottom: '4px'
+            paddingBottom: '0px'
           };
 
           const colStylePhoto: React.CSSProperties = {
@@ -900,7 +905,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
             paddingRight: '2px',
-            paddingBottom: '4px'
+            paddingBottom: '0px'
           };
 
           const colStyleRight: React.CSSProperties = {
@@ -924,7 +929,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             whiteSpace: 'pre-line',
             boxSizing: 'border-box',
             paddingRight: '2px',
-            paddingBottom: '4px'
+            paddingBottom: '0px'
           };
 
           const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
@@ -1048,7 +1053,7 @@ const BroadsheetCanvasContent: React.FC<BroadsheetCanvasContentProps> = ({
             style={slotStyle}
             className="relative z-0 select-none overflow-hidden"
           >
-            <div className="w-full h-full pt-2 px-2 pb-1 flex flex-col overflow-hidden space-y-1">
+            <div className="w-full h-full pt-2 px-2 pb-0.5 flex flex-col overflow-hidden space-y-1">
               {headerContent}
               {bodyContent}
             </div>

@@ -250,13 +250,8 @@ export default function AIPageGeneratorModal({
       const cleanHl = cleanDateline(s.headline);
       const cleanSub = cleanDateline(s.subHeadline);
       const cleanBody = cleanDateline(s.summary || s.contentText);
-      const cleanImg = getEditorialStoryImage({
-        topic: s.categoryBadge || s.categoryTag,
-        headline: cleanHl,
-        category: s.categoryBadge || s.categoryTag,
-        rawImageUrl: s.imageUrl,
-        slotIndex: sIdx
-      });
+      // Automated generation: No automatic stock images; admin manually uploads or adds images later!
+      const cleanImg = (s.imageUrl && s.imageUrl.trim() && !s.imageUrl.includes('pollinations.ai')) ? s.imageUrl.trim() : '';
       return {
         ...s,
         headline: cleanHl,

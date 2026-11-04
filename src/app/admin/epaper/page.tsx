@@ -324,7 +324,10 @@ function findBestTokenFit(
 ): number {
   if (startTokenIdx >= tokens.length) return tokens.length;
   const lineH = getSummaryLineHeight(fontSize);
-  if (height < lineH) return startTokenIdx;
+  // Apply a tight 1.5px safety buffer so bottom descenders/matras are never cut off by overflow:hidden,
+  // while maximizing vertical fill so zero dead space is left at the bottom of the card!
+  const safeH = Math.max(lineH, height - 1.5);
+  if (safeH < lineH) return startTokenIdx;
 
   const div = getMeasureDiv();
   if (!div) {
@@ -332,7 +335,7 @@ function findBestTokenFit(
   }
 
   const targetW = Math.max(50, width);
-  const targetH = height;
+  const targetH = safeH;
 
   div.style.width = `${targetW}px`;
   if (cols > 1) {
@@ -412,7 +415,7 @@ function measureSlotHeaderHeight(s: EPaperSlotData, cardContentW: number): numbe
   const badgeHtml = hasBadge ? `<div style="margin-bottom:4px;display:flex;align-items:center"><span style="font-family:'Inter','Mukta',sans-serif;font-size:9.5px;font-weight:bold;text-transform:uppercase;padding:2px 6px;line-height:1;background-color:#dc2626;color:#ffffff;border-radius:4px;">${(s.categoryBadge || (s as any).categoryTag).trim()}</span></div>` : '';
   const hlHtml = `<h2 style="font-family:'Noto Serif Devanagari','Merriweather',serif;font-size:${s.headlineFontSize || 23}px;font-weight:900;line-height:1.25;word-break:break-word">${s.headline || ''}</h2>`;
   const cleanSub = cleanDatelineBrackets(s.subHeadline || '');
-  const subHtml = cleanSub ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 19}px;font-weight:bold;line-height:1.25;margin:2px 0;word-break:break-word">${cleanSub}</p>` : '';
+  const subHtml = cleanSub ? `<p style="font-family:'Mukta','Inter',sans-serif;font-size:${s.subHeadlineFontSize || 19}px;font-weight:bold;line-height:1.25;margin:4px 0 2px 0;word-break:break-word">${cleanSub}</p>` : '';
 
   div.style.width = `${cardContentW}px`;
   div.style.height = 'auto';
@@ -430,12 +433,28 @@ function computeSlotSections(s: EPaperSlotData) {
   const colsCount = s.columnsCount || 1;
   const colGap = s.columnGap || 14;
   const cardH = s.height || 400;
-  const cardContentW = Math.max(100, s.width - 16);
+  const cardContentW = Math.max(100, s.width - 24);
   const showDivider = s.showColumnDivider || false;
 
   const hlFont = s.headlineFontSize ? Number(s.headlineFontSize) : 23;
   const subFont = s.subHeadlineFontSize ? Number(s.subHeadlineFontSize) : 19;
-  const summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 15;
+  let summaryFont = s.summaryFontSize ? Number(s.summaryFontSize) : 15;
+
+  const rawText = s.summary || (s as any).contentText || (s as any).content?.body || (s as any).content?.summary || '';
+  const decoded = decodeHtmlEntities(rawText);
+  const tokens = sliceHtmlTokens(decoded);
+
+  // Smart Content Density Auto-Fit:
+  // If story has sparse text relative to tall slot (e.g. 180-220 words in a 550px+ broadsheet card),
+  // adapt font size (from default 15px to 16px/16.5px) and line height so card is gracefully filled without 300px voids!
+  if (!s.summaryFontSize && tokens.length > 0 && cardH >= 480) {
+    const estWords = tokens.length * 0.7;
+    if (estWords < 240 && cardH >= 550) {
+      summaryFont = 16.5;
+    } else if (estWords < 320) {
+      summaryFont = 16;
+    }
+  }
   const lineH = getSummaryLineHeight(summaryFont);
 
   let measuredH = measureSlotHeaderHeight(s, cardContentW);
@@ -453,8 +472,8 @@ function computeSlotSections(s: EPaperSlotData) {
     measuredH = badgeH + hlH + subH;
   }
 
-  // Available story height inside the slot (top 8px, bottom 4px, headerGap 4px)
-  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 4));
+  // Available story height inside the slot (top pt-2=8px, pb-0.5=2px, space-y-1=4px, bottom clearance=1.5px)
+  const fullStoryH = Math.max(20, cardH - (8 + measuredH + 4 + 2 + 1.5));
 
   const imgW = s.imageWidth || 180;
   const imgH = s.imageHeight || 140;
@@ -466,11 +485,7 @@ function computeSlotSections(s: EPaperSlotData) {
   const minRequiredH = lineH * 2; // Need at least 2 full readable lines (~38-44px)
   const underPhotoH = rawUnderH >= minRequiredH ? rawUnderH : 0;
 
-  const rawText = s.summary || (s as any).contentText || (s as any).content?.body || (s as any).content?.summary || '';
-  const decoded = decodeHtmlEntities(rawText);
-  const tokens = sliceHtmlTokens(decoded);
-
-  if (colsCount === 1 || isFullCardPhoto) {
+  if (!hasImage || colsCount === 1 || isFullCardPhoto) {
     const fit1 = findBestTokenFit(tokens, 0, cardContentW, hasImage ? underPhotoH : fullStoryH, colsCount, summaryFont, colGap);
     const text1 = buildHtmlFromTokens(tokens, 0, fit1);
     return {
@@ -524,23 +539,23 @@ function computeSlotSections(s: EPaperSlotData) {
   const rightSectionW = rightCols > 0 ? (rightCols * singleColW) + ((rightCols - 1) * colGap) : 0;
   const vertAlign = s.imageVertAlign || 'top';
 
+  // Section capacities weighted by number of columns:
+  const leftCapacity = leftCols > 0 ? (leftCols * fullStoryH) : 0;
+  const photoCapacity = (underPhotoH >= minRequiredH && photoCols > 0) ? (photoCols * underPhotoH) : 0;
   let text1 = '';
   let text2 = '';
   let text2b = '';
   let text3 = '';
   let currentTokenIdx = 0;
 
-  if (leftCols > 0) {
-    if (photoCols > 0 || rightCols > 0) {
-      const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
-      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
-      currentTokenIdx = fit1;
-    } else {
-      text1 = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-      currentTokenIdx = tokens.length;
-    }
+  // 1. Left Section (Columns before Photo): 100% Sequential fill to bottom border
+  if (leftCols > 0 && currentTokenIdx < tokens.length) {
+    const fit1 = findBestTokenFit(tokens, currentTokenIdx, leftSectionW, fullStoryH, leftCols, summaryFont, colGap);
+    text1 = buildHtmlFromTokens(tokens, currentTokenIdx, fit1);
+    currentTokenIdx = fit1;
   }
 
+  // 2. Photo Section (Text under or around photo): 100% Sequential fill to bottom border
   if (vertAlign === 'middle') {
     const midTopH = Math.max(20, Math.floor(underPhotoH / 2));
     const midBottomH = Math.max(20, Math.ceil(underPhotoH / 2));
@@ -552,32 +567,24 @@ function computeSlotSections(s: EPaperSlotData) {
     }
 
     if (currentTokenIdx < tokens.length) {
-      if (rightCols > 0) {
-        const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
-        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
-        currentTokenIdx = fit2b;
-      } else {
-        text2b = buildHtmlFromTokens(tokens, currentTokenIdx, tokens.length);
-        currentTokenIdx = tokens.length;
-      }
+      const fit2b = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, midBottomH, photoCols, summaryFont, colGap);
+      text2b = buildHtmlFromTokens(tokens, currentTokenIdx, fit2b);
+      currentTokenIdx = fit2b;
     }
   } else {
+    // Top or Bottom Photo: Fills 100% of photo column space down to the bottom border FIRST
     if (underPhotoH >= minRequiredH && currentTokenIdx < tokens.length) {
-      if (rightCols > 0) {
-        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-        currentTokenIdx = fit2;
-      } else {
-        const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
-        text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
-        currentTokenIdx = fit2;
-      }
+      const fit2 = findBestTokenFit(tokens, currentTokenIdx, photoSectionW, underPhotoH, photoCols, summaryFont, colGap);
+      text2 = buildHtmlFromTokens(tokens, currentTokenIdx, fit2);
+      currentTokenIdx = fit2;
     }
   }
 
+  // 3. Right Section (Columns after Photo): Fills with whatever text remains AFTER earlier columns are full!
   if (rightCols > 0 && currentTokenIdx < tokens.length) {
     const fit3 = findBestTokenFit(tokens, currentTokenIdx, rightSectionW, fullStoryH, rightCols, summaryFont, colGap);
     text3 = buildHtmlFromTokens(tokens, currentTokenIdx, fit3);
+    currentTokenIdx = fit3;
   }
 
   return {
@@ -625,6 +632,17 @@ function FullStudioInner() {
   // Core Studio State (Persists exact selected date & edition even across midnight)
   const [edition, setEdition] = useState<string>(() => {
     if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlEdition = urlParams.get('edition');
+      if (urlEdition) {
+        const matched = DEFAULT_EDITIONS.find(
+          e => e.slug.toLowerCase() === urlEdition.toLowerCase() ||
+            e.id.toLowerCase() === urlEdition.toLowerCase() ||
+            e.name.toLowerCase() === urlEdition.toLowerCase()
+        );
+        if (matched) return matched.name;
+      }
+
       const saved = localStorage.getItem('epaper_studio_active_edition');
       if (saved) return saved;
     }
@@ -786,7 +804,7 @@ function FullStudioInner() {
     }).catch(() => {});
 
     setIsRichEditorOpen(false);
-    triggerToast(`🎉 Slot #${richEditingSlot.slotNumber} का कंटेंट और स्टाइल अपडेट हो गया!`);
+    triggerToast(`Content and styling for Slot #${richEditingSlot.slotNumber} updated successfully!`);
   };
 
   const applyRichCommand = (command: string, value: string | undefined = undefined) => {
@@ -799,13 +817,13 @@ function FullStudioInner() {
   const applyHighlight = (color: string) => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      triggerToast('कृपया पहले वह शब्द या वाक्य सिलेक्ट करें जिसे हाइलाइट करना है!');
+      triggerToast('Please select the text you want to highlight first!');
       return;
     }
     if (color === 'transparent') {
       document.execCommand('removeFormat');
       if (richEditorContentRef.current) setRichSummaryHtml(richEditorContentRef.current.innerHTML);
-      triggerToast('हाइलाइट हटा दिया गया!');
+      triggerToast('Highlight removed successfully!');
       return;
     }
 
@@ -824,13 +842,13 @@ function FullStudioInner() {
     if (richEditorContentRef.current) {
       setRichSummaryHtml(richEditorContentRef.current.innerHTML);
     }
-    triggerToast('शब्द हाइलाइट हो गया!');
+    triggerToast('Text highlighted successfully!');
   };
 
   const applyTextColor = (color: string) => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      triggerToast('कृपया पहले वह शब्द या वाक्य सिलेक्ट करें जिसका रंग बदलना है!');
+      triggerToast('Please select the text whose color you want to change first!');
       return;
     }
     const range = sel.getRangeAt(0);
@@ -845,13 +863,13 @@ function FullStudioInner() {
     if (richEditorContentRef.current) {
       setRichSummaryHtml(richEditorContentRef.current.innerHTML);
     }
-    triggerToast('टेक्स्ट रंग बदल दिया गया!');
+    triggerToast('Text color updated successfully!');
   };
 
   const applyFontSizeToSelection = (sizePx: string) => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      triggerToast('कृपया पहले वह शब्द या वाक्य सिलेक्ट करें जिसका साइज बदलना है!');
+      triggerToast('Please select the text whose size you want to change first!');
       return;
     }
     const range = sel.getRangeAt(0);
@@ -865,7 +883,7 @@ function FullStudioInner() {
     if (richEditorContentRef.current) {
       setRichSummaryHtml(richEditorContentRef.current.innerHTML);
     }
-    triggerToast(`फॉन्ट साइज (${sizePx}) सेट हो गया!`);
+    triggerToast(`Font size (${sizePx}) set successfully!`);
   };
 
   // 1. Auto-Load draft from Backend DB & localStorage when Edition or Date changes
@@ -886,7 +904,7 @@ function FullStudioInner() {
 
       // 1. Check Backend DB first via service
       try {
-        const issueData = await fetchEpaperIssue(currentSlug, targetDate);
+        const issueData = await fetchEpaperIssue(currentSlug, targetDate, true);
         if (issueData) {
           // Verify that the backend returned data specifically for targetDate (not a fallback previous date)
           const rawDate = issueData.date || issueData.publishDate || issueData.publish_date || issueData.issue?.date;
@@ -963,6 +981,11 @@ function FullStudioInner() {
               // If DB had 0 slots OR local has more slots than DB, prefer local draft so slots are never lost
               if (!loadedPages) {
                 loadedPages = localPages;
+              } else if (loadedPages.length < localPages.length && dbTotalSlots === 0) {
+                loadedPages = localPages;
+              } else if (loadedPages && loadedPages.length >= localPages.length && dbTotalSlots > 0) {
+                // DB has full or more pages with slots -> DB is authoritative! Overwrite stale draft in localStorage!
+                safeSaveToLocalStorage(storageKey, loadedPages);
               }
             }
           }
@@ -991,20 +1014,15 @@ function FullStudioInner() {
             const rawBody = decodeHtmlEntities(s.summary || s.contentText || '');
             const cleanBody = cleanDatelineBrackets(stripMarkdown(stripHtmlTagsToPlainText(rawBody)));
             const formatted = formatToRichEditorHtml(cleanBody);
-            const healedImg = getEditorialStoryImage({
-              topic: s.categoryBadge || s.categoryTag,
-              headline: cleanHl,
-              category: s.categoryBadge || s.categoryTag,
-              rawImageUrl: s.imageUrl,
-              slotIndex: sIdx
-            });
+            // If admin added an image, preserve it; if empty, do not inject automatic stock photo!
+            const cleanImg = (s.imageUrl && s.imageUrl.trim() && !s.imageUrl.includes('pollinations.ai')) ? s.imageUrl.trim() : '';
             return {
               ...s,
               headline: cleanHl,
               subHeadline: cleanSub,
               summary: formatted,
               contentText: formatted,
-              imageUrl: healedImg
+              imageUrl: cleanImg
             };
           })
         }));
@@ -1160,7 +1178,7 @@ function FullStudioInner() {
     setFormSummary('');
     setFormImageUrl('');
     setIsResetDraftModalOpen(false);
-    triggerToast('ड्राफ्ट रीसेट हो गया (Clean Blank Paper)');
+    triggerToast('Draft reset successfully (Clean Blank Paper)');
   };
 
   // Permanent Uniform Standard Real Broadsheet Dimensions (14" x 22" -> 1344px x 2112px • ~35cm x 56cm)
@@ -1190,6 +1208,8 @@ function FullStudioInner() {
   const [toastMsg, setToastMsg] = useState<string>('');
   const [showAddPageModal, setShowAddPageModal] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
+  const [pageToDelete, setPageToDelete] = useState<EPaperPageData | null>(null);
+  const [isDeletingPage, setIsDeletingPage] = useState<boolean>(false);
   const [showReaderPreviewModal, setShowReaderPreviewModal] = useState(false);
   const [readerModalArticle, setReaderModalArticle] = useState<EPaperSlotData | null>(null);
   const [readerModalTab, setReaderModalTab] = useState<'image' | 'text'>('text');
@@ -1495,7 +1515,7 @@ function FullStudioInner() {
       }
       return pg;
     }));
-    triggerToast(`Photo placed at ${vAlign === 'top' ? 'Top (ऊपर)' : vAlign === 'bottom' ? 'Bottom (नीचे)' : 'Middle (बीच में)'}!`);
+    triggerToast(`Photo placed at ${vAlign === 'top' ? 'Top' : vAlign === 'bottom' ? 'Bottom' : 'Middle'}!`);
   };
 
   const handleFitImageFullWidth = () => {
@@ -1574,7 +1594,7 @@ function FullStudioInner() {
   const handleApplyAiNewsToActiveSlot = (news: ParsedNewsPayload) => {
     // Require user to have an active selected slot on the canvas
     if (!activeSlotId || !activeSlot || activeSlot.id === 'temp') {
-      triggerToast('⚠️ कृपया पहले कैनवास पर वह स्लॉट सिलेक्ट करें जिसमें यह समाचार डालना है!');
+      triggerToast('Please select a slot on the canvas first to apply this news story!');
       return;
     }
 
@@ -1645,9 +1665,9 @@ function FullStudioInner() {
       return pg;
     }));
 
-    triggerToast(`🎉 AI: स्लॉट #${activeSlot.slotNumber} में समाचार सफलतापूर्वक लागू हो गया!`);
-  };
-
+    triggerToast(`AI: Story applied to Slot #${activeSlot.slotNumber} successfully!`);
+  };
+
   // ⚡ AI AUTO-PAGE GENERATOR: Apply full generated broadsheet slots to active page
   const handleApplyAiGeneratedPage = (generatedSlots: EPaperSlotData[], mode: 'replace' | 'append') => {
     if (!generatedSlots || !generatedSlots.length) return;
@@ -1709,7 +1729,7 @@ function FullStudioInner() {
       setFormColumnsCount(generatedSlots[0].columnsCount || 1);
     }
 
-    triggerToast(`🎉 AI: ${generatedSlots.length} स्लॉट्स के साथ संपूर्ण पेज सफलतापूर्वक तैयार हो गया!`);
+    triggerToast(`AI: Full page generated successfully with ${generatedSlots.length} slots!`);
   };
 
   // GLOBAL MOUSEMOVE AND MOUSEUP LISTENER FOR 100% FREE CANVAS DRAG & RESIZE
@@ -2083,7 +2103,7 @@ function FullStudioInner() {
     }));
 
     setActiveSlotId(newSlot.id);
-    triggerToast(`✨ नया स्लॉट #${nextSlotNumber} (Page ${activePage.pageNumber}) पर जोड़ दिया गया!`);
+    triggerToast(`Added new Slot #${nextSlotNumber} on Page ${activePage.pageNumber}!`);
   };
 
   // 4. Delete Specific Slot (Allows removing any slot so page can be made blank)
@@ -2132,7 +2152,166 @@ function FullStudioInner() {
       }))
     }).catch(err => console.warn('Failed to persist slot deletion to DB:', err));
 
-    triggerToast(`Deleted slot from canvas`);
+    triggerToast(`Slot deleted from canvas successfully!`);
+  };
+
+  // 4.1. Dynamic Content-Aware Auto-Packer for Current Page
+  const handleAutoPackCurrentPage = () => {
+    if (!activePage || !activePage.slots || activePage.slots.length === 0) {
+      triggerToast('No slots to pack on this page!');
+      return;
+    }
+
+    const currentSlots = [...activePage.slots];
+    const isPage1 = activePage.pageNumber === 1;
+    const topY = isPage1 ? 184 : 72;
+    const maxY = 2096;
+    const totalAvailH = maxY - topY;
+    const count = Math.min(10, Math.max(1, currentSlots.length));
+
+    // Partitions for row modularity
+    let partitions: number[] = [];
+    if (count === 1) partitions = [1];
+    else if (count === 2) partitions = [2];
+    else if (count === 3) partitions = [1, 2];
+    else if (count === 4) partitions = [2, 2];
+    else if (count === 5) partitions = [2, 3];
+    else if (count === 6) partitions = [2, 2, 2];
+    else if (count === 7) partitions = [2, 3, 2];
+    else if (count === 8) partitions = [2, 3, 3];
+    else if (count === 9) partitions = [2, 3, 4];
+    else partitions = [2, 4, 4];
+
+    const numRows = partitions.length;
+    const totalGutterH = (numRows - 1) * 16;
+    const netH = totalAvailH - totalGutterH;
+
+    let sIdx = 0;
+    const rowSlots = partitions.map(pCount => {
+      const row: typeof currentSlots = [];
+      for (let i = 0; i < pCount; i++) {
+        if (sIdx < currentSlots.length) {
+          row.push(currentSlots[sIdx]);
+        }
+        sIdx++;
+      }
+      return row;
+    });
+
+    // Calculate raw required height for each row based on content
+    const rawRowHeights = rowSlots.map((row, rIdx) => {
+      const storyHeights = row.map(st => {
+        const text = st.summary || (st as any).contentText || '';
+        const words = text ? text.trim().split(/\s+/).filter(Boolean).length : 220;
+        const hasImg = Boolean(st.imageUrl);
+        const photoH = hasImg ? (rIdx === 0 ? 250 : 180) : 0;
+        const cols = row.length === 1 ? 3 : (row.length === 2 ? 2 : 1);
+        const lines = Math.ceil(words / (cols * 8));
+        const bodyH = lines * 22;
+        return 75 + photoH + bodyH + 20;
+      });
+      return Math.max(...storyHeights, 200);
+    });
+
+    const sumRaw = rawRowHeights.reduce((a, b) => a + b, 0);
+    const scale = netH / Math.max(1, sumRaw);
+    const finalRowHeights = rawRowHeights.map(h => Math.round(h * scale));
+    const sumFinal = finalRowHeights.reduce((a, b) => a + b, 0);
+    finalRowHeights[finalRowHeights.length - 1] += (netH - sumFinal);
+
+    let curY = topY;
+    const packedSlots: typeof currentSlots = [];
+
+    rowSlots.forEach((row, rIdx) => {
+      const rowH = finalRowHeights[rIdx];
+      const rowSlotsCount = row.length;
+      const totalGutterW = (rowSlotsCount - 1) * 16;
+      const netRowW = 1312 - totalGutterW;
+
+      let slotWidths: number[] = [];
+      if (rowSlotsCount === 1) {
+        slotWidths = [1312];
+      } else if (rowSlotsCount === 2) {
+        const w0 = (row[0].summary || (row[0] as any).contentText || '').split(/\s+/).length;
+        const w1 = (row[1].summary || (row[1] as any).contentText || '').split(/\s+/).length;
+        if (rIdx === 0 && w0 >= w1 * 1.25) {
+          slotWidths = [848, 448];
+        } else if (rIdx === 0 && w1 >= w0 * 1.25) {
+          slotWidths = [448, 848];
+        } else {
+          slotWidths = [648, 648];
+        }
+      } else if (rowSlotsCount === 3) {
+        slotWidths = [416, 416, 448];
+      } else if (rowSlotsCount === 4) {
+        slotWidths = [316, 316, 316, 316];
+      } else {
+        const equalW = Math.floor(netRowW / rowSlotsCount);
+        slotWidths = Array(rowSlotsCount).fill(equalW);
+        slotWidths[slotWidths.length - 1] += (netRowW - (equalW * rowSlotsCount));
+      }
+
+      let curX = 16;
+      row.forEach((slot, cIdx) => {
+        const slotW = slotWidths[cIdx];
+        const isLead = rIdx === 0 && cIdx === 0;
+
+        let colsCount = 1;
+        if (slotW >= 800) colsCount = 3;
+        else if (slotW >= 420) colsCount = 2;
+        else colsCount = 1;
+
+        let imgW = 200;
+        let imgH = 140;
+        if (slotW >= 800) { imgW = 460; imgH = 260; }
+        else if (slotW >= 550) { imgW = 320; imgH = 200; }
+        else if (slotW >= 400) { imgW = 220; imgH = 150; }
+        else { imgW = 160; imgH = 120; }
+
+        packedSlots.push({
+          ...slot,
+          x: curX,
+          y: curY,
+          width: slotW,
+          height: rowH,
+          columnsCount: colsCount,
+          imageWidth: imgW,
+          imageHeight: imgH,
+          headlineFontSize: isLead ? 28 : (rowH > 500 ? 24 : 22),
+          subHeadlineFontSize: isLead ? 19 : 17,
+          summaryFontSize: 15
+        });
+
+        curX += slotW + 16;
+      });
+
+      curY += rowH + 16;
+    });
+
+    const updatedPages = pages.map(pg => {
+      if (pg.id === activePageId) {
+        return {
+          ...pg,
+          slots: packedSlots
+        };
+      }
+      return pg;
+    });
+
+    setPages(updatedPages);
+    const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
+    safeSaveToLocalStorage(storageKey, updatedPages);
+
+    savePagesBulk({
+      issue_id: 0,
+      edition_slug: currentEditionInfo.slug,
+      editionSlug: currentEditionInfo.slug,
+      date: archiveDate,
+      publish_date: archiveDate,
+      pages: updatedPages
+    }).catch(err => console.warn('Auto-pack bulk save error:', err));
+
+    triggerToast(`✨ Auto-Packed Page ${activePage.pageNumber} slots to fit content!`);
   };
 
   // 5. Update Geometry via Form Sliders/Inputs
@@ -2282,7 +2461,7 @@ function FullStudioInner() {
       }
       return pg;
     }));
-    triggerToast(`🎉 पेज ${activePage.pageNumber} का हेडर सफलतापूर्वक अपडेट हो गया!`);
+    triggerToast(`Header for Page ${activePage.pageNumber} updated successfully!`);
   };
 
   // Create Page with Smart Real Newspaper Header Preset
@@ -2326,46 +2505,112 @@ function FullStudioInner() {
     triggerToast(`Created Page ${nextPgNum} (Blank Sheet with Header)!`);
   };
 
-  // Delete Page & Re-index Remaining Pages Sequentially (e.g. Page 3 becomes Page 1)
+  // Trigger Delete Page Confirmation Modal
   const handleDeletePage = (pageId: string) => {
     if (pages.length <= 1) {
-      alert('Cannot delete the only remaining page in edition!');
+      triggerToast('Cannot delete the only remaining page in the edition!');
+      return;
+    }
+    const target = pages.find(p => p.id === pageId);
+    if (target) {
+      setPageToDelete(target);
+    }
+  };
+
+  // Confirmed Delete Page: Updates state, localStorage, and persists to MySQL DB via savePagesBulk
+  const handleConfirmDeletePage = async () => {
+    if (!pageToDelete) return;
+    if (pages.length <= 1) {
+      triggerToast('Cannot delete the only remaining page in the edition!');
+      setPageToDelete(null);
       return;
     }
 
-    const deletedIdx = pages.findIndex(p => p.id === pageId);
-    const filtered = pages.filter(p => p.id !== pageId);
-    const updated = filtered.map((p, idx) => {
-      const newPageNum = idx + 1;
-      let newTitle = p.title;
-      if (/page\s*\d+/i.test(newTitle)) {
-        newTitle = newTitle.replace(/page\s*\d+/i, `Page ${newPageNum}`);
-      } else if (/पेज\s*\d+/i.test(newTitle)) {
-        newTitle = newTitle.replace(/पेज\s*\d+/i, `पेज ${newPageNum}`);
-      } else if (!newTitle.trim()) {
-        newTitle = `Page ${newPageNum}`;
-      }
+    setIsDeletingPage(true);
+    try {
+      const pageId = pageToDelete.id;
+      const deletedIdx = pages.findIndex(p => p.id === pageId);
+      const filtered = pages.filter(p => p.id !== pageId);
+      const updated = filtered.map((p, idx) => {
+        const newPageNum = idx + 1;
+        let newTitle = p.title;
+        if (/page\s*\d+/i.test(newTitle)) {
+          newTitle = newTitle.replace(/page\s*\d+/i, `Page ${newPageNum}`);
+        } else if (/पेज\s*\d+/i.test(newTitle)) {
+          newTitle = newTitle.replace(/पेज\s*\d+/i, `Page ${newPageNum}`);
+        } else if (!newTitle.trim()) {
+          newTitle = `Page ${newPageNum}`;
+        }
 
-      const updatedHeaderConfig: EPaperHeaderConfig | undefined = p.headerConfig
-        ? {
-            ...p.headerConfig,
-            pageBadgeText: String(newPageNum).padStart(2, '0')
-          }
-        : undefined;
+        const updatedHeaderConfig: EPaperHeaderConfig | undefined = p.headerConfig
+          ? {
+              ...p.headerConfig,
+              pageBadgeText: String(newPageNum).padStart(2, '0')
+            }
+          : undefined;
 
-      return {
-        ...p,
-        pageNumber: newPageNum,
-        title: newTitle,
-        headerConfig: updatedHeaderConfig
-      };
-    });
+        return {
+          ...p,
+          pageNumber: newPageNum,
+          title: newTitle,
+          headerConfig: updatedHeaderConfig
+        };
+      });
 
-    setPages(updated);
-    const nextActive = updated.find(p => p.id === activePageId) || updated[Math.min(deletedIdx >= 0 ? deletedIdx : 0, updated.length - 1)];
-    setActivePageId(nextActive.id);
-    setActiveSlotId(nextActive.slots[0]?.id || '');
-    triggerToast(`🗑️ पेज डिलीट हो गया! अब कुल ${updated.length} पेज हैं (पेज 1 से ${updated.length})।`);
+      setPages(updated);
+      const nextActive = updated.find(p => p.id === activePageId) || updated[Math.min(deletedIdx >= 0 ? deletedIdx : 0, updated.length - 1)];
+      setActivePageId(nextActive.id);
+      setActiveSlotId(nextActive.slots[0]?.id || '');
+
+      // 1. Immediately persist to localStorage so browser refresh preserves the deletion
+      const storageKey = `epaper_studio_draft_${currentEditionInfo.slug}_${archiveDate}`;
+      safeSaveToLocalStorage(storageKey, updated);
+
+      // 2. Persist to Backend MySQL DB so the removed page is soft-deleted in the database
+      await savePagesBulk({
+        issue_id: 0,
+        edition_slug: currentEditionInfo.slug,
+        editionSlug: currentEditionInfo.slug,
+        date: archiveDate,
+        publish_date: archiveDate,
+        allowPagePruning: true,
+        pages: updated.map(p => ({
+          pageNumber: p.pageNumber,
+          title: p.title,
+          sectionTitle: p.title,
+          headerType: p.headerConfig?.headerType || (p.pageNumber === 1 ? 'grand' : 'folio'),
+          headerHeight: p.headerConfig?.height,
+          templateKey: p.templateKey || (p.pageNumber === 1 ? 'grand' : 'folio'),
+          slots: p.slots.map((s, sIdx) => ({
+            slotNumber: s.slotNumber || (sIdx + 1),
+            x: s.x,
+            y: s.y,
+            width: s.width,
+            height: s.height,
+            headline: s.headline,
+            subHeadline: s.subHeadline,
+            categoryBadge: s.categoryBadge,
+            summary: s.summary,
+            imageUrl: s.imageUrl,
+            imageAlignment: s.imageAlignment,
+            imageWidth: s.imageWidth,
+            imageHeight: s.imageHeight,
+            columnsCount: s.columnsCount || 1,
+            columnGap: s.columnGap || 14,
+            showColumnDivider: Boolean(s.showColumnDivider),
+            imageWrapMode: s.imageWrapMode || 'auto'
+          }))
+        }))
+      });
+
+      triggerToast(`Page deleted successfully! Total ${updated.length} page(s) remaining.`);
+    } catch (err: any) {
+      console.error('Failed to delete page:', err);
+      triggerToast(`Failed to delete page from database: ${err.message || 'Server error'}`);
+    } finally {
+      setIsDeletingPage(false);
+      setPageToDelete(null);
+    }
   };
 
   // Publish Paper with Smart Publish & Duplicate Guard and Modern Rich Modal
@@ -2407,7 +2652,7 @@ function FullStudioInner() {
           console.warn('Backend publish offline, proceeding in local publish mode:', publishErr);
           publishRes = {
             success: true,
-            message: 'ई-पेपर सफलतापूर्वक पब्लिश हो गया!',
+            message: 'E-Paper published successfully!',
             data: { isAlreadyPublished: false }
           };
         }
@@ -2450,10 +2695,10 @@ function FullStudioInner() {
       setPublishModal({
         isOpen: true,
         type: isAlreadyPublished ? 'already-published' : 'success',
-        title: isAlreadyPublished ? 'ई-पेपर पहले से प्रकाशित है!' : 'ई-पेपर सफलतापूर्वक प्रकाशित हो गया!',
+        title: isAlreadyPublished ? 'E-Paper is already published!' : 'E-Paper published successfully!',
         message: resMsg || (isAlreadyPublished
           ? 'यह अंक पहले से प्रकाशित और लाइव है। आप नीचे से इसे सीधे लाइव देख सकते हैं या PDF डाउनलोड कर सकते हैं।'
-          : 'आपका ई-पेपर सफलतापूर्वक प्रकाशित कर दिया गया है और अब पाठकों (Readers) के लिए लाइव उपलब्ध है।'),
+          : 'Your e-paper edition has been published successfully and is now live for readers.'),
         pdfUrl: fullPdfUrl,
         readerUrl: publicReaderUrl,
         editionName: currentEditionInfo.name,
@@ -2465,8 +2710,8 @@ function FullStudioInner() {
       setPublishModal({
         isOpen: true,
         type: 'error',
-        title: 'प्रकाशन में समस्या आई (Publish Failed)',
-        message: err.message || 'सर्वर से कनेक्ट करने में त्रुटि हुई। कृपया पुनः प्रयास करें।',
+        title: 'Publish Failed',
+        message: err.message || 'Error connecting to the server. Please try again.',
         editionName: currentEditionInfo.name,
         publishDate: archiveDate,
         totalPages: pages.length
@@ -2479,7 +2724,7 @@ function FullStudioInner() {
   // Generate Broadsheet PDF
   const handleGenerateBroadsheetPdf = async () => {
     setIsGeneratingPdf(true);
-    triggerToast('⏳ Generating High-Res PDF...');
+    triggerToast('Generating High-Res PDF...');
 
     // Open a preview tab synchronously right upon click so browser NEVER blocks it!
     const previewTab = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
@@ -2895,6 +3140,16 @@ function FullStudioInner() {
                 <Eye className="w-3.5 h-3.5" />
                 <span>Slot Borders: {showSlotGuides ? 'VISIBLE' : 'HIDDEN'}</span>
               </button>
+              {/* ✨ Smart Content-Aware Auto-Pack Button */}
+              <button
+                type="button"
+                onClick={handleAutoPackCurrentPage}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transform hover:scale-105 active:scale-95 border border-emerald-400/40"
+                title="Automatically size and arrange slots based on each story's content length (Zero blank spaces)"
+              >
+                <Layout className="w-3.5 h-3.5 text-white" />
+                <span>✨ Auto-Pack Slots</span>
+              </button>
             </div>
           </div>
 
@@ -3124,7 +3379,7 @@ function FullStudioInner() {
                       </div>
 
                       {/* CARD CONTENT WRAPPER (100% PURE NEWSPAPER) */}
-                      <div className="w-full h-full pt-2 px-2 pb-1 flex flex-col overflow-hidden space-y-1">
+                      <div className="w-full h-full pt-2 px-2 pb-0.5 flex flex-col overflow-hidden space-y-1">
                         {/* Slot Headline (Never Cut Off / Full Display) */}
                         <div id={`slot-header-${s.id}`} className="space-y-0.5">
                           {Boolean((s.categoryBadge || (s as any).categoryTag)?.trim()) && (
@@ -3198,7 +3453,7 @@ function FullStudioInner() {
                                     whiteSpace: 'pre-line',
                                     boxSizing: 'border-box',
                                     paddingRight: '2px',
-                                    paddingBottom: '4px'
+                                    paddingBottom: '0px'
                                   }}
                                   className="broadsheet-story-text leading-normal h-full w-full overflow-hidden whitespace-pre-line text-justify"
                                   dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
@@ -3246,7 +3501,7 @@ function FullStudioInner() {
                                 >
                                   <div className="w-full h-full overflow-hidden rounded-[4px] relative pointer-events-none">
                                     <img
-                                      src={getEditorialStoryImage({ topic: s.categoryBadge, headline: s.headline, rawImageUrl: s.imageUrl })}
+                                      src={s.imageUrl}
                                       alt="Slot photo"
                                       draggable={false}
                                       className="w-full h-full object-cover pointer-events-none select-none block"
@@ -3290,7 +3545,7 @@ function FullStudioInner() {
                                   whiteSpace: 'pre-line',
                                   boxSizing: 'border-box',
                                   paddingRight: '2px',
-                                  paddingBottom: '4px'
+                                  paddingBottom: '0px'
                                 }}
                                 className="broadsheet-story-text leading-normal flex-1 w-full overflow-hidden break-words whitespace-pre-line text-justify"
                                 dangerouslySetInnerHTML={{ __html: comp.text1 || s.summary || '' }}
@@ -3336,7 +3591,7 @@ function FullStudioInner() {
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
                             paddingRight: '2px',
-                            paddingBottom: '4px'
+                            paddingBottom: '0px'
                           };
 
                           const colStylePhoto: React.CSSProperties = {
@@ -3360,7 +3615,7 @@ function FullStudioInner() {
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
                             paddingRight: '2px',
-                            paddingBottom: '4px'
+                            paddingBottom: '0px'
                           };
 
                           const colStyleRight: React.CSSProperties = {
@@ -3384,7 +3639,7 @@ function FullStudioInner() {
                             whiteSpace: 'pre-line',
                             boxSizing: 'border-box',
                             paddingRight: '2px',
-                            paddingBottom: '4px'
+                            paddingBottom: '0px'
                           };
 
                           const displayImgW = Math.max(30, Math.min(s.imageWidth || comp.photoSectionW, comp.photoSectionW));
@@ -3419,7 +3674,7 @@ function FullStudioInner() {
                               >
                                 <div className="w-full h-full overflow-hidden rounded-[4px] relative pointer-events-none">
                                   <img
-                                    src={getEditorialStoryImage({ topic: s.categoryBadge, headline: s.headline, rawImageUrl: s.imageUrl })}
+                                    src={s.imageUrl}
                                     alt="Slot photo"
                                     draggable={false}
                                     className="w-full h-full object-cover pointer-events-none select-none block"
@@ -4558,6 +4813,26 @@ function FullStudioInner() {
         onSaveHeader={handleSaveHeaderConfig}
         availableEditions={editionsList}
       />
+
+      {/* 6. CONFIRM DELETE PAGE MODAL (Articles CMS Standard) */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(pageToDelete)}
+        title="Delete Page?"
+        description={
+          pageToDelete ? (
+            <span>
+              Are you sure you want to delete <strong className="text-slate-800">{pageToDelete.title || `Page ${pageToDelete.pageNumber}`}</strong>? All stories and layout slots on this page will be removed.
+            </span>
+          ) : ''
+        }
+        confirmLabel="Delete Page"
+        isDeleting={isDeletingPage}
+        onConfirm={handleConfirmDeletePage}
+        onClose={() => {
+          if (!isDeletingPage) setPageToDelete(null);
+        }}
+      />
+
 
     </div>
   );

@@ -176,7 +176,7 @@ function AutomationDashboardContent() {
     try {
       await epaperAutomationService.deleteHistory(deleteTarget.id, true);
       setHistory(prev => prev.filter(j => j.id !== deleteTarget.id));
-      setFeedback({ type: 'success', message: `Run (${deleteTarget.targetDate}) safalta-purvak delete ho gaya!` });
+      setFeedback({ type: 'success', message: `Automated run (${deleteTarget.targetDate}) deleted successfully!` });
       setDeleteTarget(null);
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to delete job log' });
@@ -845,7 +845,7 @@ function AutomationDashboardContent() {
           description={
             deleteTarget ? (
               <span>
-                Kya aap is run (<strong className="text-slate-800">{deleteTarget.targetDate}</strong>) ko delete karna chahte hain? Isse iska draft issue bhi clear ho jayega taaki aap fresh test kar sakein.
+                Are you sure you want to delete the automated generation run for <strong className="text-slate-800">{deleteTarget.targetDate}</strong>? This will remove its draft edition and associated page slots.
               </span>
             ) : ''
           }
