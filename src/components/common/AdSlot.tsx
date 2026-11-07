@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { adService, AdvertisementData, AdSlotType } from '@/services/adService';
 import { getFullMediaUrl } from '@/config/env';
-import { Phone, MessageCircle, X, CheckCircle2, Send, Sparkles } from 'lucide-react';
+import { Phone, MessageCircle, X, CheckCircle2, Send, Globe, MapPin, ExternalLink } from 'lucide-react';
 
 interface AdSlotProps {
   slot: AdSlotType;
@@ -125,49 +125,221 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slot, className = '' }) => {
     }
   };
 
-  // 1. Direct Image Banner Ad
+  // 1. Direct Image Banner or Native Self-Serve Ad
   if (ad.type === 'IMAGE' && ad.imageUrl) {
     const fullImageUrl = getFullMediaUrl(ad.imageUrl);
+
+    // Auto-detect if this is a Self-Serve Ad with details vs a Pure Graphic Banner
+    const isUserSelfServe = Boolean(
+      ad.isSelfServe ||
+      (ad.description && ad.description.trim().length > 0) ||
+      (ad.advertiserName && ad.advertiserName.trim().length > 0) ||
+      (ad.actionType && ad.actionType !== 'WEBSITE')
+    );
+
+    const isSidebarSlot = slot === 'ARTICLE_SIDEBAR' || slot === 'ARTICLE_LATEST_VIDEOS';
 
     return (
       <>
         <div className={`w-full flex flex-col items-center justify-center my-3 select-none ${className}`}>
-          {/* Micro sponsored label */}
-          <div className="w-full max-w-4xl flex items-center justify-between px-1 mb-1 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            <span>Advertisement</span>
-            <span className="text-[8px] font-medium text-slate-300 dark:text-slate-600">Sponsored</span>
+          {/* Micro partner label */}
+          <div className="w-full max-w-4xl flex items-center justify-between px-2 mb-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500/80 animate-pulse"></span>
+              <span className="uppercase tracking-widest text-[9px] font-extrabold text-slate-500 dark:text-slate-400">Featured Partner</span>
+            </span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">Ad</span>
           </div>
 
-          <div className="w-full max-w-4xl rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 shadow-xs transition-transform hover:opacity-95 relative group">
-            <a
-              href={ad.targetUrl || '#'}
-              target={ad.actionType === 'LEAD_FORM' ? '_self' : '_blank'}
-              rel="noopener noreferrer sponsored"
-              onClick={handleAdClick}
-              className="block w-full cursor-pointer overflow-hidden"
-              title={ad.title}
-            >
-              <img
-                src={fullImageUrl}
-                alt={ad.title || 'Sponsored Advertisement'}
-                className="w-full h-auto max-h-[200px] md:max-h-[240px] object-contain mx-auto"
-                loading="lazy"
-              />
-            </a>
+          {isUserSelfServe ? (
+            /* =======================================================
+               MODE 1: USER SELF-SERVE AD (NATIVE PREMIUM EDITORIAL CARD)
+               60% Media (Image/Video) + 40% Content Details & Actions
+               ======================================================= */
+            <div className={`w-full max-w-4xl rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 ${
+              isSidebarSlot ? 'flex flex-col' : 'flex flex-col sm:flex-row'
+            }`}>
+              {/* Media Creative Frame (60% on desktop/tablet) */}
+              <div className={`${
+                isSidebarSlot
+                  ? 'w-full h-56'
+                  : 'w-full sm:w-[60%] h-60 sm:h-auto sm:min-h-[220px]'
+              } bg-slate-950 relative overflow-hidden shrink-0 group`}>
+                <a
+                  href={ad.targetUrl || '#'}
+                  target={ad.actionType === 'LEAD_FORM' ? '_self' : '_blank'}
+                  rel="noopener noreferrer sponsored"
+                  onClick={handleAdClick}
+                  className="block w-full h-full relative"
+                  title={ad.title}
+                >
+                  {/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(fullImageUrl || '') ? (
+                    <video
+                      src={fullImageUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <img
+                      src={fullImageUrl}
+                      alt={ad.title || 'Advertisement'}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 sm:hidden"></div>
+                </a>
+              </div>
 
-            {/* Direct Call Button (if allowCall is enabled) */}
-            {ad.allowCall && ad.advertiserPhone && (
+              {/* Content & Details Column (40% on desktop/tablet) */}
+              <div className={`${
+                isSidebarSlot ? 'w-full' : 'w-full sm:w-[40%]'
+              } p-4 sm:p-5 flex flex-col justify-between space-y-3`}>
+                <div>
+                  {/* Clean Business / Merchant Name (No 'Sponsored by') */}
+                  {ad.advertiserName && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 tracking-tight">
+                        {ad.advertiserName}
+                      </span>
+                      <span className="inline-flex items-center text-blue-500" title="Verified Business">
+                        <CheckCircle2 className="w-3.5 h-3.5 fill-blue-500 text-white" />
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Headline / Title */}
+                  <a
+                    href={ad.targetUrl || '#'}
+                    target={ad.actionType === 'LEAD_FORM' ? '_self' : '_blank'}
+                    rel="noopener noreferrer sponsored"
+                    onClick={handleAdClick}
+                    className="block group"
+                  >
+                    <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
+                      {ad.title}
+                    </h4>
+                  </a>
+
+                  {/* Description / Offer */}
+                  {ad.description && (
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 line-clamp-3 leading-relaxed">
+                      {ad.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Bottom Action Row */}
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  {/* WhatsApp Action Button */}
+                  {ad.actionType === 'WHATSAPP' && (
+                    <a
+                      href={ad.targetUrl || `https://wa.me/91${(ad.whatsappNumber || ad.advertiserPhone || '').replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      onClick={handleAdClick}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 active:scale-98 transition-all cursor-pointer"
+                    >
+                      <MessageCircle className="w-4 h-4 fill-white text-white" />
+                      <span>Chat on WhatsApp</span>
+                    </a>
+                  )}
+
+                  {/* Store / Location Action */}
+                  {(ad.actionType === 'LOCATION' || ad.actionType === 'SHOP') && (
+                    <a
+                      href={ad.targetUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      onClick={handleAdClick}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold text-xs shadow-md shadow-amber-600/20 active:scale-98 transition-all cursor-pointer"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>Visit Store</span>
+                    </a>
+                  )}
+
+                  {/* Lead Form Action */}
+                  {ad.actionType === 'LEAD_FORM' && (
+                    <button
+                      type="button"
+                      onClick={handleAdClick}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-md shadow-red-600/20 active:scale-98 transition-all cursor-pointer"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Send Quick Inquiry</span>
+                    </button>
+                  )}
+
+                  {/* Website Action */}
+                  {ad.targetUrl && ad.actionType !== 'WHATSAPP' && ad.actionType !== 'LOCATION' && ad.actionType !== 'SHOP' && ad.actionType !== 'LEAD_FORM' && (
+                    <a
+                      href={ad.targetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      onClick={handleAdClick}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all cursor-pointer"
+                    >
+                      <Globe className="w-4 h-4" />
+                      <span>Visit Website</span>
+                      <ExternalLink className="w-3 h-3 text-slate-400" />
+                    </a>
+                  )}
+
+                  {/* Secondary Direct Call Button */}
+                  {ad.allowCall && ad.advertiserPhone && (
+                    <a
+                      href={`tel:${ad.advertiserPhone.replace(/\D/g, '')}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-extrabold text-xs shadow-2xs transition-colors cursor-pointer"
+                      title="Direct Phone Call"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
+                      <span>Call Now</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* =======================================================
+               MODE 2: ADMIN DIRECT GRAPHIC BANNER AD
+               Pure graphical promotional banner filling the slot cleanly
+               ======================================================= */
+            <div className="w-full max-w-4xl rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 shadow-xs transition-transform hover:opacity-95 relative group">
               <a
-                href={`tel:${ad.advertiserPhone.replace(/\D/g, '')}`}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute bottom-2 right-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors flex items-center space-x-1.5 cursor-pointer z-10"
-                title="Direct Phone Call"
+                href={ad.targetUrl || '#'}
+                target={ad.actionType === 'LEAD_FORM' ? '_self' : '_blank'}
+                rel="noopener noreferrer sponsored"
+                onClick={handleAdClick}
+                className="block w-full cursor-pointer overflow-hidden"
+                title={ad.title}
               >
-                <Phone className="w-3.5 h-3.5 fill-white text-white" />
-                <span>Call Now</span>
+                <img
+                  src={fullImageUrl}
+                  alt={ad.title || 'Sponsored Advertisement'}
+                  className="w-full h-auto max-h-[160px] md:max-h-[220px] object-cover mx-auto"
+                  loading="lazy"
+                />
               </a>
-            )}
-          </div>
+
+              {/* Direct Call Button (if allowCall is enabled) */}
+              {ad.allowCall && ad.advertiserPhone && (
+                <a
+                  href={`tel:${ad.advertiserPhone.replace(/\D/g, '')}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-2 right-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors flex items-center space-x-1.5 cursor-pointer z-10"
+                  title="Direct Phone Call"
+                >
+                  <Phone className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>Call Now</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Public Reader Lead Inquiry Modal */}
@@ -287,9 +459,12 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slot, className = '' }) => {
   if (ad.type === 'SCRIPT' && ad.scriptCode) {
     return (
       <div className={`w-full flex flex-col items-center justify-center my-3 select-none ${className}`}>
-        <div className="w-full max-w-4xl flex items-center justify-between px-1 mb-1 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          <span>Advertisement</span>
-          <span className="text-[8px] font-medium text-slate-300 dark:text-slate-600">Sponsored</span>
+        <div className="w-full max-w-4xl flex items-center justify-between px-2 mb-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span className="uppercase tracking-widest text-[9px] font-extrabold text-slate-400">Advertisement</span>
+          </span>
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">Ad</span>
         </div>
 
         <div

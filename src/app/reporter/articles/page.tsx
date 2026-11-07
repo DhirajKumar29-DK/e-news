@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   FileText, Plus, Search, Filter, CheckCircle2, Clock, AlertTriangle,
   XCircle, Eye, Edit3, Trash2, ExternalLink, MessageSquare, AlertCircle, RefreshCw,
-  Sparkles, X
+  X
 } from 'lucide-react';
 import { ReporterLayout } from '@/components/reporter/ReporterLayout';
 import { useReporterAuth } from '@/context/ReporterAuthContext';
@@ -27,6 +27,15 @@ function ReporterArticlesContent() {
   const [previewArticle, setPreviewArticle] = useState<ArticleData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, searchQuery]);
 
   const fetchArticles = async () => {
     if (!reporter?.id) return;
@@ -92,6 +101,14 @@ function ReporterArticlesContent() {
     };
   }, [articles]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredArticles.length);
+  const paginatedArticles = useMemo(() => {
+    return filteredArticles.slice(startIndex, endIndex);
+  }, [filteredArticles, startIndex, endIndex]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PUBLISHED':
@@ -137,87 +154,89 @@ function ReporterArticlesContent() {
     <>
       <div className="space-y-6">
         
-        {/* Header Title & Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black font-serif text-slate-900 tracking-tight">
-              My Submissions
-            </h1>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Track the editorial lifecycle of your news stories from submission to live publication.
-            </p>
+        {/* Sticky Header: My Submissions Title, Actions & Filter Controls */}
+        <div className="sticky top-0 lg:top-4 z-20 bg-slate-50/95 backdrop-blur-md pt-1 pb-3 space-y-4">
+          {/* Header Title & Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-black font-serif text-slate-900 tracking-tight">
+                My Submissions
+              </h1>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Track the editorial lifecycle of your news stories from submission to live publication.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={fetchArticles}
+                disabled={loading}
+                className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer shadow-2xs"
+                title="Refresh Articles"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-red-600' : ''}`} />
+              </button>
+
+              <Link
+                href="/reporter/articles/create"
+                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Write New Story</span>
+              </Link>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={fetchArticles}
-              disabled={loading}
-              className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
-              title="Refresh Articles"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-red-600' : ''}`} />
-            </button>
+          {/* Filters and Search Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            {/* Top Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by article title or category..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white transition-all font-medium"
+              />
+            </div>
 
-            <Link
-              href="/reporter/articles/create"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Write New Story</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Filters and Search Bar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-          
-          {/* Top Search Input */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by article title or category..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white transition-all font-medium"
-            />
-          </div>
-
-          {/* Status Tabs */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-1">
-            {(
-              [
-                { id: 'ALL', label: 'All Stories' },
-                { id: 'PENDING_REVIEW', label: 'In Review' },
-                { id: 'NEEDS_REVISION', label: 'Needs Revision' },
-                { id: 'PUBLISHED', label: 'Published' },
-                { id: 'DRAFT', label: 'Drafts' },
-                { id: 'REJECTED', label: 'Rejected' },
-              ] as { id: StatusFilter; label: string }[]
-            ).map((tab) => {
-              const count = counts[tab.id];
-              const isActive = activeFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center space-x-1.5 ${
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                      isActive ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-600'
+            {/* Status Tabs */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-1">
+              {(
+                [
+                  { id: 'ALL', label: 'All Stories' },
+                  { id: 'PENDING_REVIEW', label: 'In Review' },
+                  { id: 'NEEDS_REVISION', label: 'Needs Revision' },
+                  { id: 'PUBLISHED', label: 'Published' },
+                  { id: 'DRAFT', label: 'Drafts' },
+                  { id: 'REJECTED', label: 'Rejected' },
+                ] as { id: StatusFilter; label: string }[]
+              ).map((tab) => {
+                const count = counts[tab.id];
+                const isActive = activeFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveFilter(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center space-x-1.5 cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                     }`}
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isActive ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -254,130 +273,215 @@ function ReporterArticlesContent() {
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredArticles.map((article) => {
-                const isRevision = article.status === 'NEEDS_REVISION';
-                const isDraft = article.status === 'DRAFT';
-                const isPending = article.status === 'PENDING_REVIEW';
-                const isPublished = article.status === 'PUBLISHED';
+            <>
+              <div className="divide-y divide-slate-100">
+                {paginatedArticles.map((article) => {
+                  const isRevision = article.status === 'NEEDS_REVISION';
+                  const isDraft = article.status === 'DRAFT';
+                  const isPending = article.status === 'PENDING_REVIEW';
+                  const isPublished = article.status === 'PUBLISHED';
 
-                return (
-                  <div
-                    key={article.id}
-                    className={`p-5 transition-colors hover:bg-slate-50/80 flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                      isRevision ? 'bg-rose-50/30' : ''
-                    }`}
-                  >
-                    {/* Left: Thumbnail & Details */}
-                    <div className="flex items-start space-x-4 min-w-0 flex-1">
-                      {(article.imageUrl || article.featuredImage) ? (
-                        <img
-                          src={(article.imageUrl || article.featuredImage)!}
-                          alt={article.title}
-                          className="w-20 h-16 sm:w-24 sm:h-18 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
-                        />
-                      ) : (
-                        <div className="w-20 h-16 sm:w-24 sm:h-18 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
-                          <FileText className="w-6 h-6 text-slate-300" />
-                        </div>
-                      )}
-
-                      <div className="space-y-1.5 min-w-0 flex-1">
-                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                          {getStatusBadge(article.status)}
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-                            {article.category || 'General'}
-                          </span>
-                          <span className="text-[11px] text-slate-400">
-                            {formatTimeAgo(article.createdAt).en}
-                          </span>
-                        </div>
-
-                        <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">
-                          {article.title}
-                        </h3>
-
-                        {/* Admin Feedback Banner (if Revision or Rejected) */}
-                        {article.adminFeedback && (isRevision || article.status === 'REJECTED') && (
-                          <div className="mt-2 p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2">
-                            <MessageSquare className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="font-bold">Editor's Feedback: </span>
-                              <span>{article.adminFeedback}</span>
-                            </div>
+                  return (
+                    <div
+                      key={article.id}
+                      className={`p-5 transition-colors hover:bg-slate-50/80 flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        isRevision ? 'bg-rose-50/30' : ''
+                      }`}
+                    >
+                      {/* Left: Thumbnail & Details */}
+                      <div className="flex items-start space-x-4 min-w-0 flex-1">
+                        {(article.imageUrl || article.featuredImage) ? (
+                          <img
+                            src={(article.imageUrl || article.featuredImage)!}
+                            alt={article.title}
+                            className="w-20 h-16 sm:w-24 sm:h-18 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-20 h-16 sm:w-24 sm:h-18 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                            <FileText className="w-6 h-6 text-slate-300" />
                           </div>
+                        )}
+
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                            {getStatusBadge(article.status)}
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                              {article.category || 'General'}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {formatTimeAgo(article.createdAt).en}
+                            </span>
+                          </div>
+
+                          <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">
+                            {article.title}
+                          </h3>
+
+                          {/* Admin Feedback Banner (if Revision or Rejected) */}
+                          {article.adminFeedback && (isRevision || article.status === 'REJECTED') && (
+                            <div className="mt-2 p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2">
+                              <MessageSquare className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-bold">Editor's Feedback: </span>
+                                <span>{article.adminFeedback}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center space-x-2 shrink-0 self-end md:self-center flex-wrap gap-y-2">
+                        
+                        {/* Preview Button (Available for all stories!) */}
+                        <button
+                          type="button"
+                          onClick={() => setPreviewArticle(article)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                          title="Preview submitted news story"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Preview</span>
+                        </button>
+
+                        {/* Live Public Link */}
+                        {isPublished && (
+                          <Link
+                            href={`/article/${article.slug || article.id}`}
+                            target="_blank"
+                            className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors"
+                          >
+                            <span>Live Site</span>
+                            <ExternalLink className="w-3 h-3 text-emerald-600" />
+                          </Link>
+                        )}
+
+                        {/* Edit Pending Story (Allows fixing mistakes while in Review Queue!) */}
+                        {isPending && (
+                          <Link
+                            href={`/reporter/articles/edit/${article.id}`}
+                            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-all shadow-2xs"
+                            title="Edit & correct any mistakes before admin publishes"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Edit Story</span>
+                          </Link>
+                        )}
+
+                        {/* Edit & Resubmit (for Drafts or Revision requests) */}
+                        {(isDraft || isRevision) && (
+                          <Link
+                            href={`/reporter/articles/edit/${article.id}`}
+                            className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-colors shadow-xs ${
+                              isRevision
+                                ? 'bg-rose-600 hover:bg-rose-700 ring-2 ring-rose-200'
+                                : 'bg-slate-900 hover:bg-slate-800'
+                            }`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>{isRevision ? 'Fix & Resubmit' : 'Edit Draft'}</span>
+                          </Link>
+                        )}
+
+                        {/* Delete Draft Button */}
+                        {isDraft && (
+                          <button
+                            onClick={() => setDeleteId(article.id)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete Draft"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Right: Actions */}
-                    <div className="flex items-center space-x-2 shrink-0 self-end md:self-center flex-wrap gap-y-2">
-                      
-                      {/* Preview Button (Available for all stories!) */}
-                      <button
-                        type="button"
-                        onClick={() => setPreviewArticle(article)}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-                        title="Preview submitted news story"
+              {/* Bottom Pagination Controls */}
+              {filteredArticles.length > 0 && (
+                <div className="px-5 py-3.5 border-t border-slate-200/80 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+                  <div className="flex items-center space-x-3">
+                    <span>
+                      Page <strong className="text-slate-800">{currentPage}</strong> of <strong className="text-slate-800">{totalPages}</strong> ({filteredArticles.length} total)
+                    </span>
+                    <span className="text-slate-300">|</span>
+                    <div className="flex items-center space-x-1.5">
+                      <span>Show:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setPage(1);
+                        }}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
                       >
-                        <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Preview</span>
-                      </button>
-
-                      {/* Live Public Link */}
-                      {isPublished && (
-                        <Link
-                          href={`/article/${article.slug || article.id}`}
-                          target="_blank"
-                          className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors"
-                        >
-                          <span>Live Site</span>
-                          <ExternalLink className="w-3 h-3 text-emerald-600" />
-                        </Link>
-                      )}
-
-                      {/* Edit Pending Story (Allows fixing mistakes while in Review Queue!) */}
-                      {isPending && (
-                        <Link
-                          href={`/reporter/articles/edit/${article.id}`}
-                          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-all shadow-2xs"
-                          title="Edit & correct any mistakes before admin publishes"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Edit Story</span>
-                        </Link>
-                      )}
-
-                      {/* Edit & Resubmit (for Drafts or Revision requests) */}
-                      {(isDraft || isRevision) && (
-                        <Link
-                          href={`/reporter/articles/edit/${article.id}`}
-                          className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-colors shadow-xs ${
-                            isRevision
-                              ? 'bg-rose-600 hover:bg-rose-700 ring-2 ring-rose-200'
-                              : 'bg-slate-900 hover:bg-slate-800'
-                          }`}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>{isRevision ? 'Fix & Resubmit' : 'Edit Draft'}</span>
-                        </Link>
-                      )}
-
-                      {/* Delete Draft Button */}
-                      {isDraft && (
-                        <button
-                          onClick={() => setDeleteId(article.id)}
-                          className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Delete Draft"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                        <option value={5}>5 / page</option>
+                        <option value={10}>10 / page</option>
+                        <option value={20}>20 / page</option>
+                        <option value={50}>50 / page</option>
+                      </select>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold text-slate-700"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(pNum => {
+                        if (pNum === 1 || pNum === totalPages) return true;
+                        return Math.abs(pNum - currentPage) <= 1;
+                      })
+                      .reduce<(number | '...')[]>((acc, pNum, idx, arr) => {
+                        if (idx > 0 && pNum - (arr[idx - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(pNum);
+                        return acc;
+                      }, [])
+                      .map((item, idx) => {
+                        if (item === '...') {
+                          return (
+                            <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-slate-400 font-bold select-none">
+                              ...
+                            </span>
+                          );
+                        }
+                        const pNum = item as number;
+                        return (
+                          <button
+                            key={pNum}
+                            type="button"
+                            onClick={() => setPage(pNum)}
+                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                              currentPage === pNum
+                                ? 'bg-red-600 text-white shadow-xs'
+                                : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {pNum}
+                          </button>
+                        );
+                      })}
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold text-slate-700"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -475,7 +579,7 @@ function ReporterArticlesContent() {
               {previewArticle.bulletPoints && (
                 <div className="p-4 rounded-2xl border border-amber-200/90 bg-amber-50/50 space-y-2">
                   <div className="flex items-center space-x-1.5 text-xs font-black uppercase tracking-wider text-amber-900">
-                    <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400" />
+                    <FileText className="w-4 h-4 text-amber-700" />
                     <span>Story Highlights</span>
                   </div>
                   <ul className="space-y-1.5 text-xs text-amber-950 font-medium pl-1">

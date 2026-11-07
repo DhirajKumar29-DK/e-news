@@ -77,12 +77,25 @@ function AdminVideosListContent() {
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const handleApproveVideo = async (videoId: string) => {
+    try {
+      setApprovingId(videoId);
+      await videoService.updateVideo(videoId, { status: 'PUBLISHED' });
+      setVideos(prev => prev.map(v => v.id === videoId ? { ...v, status: 'PUBLISHED' } : v));
+    } catch (err: any) {
+      alert(err.message || 'Failed to approve video');
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const fetchVideos = async () => {
     try {
       setLoading(true);
       const res = await videoService.getVideos({
-        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        status: selectedStatus !== 'all' ? selectedStatus : 'ALL',
         search: searchQuery.trim() || undefined,
         page,
         limit
@@ -241,7 +254,8 @@ function AdminVideosListContent() {
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-red-500 cursor-pointer"
               >
                 <option value="all">All Status</option>
-                <option value="PUBLISHED">Published</option>
+                <option value="PENDING_REVIEW">Pending Review (Reporter Submissions)</option>
+                <option value="PUBLISHED">Published (Live)</option>
                 <option value="DRAFT">Draft</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
@@ -373,17 +387,32 @@ function AdminVideosListContent() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             vid.status === 'PUBLISHED'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : vid.status === 'PENDING_REVIEW'
+                              ? 'bg-amber-50 text-amber-800 border border-amber-300'
                               : vid.status === 'DRAFT'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              ? 'bg-slate-100 text-slate-700 border border-slate-300'
                               : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
-                            {vid.status}
+                            {vid.status === 'PENDING_REVIEW' ? 'Pending Review' : vid.status}
                           </span>
                         </td>
 
                         {/* Actions */}
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
+                            {vid.status === 'PENDING_REVIEW' && (
+                              <button
+                                type="button"
+                                disabled={approvingId === vid.id}
+                                onClick={() => handleApproveVideo(vid.id)}
+                                title="Approve & Publish Live"
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center space-x-1 transition shadow-xs cursor-pointer disabled:opacity-50"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                <span>{approvingId === vid.id ? 'Publishing...' : 'Approve Live'}</span>
+                              </button>
+                            )}
+
                             <Link
                               href={`/videos`}
                               target="_blank"

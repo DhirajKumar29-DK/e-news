@@ -24,6 +24,28 @@ export type AdFormatType = 'IMAGE' | 'SCRIPT' | 'VIDEO';
 export type AdApprovalStatus = 'ACTIVE' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED';
 export type AdActionType = 'WHATSAPP' | 'WEBSITE' | 'CALL' | 'LOCATION' | 'LEAD_FORM' | 'SHOP';
 
+export interface AdPackage {
+  id?: string;
+  days: number;
+  price: number;
+  originalPrice?: number;
+  label: string;
+  discount?: string;
+  perDay?: string;
+  badge?: string;
+  popular?: boolean;
+}
+
+export interface AdPricingConfig {
+  id?: string;
+  upiId: string;
+  payeeName: string;
+  pricingMode: 'GLOBAL' | 'PER_SLOT';
+  packages: AdPackage[];
+  slotPricing?: Record<string, { rateMultiplier?: number; customLabel?: string }>;
+  updatedAt?: string;
+}
+
 export interface AdvertisementData {
   id: string;
   title: string;
@@ -42,6 +64,7 @@ export interface AdvertisementData {
   description?: string | null;
   advertiserName?: string | null;
   advertiserPhone?: string | null;
+  whatsappNumber?: string | null;
   advertiserEmail?: string | null;
   targetDistrict?: string | null;
   actionType?: AdActionType;
@@ -235,5 +258,26 @@ export const adService = {
       throw new Error(data.message || 'Ad banner upload failed');
     }
     return data.data.imageUrl;
+  },
+
+  // Public & Admin: Get Dynamic Pricing & UPI Config
+  async getPricingConfig(): Promise<AdPricingConfig> {
+    const res = await apiRequest<{ success: boolean; data: AdPricingConfig }>(
+      '/ads/pricing-config',
+      { method: 'GET' }
+    );
+    return res.data;
+  },
+
+  // Admin: Update Dynamic Pricing & UPI Config
+  async updatePricingConfig(data: Partial<AdPricingConfig>): Promise<AdPricingConfig> {
+    const res = await apiRequest<{ success: boolean; data: AdPricingConfig }>(
+      '/ads/pricing-config',
+      {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }
+    );
+    return res.data;
   }
 };

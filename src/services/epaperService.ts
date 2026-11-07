@@ -222,21 +222,16 @@ export async function publishLegacy(payload: PublishPayload): Promise<any> {
  * AI Assistant endpoint (generate newspaper slot content)
  */
 export async function callAIAgent(payload: AIAgentPayload): Promise<any> {
-  try {
-    const res = await fetch(getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.aiAgent}`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.message || `Error (${res.status})`);
-    }
-    return data.data;
-  } catch (err) {
-    console.warn('callAIAgent error:', err);
-    return null;
+  const res = await fetch(getCleanUrl(`${API_BASE_URL}${ENDPOINTS.epaper.aiAgent}`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || `AI Server Error (${res.status})`);
   }
+  return data.data;
 }
 
 export interface AutoGeneratePagePayload {

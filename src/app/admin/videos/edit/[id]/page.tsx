@@ -14,16 +14,6 @@ import {
   ExternalLink, Video, CheckCircle, FileText, Bell
 } from 'lucide-react';
 
-const BADGE_PRESETS = [
-  'BREAKING NEWS',
-  'EXCLUSIVE',
-  'GROUND REPORT',
-  'SPECIAL REPORT',
-  'MATCH PREVIEW',
-  'INVESTIGATION',
-  'ECONOMY'
-];
-
 function AdminVideoEditContent() {
   const router = useRouter();
   const params = useParams();
@@ -46,7 +36,7 @@ function AdminVideoEditContent() {
   const [youtubeId, setYoutubeId] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [duration, setDuration] = useState('04:30');
-  const [badge, setBadge] = useState('EXCLUSIVE');
+  const [badge, setBadge] = useState('');
   const [location, setLocation] = useState('NEW DELHI, INDIA');
   const [reporterName, setReporterName] = useState('News Desk');
   const [metaTitle, setMetaTitle] = useState('');
@@ -59,7 +49,7 @@ function AdminVideoEditContent() {
   const [isFeaturedHero, setIsFeaturedHero] = useState(false);
   const [isTrending, setIsTrending] = useState(true);
   const [sendNotification, setSendNotification] = useState(false);
-  const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT' | 'ARCHIVED'>('PUBLISHED');
+  const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT' | 'ARCHIVED' | 'PENDING_REVIEW' | string>('PUBLISHED');
 
   // Upload States
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
@@ -253,9 +243,9 @@ function AdminVideoEditContent() {
               </Link>
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <span className={`w-2 h-2 rounded-full ${status === 'PUBLISHED' ? 'bg-emerald-500' : 'bg-amber-500'} shrink-0`} />
+                  <span className={`w-2 h-2 rounded-full ${status === 'PUBLISHED' ? 'bg-emerald-500' : status === 'PENDING_REVIEW' ? 'bg-amber-500' : 'bg-slate-400'} shrink-0`} />
                   <span className="text-xs font-black uppercase tracking-wider text-slate-500 truncate">
-                    {status === 'PUBLISHED' ? 'Live Broadcast' : 'Draft'}
+                    {status === 'PUBLISHED' ? 'Live Broadcast' : status === 'PENDING_REVIEW' ? 'In Editorial Review' : 'Draft'}
                   </span>
                   <span className="text-slate-300">•</span>
                   <span className="text-xs font-bold text-slate-700 truncate max-w-[240px] sm:max-w-md">
@@ -359,27 +349,18 @@ function AdminVideoEditContent() {
                   />
                 </div>
 
-                {/* Badge Overlay Presets */}
+                {/* Badge Overlay */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
                   <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block">
                     Broadcast Badge Tag
                   </label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {BADGE_PRESETS.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setBadge(p)}
-                        className={`text-[10px] px-3 py-1 rounded-lg font-bold uppercase transition-all cursor-pointer ${
-                          badge === p
-                            ? 'bg-red-600 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="text"
+                    value={badge}
+                    onChange={(e) => setBadge(e.target.value.toUpperCase())}
+                    placeholder="e.g. EXCLUSIVE, BREAKING NEWS, GROUND REPORT"
+                    className="w-full px-3.5 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
+                  />
                 </div>
               </div>
 

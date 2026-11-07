@@ -178,7 +178,7 @@ function ResetPasswordForm() {
 
 export default function ReporterResetPasswordPage() {
   return (
-    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-50 text-slate-800 font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
       {/* Top Left Clean Back to Login Link */}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 shrink-0">
         <Link
@@ -190,12 +190,12 @@ export default function ReporterResetPasswordPage() {
         </Link>
       </div>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-4 lg:overflow-hidden flex items-center">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center lg:h-[calc(100vh-4.5rem)]">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center">
           
           {/* 1. LEFT COLUMN: Luxury Animated Newsroom Showcase Card */}
-          <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center lg:h-full">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-8 xl:p-10 text-white shadow-2xl border border-slate-800/80 h-full max-h-[620px] flex flex-col justify-between">
+          <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-7 xl:p-8 text-white shadow-2xl border border-slate-800/80 min-h-[580px] flex flex-col justify-between">
               
               {/* Glowing Background Radial Effects */}
               <div className="absolute -top-24 -right-24 w-80 h-80 bg-red-600/25 rounded-full blur-3xl pointer-events-none animate-pulse-soft" />
@@ -225,8 +225,8 @@ export default function ReporterResetPasswordPage() {
               </div>
 
               {/* Centerpiece: Clean Editorial Photography Scene */}
-              <div className="relative z-10 my-6 flex items-center justify-center">
-                <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
+              <div className="relative z-10 my-3 sm:my-4 flex items-center justify-center">
+                <div className="relative w-full max-w-sm aspect-[16/10] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
                   <img
                     src="/images/editorial-newspaper.jpg"
                     alt="Vartiq Editorial Newspaper & Modern Journalism Desk"
@@ -281,7 +281,7 @@ export default function ReporterResetPasswordPage() {
               </div>
 
               {/* Bottom Content & Metrics */}
-              <div className="relative z-10 space-y-4 pt-2 border-t border-white/10">
+              <div className="relative z-10 space-y-3.5 pt-3 border-t border-white/10 pb-2">
                 <div className="space-y-1">
                   <h3 className="text-lg xl:text-xl font-black font-serif text-white tracking-tight">
                     Secure Newsroom Desk Access.
@@ -292,7 +292,7 @@ export default function ReporterResetPasswordPage() {
                 </div>
 
                 {/* 3 Metric Pills */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
+                <div className="grid grid-cols-3 gap-3 pt-1 pb-1">
                   <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center backdrop-blur-sm">
                     <p className="text-base xl:text-lg font-black text-emerald-400">Encrypted</p>
                     <p className="text-[10px] text-slate-400 font-medium">Bcrypt Hash</p>

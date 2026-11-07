@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone,
-  ClipboardCheck, Users, Bot, CalendarClock
+  ClipboardCheck, Users, Bot, CalendarClock, ChevronDown, IndianRupee, Sliders
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, logout } = useAdminAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -26,18 +27,44 @@ export const AdminSidebar: React.FC = () => {
     };
   }, []);
 
-  const navItems = [
+  const navItems: {
+    label: string;
+    href: string;
+    icon: any;
+    children?: { label: string; href: string; icon: any }[];
+  }[] = [
     { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Review Queue', href: '/admin/articles/review', icon: ClipboardCheck },
     { label: 'Reporters', href: '/admin/reporters', icon: Users },
     { label: 'Articles CMS', href: '/admin/articles', icon: FileText },
     { label: 'Video Studio', href: '/admin/videos', icon: Video },
-    { label: 'Ad Studio', href: '/admin/ads', icon: Megaphone },
+    {
+      label: 'Ad Studio',
+      href: '/admin/ads',
+      icon: Megaphone,
+      children: [
+        { label: 'Direct Campaigns', href: '/admin/ads?tab=campaigns', icon: Megaphone },
+        { label: 'Self-Serve Orders', href: '/admin/ads?tab=orders', icon: IndianRupee },
+        { label: 'Pricing & UPI', href: '/admin/ads?tab=pricing', icon: Sliders },
+      ]
+    },
     { label: 'Horoscope Studio', href: '/admin/horoscope', icon: Sparkles },
     { label: 'E-Paper Studio', href: '/admin/epaper', icon: Newspaper },
     { label: 'E-Paper Scheduler', href: '/admin/epaper/automation', icon: CalendarClock },
     { label: 'AI Settings & Agent', href: '/admin/ai-settings', icon: Bot },
   ];
+
+  // Track which parent item is expanded in sidebar
+  const [expandedItem, setExpandedItem] = useState<string | null>(() => {
+    if (pathname.startsWith('/admin/ads')) return 'Ad Studio';
+    return null;
+  });
+
+  useEffect(() => {
+    if (pathname.startsWith('/admin/ads')) {
+      setExpandedItem('Ad Studio');
+    }
+  }, [pathname]);
 
   const sidebarContent = (isMobile = false) => (
     <div className="flex flex-col h-full bg-slate-900 text-slate-300 select-none">
@@ -75,11 +102,70 @@ export const AdminSidebar: React.FC = () => {
 
         {navItems.map((item) => {
           const Icon = item.icon;
+          const hasChildren = item.children && item.children.length > 0;
+          const isItemExpanded = expandedItem === item.label;
+
           const isActive = item.href === '/admin/articles'
             ? (pathname === '/admin/articles' || (pathname.startsWith('/admin/articles/') && !pathname.startsWith('/admin/articles/review')))
             : item.href === '/admin/dashboard'
               ? pathname === '/admin/dashboard'
               : pathname.startsWith(item.href);
+
+          if (hasChildren) {
+            return (
+              <div key={item.label} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => setExpandedItem(isItemExpanded ? null : item.label)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer group ${
+                    isActive
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-600/20'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-red-400'} transition-colors`} />
+                    <span>{item.label}</span>
+                  </div>
+
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isItemExpanded ? 'rotate-180 text-white' : 'text-slate-500'}`} />
+                </button>
+
+                {/* Sub-menu items for Ad Studio */}
+                {isItemExpanded && item.children && (
+                  <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-red-500/40 ml-4 animate-in fade-in duration-150">
+                    {item.children.map((sub) => {
+                      const SubIcon = sub.icon;
+                      let activeTab = 'campaigns';
+                      try {
+                        activeTab = searchParams?.get('tab') || 'campaigns';
+                      } catch {}
+                      const isSubActive = pathname === '/admin/ads' && (
+                        (sub.href.includes('tab=campaigns') && activeTab === 'campaigns') ||
+                        (sub.href.includes('tab=orders') && activeTab === 'orders') ||
+                        (sub.href.includes('tab=pricing') && activeTab === 'pricing')
+                      );
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.href}
+                          onClick={() => setIsMobileOpen(false)}
+                          className={`flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                            isSubActive
+                              ? 'bg-red-600/20 text-white font-bold border border-red-500/30'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                          }`}
+                        >
+                          <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-red-400' : 'text-slate-500 group-hover:text-red-400'}`} />
+                          <span>{sub.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           return (
             <Link

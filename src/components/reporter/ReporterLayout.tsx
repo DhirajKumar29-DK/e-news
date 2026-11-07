@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, Plus, User, LogOut, CheckCircle2,
-  Sparkles, LayoutDashboard, ChevronRight, ShieldCheck, ArrowLeft
+  LayoutDashboard, ChevronRight, ShieldCheck, ArrowLeft, Video, PlaySquare
 } from 'lucide-react';
 import { ReporterAuthProvider, useReporterAuth } from '@/context/ReporterAuthContext';
 
@@ -26,8 +26,10 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { href: '/reporter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/reporter/articles/create', label: 'Write New Story', icon: Plus },
-    { href: '/reporter/articles', label: 'My Submissions', icon: FileText },
+    { href: '/reporter/articles/create', label: 'Write Story', icon: Plus },
+    { href: '/reporter/videos/create', label: 'Post Video Report', icon: Video },
+    { href: '/reporter/articles', label: 'My Articles', icon: FileText },
+    { href: '/reporter/videos', label: 'My Videos', icon: PlaySquare },
     { href: '/reporter/profile', label: 'Profile & Settings', icon: User }
   ];
 
@@ -38,14 +40,14 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
-        <div className="lg:hidden mb-6 bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="lg:hidden sticky top-2 z-40 mb-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-4 shadow-md space-y-3">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <Link href="/" className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 hover:text-red-600 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Home</span>
             </Link>
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wider">
-              <Sparkles className="w-3 h-3 text-red-600" />
+              <ShieldCheck className="w-3 h-3 text-red-600" />
               <span>Reporter Desk</span>
             </div>
           </div>
@@ -101,12 +103,12 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           
           {/* LEFT SIDEBAR (The Organized Reporter Navigation Panel) */}
-          <aside className="hidden lg:flex flex-col w-72 shrink-0 space-y-4 sticky top-6">
+          <aside className="hidden lg:flex flex-col w-72 shrink-0 space-y-4 sticky top-6 self-start max-h-[calc(100vh-3rem)] overflow-y-auto no-scrollbar">
             
             {/* 1. Back to Home Navigation Card */}
             <Link
               href="/"
-              className="bg-white hover:bg-slate-50/90 rounded-2xl border border-slate-200 p-3.5 shadow-xs flex items-center space-x-3 text-xs font-bold text-slate-700 hover:text-red-600 transition-all group cursor-pointer"
+              className="bg-white hover:bg-slate-50/90 rounded-2xl border border-slate-200 p-3.5 shadow-xs flex items-center space-x-3 text-xs font-bold text-slate-700 hover:text-red-600 transition-all group cursor-pointer sticky top-0 z-10"
               title="Back to Home Page"
             >
               <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center group-hover:bg-red-50 group-hover:border-red-200 transition-colors shrink-0">
@@ -137,19 +139,28 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
 
               {/* Desk Badge */}
               <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wider w-full justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-red-600" />
+                <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
                 <span>Accredited Reporter Desk</span>
               </div>
             </div>
 
-            {/* 3. Quick Action: Write Story Button */}
-            <Link
-              href="/reporter/articles/create"
-              className="flex items-center justify-center space-x-2 w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer group"
-            >
-              <Plus className="w-4 h-4 stroke-[3] group-hover:rotate-90 transition-transform" />
-              <span>Write New Story</span>
-            </Link>
+            {/* 3. Quick Actions: Write Story & Post Video */}
+            <div className="space-y-2">
+              <Link
+                href="/reporter/articles/create"
+                className="flex items-center justify-center space-x-2 w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer group"
+              >
+                <Plus className="w-4 h-4 stroke-[3] group-hover:rotate-90 transition-transform" />
+                <span>Write New Story</span>
+              </Link>
+              <Link
+                href="/reporter/videos/create"
+                className="flex items-center justify-center space-x-2 w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs shadow-xs transition-all cursor-pointer group border border-slate-700"
+              >
+                <Video className="w-4 h-4 text-rose-400 group-hover:scale-110 transition-transform" />
+                <span>Post Video Report</span>
+              </Link>
+            </div>
 
             {/* 4. Main Navigation Links */}
             <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs space-y-1">

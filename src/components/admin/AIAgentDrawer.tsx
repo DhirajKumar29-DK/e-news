@@ -298,6 +298,10 @@ export const AIAgentDrawer: React.FC<AIAgentDrawerProps> = ({
         editionCity: editionCity
       });
 
+      if (!aiResponse) {
+        throw new Error('AI सर्वर से प्रतिक्रिया प्राप्त नहीं हुई। कृपया पुनः प्रयास करें।');
+      }
+
       let resolvedNews = aiResponse.parsedNews || null;
       let replyText = aiResponse.reply || aiResponse.fullText || 'Response generated.';
 

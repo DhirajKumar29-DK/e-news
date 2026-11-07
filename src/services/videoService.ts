@@ -24,7 +24,7 @@ export interface VideoData {
   tags?: string | null; // JSON string or comma-separated
   isFeaturedHero: boolean;
   isTrending: boolean;
-  status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+  status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED' | 'PENDING_REVIEW' | string;
   viewsCount: number;
   likesCount: number;
   publishedAt: string;
@@ -142,7 +142,9 @@ export const videoService = {
     const formData = new FormData();
     formData.append('video', file);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('reporter_token') || localStorage.getItem('admin_token'))
+      : null;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
     const res = await fetch(`${apiUrl}/videos/upload`, {
       method: 'POST',
@@ -172,7 +174,9 @@ export const videoService = {
     formData.append('image', file);
     formData.append('thumbnail', file);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('reporter_token') || localStorage.getItem('admin_token'))
+      : null;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
     const res = await fetch(`${apiUrl}/videos/upload-thumbnail`, {
       method: 'POST',

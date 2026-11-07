@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -9,16 +10,19 @@ import {
   AdvertisementData,
   AdSlotType,
   AdFormatType,
-  AdActionType
+  AdActionType,
+  AdPricingConfig,
+  AdPackage
 } from '@/services/adService';
 import { getFullMediaUrl } from '@/config/env';
 import {
   Megaphone, Plus, Search, Filter, Trash2, Edit2, ExternalLink,
-  Eye, MousePointerClick, Calendar, CheckCircle2, XCircle,
-  Upload, X, Code, Image as ImageIcon, Sparkles, AlertCircle, RefreshCw,
+  Eye, MousePointerClick, Calendar, CheckCircle2, XCircle, TrendingUp,
+  Upload, X, Code, Image as ImageIcon, AlertCircle, RefreshCw,
   LayoutGrid, List, CheckCircle, Clock, ShieldCheck, MapPin, ChevronDown, Check,
   Phone, Mail, MessageCircle, Copy, IndianRupee, Play, ShoppingBag, Globe,
-  ArrowRight, PhoneCall, FileText
+  ArrowRight, PhoneCall, FileText, Sliders, QrCode, Save, Tag, Percent, Layers,
+  HelpCircle, PlusCircle, CheckCheck, CalendarPlus, Zap
 } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { categoryService, CategoryData } from '@/services/categoryService';
@@ -58,9 +62,63 @@ const SLOT_OPTIONS = [
 
 function AdStudioContent() {
   const { user, isLoading: authLoading } = useAdminAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  // Top Tabs: 'CAMPAIGNS' (Admin custom campaigns) vs 'ORDERS' (User self-serve ads & payments)
-  const [activeMainTab, setActiveMainTab] = useState<'CAMPAIGNS' | 'ORDERS'>('CAMPAIGNS');
+  // Top Tabs: 'CAMPAIGNS' (Admin custom campaigns) vs 'ORDERS' (User self-serve ads & payments) vs 'PRICING'
+  const tabFromUrl = searchParams.get('tab');
+  const [activeMainTab, setActiveMainTab] = useState<'CAMPAIGNS' | 'ORDERS' | 'PRICING'>(() => {
+    if (tabFromUrl === 'orders') return 'ORDERS';
+    if (tabFromUrl === 'pricing') return 'PRICING';
+    return 'CAMPAIGNS';
+  });
+
+  useEffect(() => {
+    if (tabFromUrl === 'orders') {
+      setActiveMainTab('ORDERS');
+    } else if (tabFromUrl === 'pricing') {
+      setActiveMainTab('PRICING');
+    } else if (tabFromUrl === 'campaigns') {
+      setActiveMainTab('CAMPAIGNS');
+    }
+  }, [tabFromUrl]);
+
+  const handleTabSwitch = (tab: 'CAMPAIGNS' | 'ORDERS' | 'PRICING') => {
+    setActiveMainTab(tab);
+    const tabParam = tab.toLowerCase();
+    router.push(`/admin/ads?tab=${tabParam}`, { scroll: false });
+  };
+
+  // ================= PRICING & UPI GATEWAY STATE =================
+  const [pricingConfig, setPricingConfig] = useState<AdPricingConfig | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [upiIdInput, setUpiIdInput] = useState('9798223366@okbizaxis');
+  const [payeeNameInput, setPayeeNameInput] = useState('Vartiq News');
+  const [packagesList, setPackagesList] = useState<AdPackage[]>([]);
+  const [slotPricingMap, setSlotPricingMap] = useState<Record<string, { rateMultiplier?: number; customLabel?: string }>>({});
+
+  // Pagination for Pricing Tab
+  const [pkgPage, setPkgPage] = useState(1);
+  const [pkgLimit, setPkgLimit] = useState(5);
+  const [slotPage, setSlotPage] = useState(1);
+  const [slotLimit, setSlotLimit] = useState(5);
+
+  const allSlots = SLOT_OPTIONS.flatMap(g => g.slots);
+  const totalSlotPages = Math.ceil(allSlots.length / slotLimit);
+  const paginatedSlots = allSlots.slice((slotPage - 1) * slotLimit, slotPage * slotLimit);
+
+  // Package Modal state (Add / Edit Package)
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [editingPackageIndex, setEditingPackageIndex] = useState<number | null>(null);
+  const [pkgDays, setPkgDays] = useState<string | number>(7);
+  const [pkgPrice, setPkgPrice] = useState<string | number>(599);
+  const [pkgOriginalPrice, setPkgOriginalPrice] = useState<string | number>(999);
+  const [pkgLabel, setPkgLabel] = useState<string>('7 Days (Trial Pack)');
+  const [pkgDiscount, setPkgDiscount] = useState<string>('40% off');
+  const [pkgBadge, setPkgBadge] = useState<string>('Initial Plan');
+  const [pkgPopular, setPkgPopular] = useState<boolean>(false);
+  const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
 
   // ================= CAMPAIGNS STATE =================
   const [ads, setAds] = useState<AdvertisementData[]>([]);
@@ -175,6 +233,13 @@ function AdStudioContent() {
   const [copiedUtrId, setCopiedUtrId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Extend Ad Duration State
+  const [extendingAd, setExtendingAd] = useState<AdvertisementData | null>(null);
+  const [extendPresetDays, setExtendPresetDays] = useState<number>(3);
+  const [extendCustomDate, setExtendCustomDate] = useState<string>('');
+  const [extendPaymentNote, setExtendPaymentNote] = useState<string>('');
+  const [isExtending, setIsExtending] = useState<boolean>(false);
+
   // Fetch admin campaigns
   const fetchAds = async () => {
     try {
@@ -218,14 +283,246 @@ function AdStudioContent() {
     }
   };
 
+  // Fetch pricing configuration
+  const fetchPricingConfig = async () => {
+    try {
+      setPricingLoading(true);
+      const cfg = await adService.getPricingConfig();
+      if (cfg) {
+        setPricingConfig(cfg);
+        setUpiIdInput(cfg.upiId || '9798223366@okbizaxis');
+        setPayeeNameInput(cfg.payeeName || 'Vartiq News');
+        setPackagesList(Array.isArray(cfg.packages) ? cfg.packages : []);
+        setSlotPricingMap(cfg.slotPricing || {});
+      }
+    } catch (err: any) {
+      console.error('Failed to load pricing config:', err);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  // Save full pricing configuration
+  const handleSavePricingConfig = async () => {
+    try {
+      setPricingSaving(true);
+      const sanitizedSlotPricing: Record<string, { rateMultiplier?: number; customLabel?: string }> = {};
+      Object.entries(slotPricingMap).forEach(([k, v]) => {
+        sanitizedSlotPricing[k] = {
+          ...v,
+          rateMultiplier: v?.rateMultiplier !== undefined && v?.rateMultiplier !== null && String(v.rateMultiplier).trim() !== ''
+            ? Number(v.rateMultiplier)
+            : 1.0
+        };
+      });
+      const res = await adService.updatePricingConfig({
+        upiId: upiIdInput.trim(),
+        payeeName: payeeNameInput.trim(),
+        packages: packagesList,
+        slotPricing: sanitizedSlotPricing
+      });
+      setPricingConfig(res);
+      setToastMessage({
+        text: '✅ All Ad Pricing, Duration Packages & UPI Settings successfully saved to database!',
+        type: 'success'
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: any) {
+      console.error('Failed to save pricing config:', err);
+      setToastMessage({
+        text: `❌ Error saving pricing: ${err.message || 'Failed to save'}`,
+        type: 'error'
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
+  // Helper to calculate discount text automatically
+  const computeDiscount = (priceVal: string | number, origVal: string | number) => {
+    const p = parseFloat(String(priceVal)) || 0;
+    const op = parseFloat(String(origVal)) || 0;
+    if (op > p && p > 0) {
+      const pct = Math.round(((op - p) / op) * 100);
+      return `${pct}% off`;
+    }
+    return '';
+  };
+
+  // Package Modal Handlers
+  const openAddPackageModal = () => {
+    setEditingPackageIndex(null);
+    setPkgDays(10);
+    setPkgPrice(799);
+    setPkgOriginalPrice(1299);
+    setPkgLabel('10 Days (Power Boost)');
+    setPkgDiscount('38% off');
+    setPkgBadge('Hot Deal');
+    setPkgPopular(false);
+    setIsManualDiscount(false);
+    setIsPackageModalOpen(true);
+  };
+
+  const openEditPackageModal = (pkg: AdPackage, index: number) => {
+    setEditingPackageIndex(index);
+    const d = pkg.days || 7;
+    const p = pkg.price ?? 0;
+    const op = pkg.originalPrice ?? Math.round(p * 1.5);
+    setPkgDays(d);
+    setPkgPrice(p);
+    setPkgOriginalPrice(op);
+    setPkgLabel(pkg.label || `${d} Days (Pack)`);
+    // Recalculate live discount from current p and op
+    const autoDisc = computeDiscount(p, op);
+    setPkgDiscount(autoDisc || pkg.discount || '');
+    setPkgBadge(pkg.badge || '');
+    setPkgPopular(Boolean(pkg.popular));
+    setIsManualDiscount(false);
+    setIsPackageModalOpen(true);
+  };
+
+  // Real-time handlers for Package fields
+  const handleDaysChange = (val: string) => {
+    setPkgDays(val);
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num > 0) {
+      setPkgLabel((prev) => {
+        if (/^\d+\s*Days?/i.test(prev.trim())) {
+          return prev.replace(/^\d+\s*Days?/i, `${num} ${num === 1 ? 'Day' : 'Days'}`);
+        }
+        return `${num} ${num === 1 ? 'Day' : 'Days'} Plan`;
+      });
+    }
+  };
+
+  const handlePriceChange = (val: string) => {
+    setPkgPrice(val);
+    // Always auto-recalculate discount on price change
+    const disc = computeDiscount(val, pkgOriginalPrice);
+    setPkgDiscount(disc);
+    setIsManualDiscount(false);
+  };
+
+  const handleOriginalPriceChange = (val: string) => {
+    setPkgOriginalPrice(val);
+    // Always auto-recalculate discount on MRP change
+    const disc = computeDiscount(pkgPrice, val);
+    setPkgDiscount(disc);
+    setIsManualDiscount(false);
+  };
+
+  const handleSavePackageModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const daysNum = Number(pkgDays);
+    const priceNum = Number(pkgPrice);
+    const origNum = Number(pkgOriginalPrice) || 0;
+
+    if (!daysNum || daysNum < 1) {
+      alert('Please enter a valid number of days (at least 1 day)');
+      return;
+    }
+    if (isNaN(priceNum) || priceNum < 0) {
+      alert('Please enter a valid price (₹)');
+      return;
+    }
+
+    const calculatedDiscount = computeDiscount(priceNum, origNum) || pkgDiscount.trim() || undefined;
+
+    const perDayText = `₹${Math.round(priceNum / daysNum)} / day`;
+
+    const updatedPackage: AdPackage = {
+      id: editingPackageIndex !== null && packagesList[editingPackageIndex]?.id
+        ? packagesList[editingPackageIndex].id
+        : `pkg-${daysNum}-${Date.now()}`,
+      days: daysNum,
+      price: priceNum,
+      originalPrice: origNum > 0 ? origNum : undefined,
+      label: pkgLabel.trim() || `${daysNum} ${daysNum === 1 ? 'Day' : 'Days'} Plan`,
+      discount: calculatedDiscount,
+      perDay: perDayText,
+      badge: pkgBadge.trim() || undefined,
+      popular: pkgPopular
+    };
+
+    if (editingPackageIndex !== null) {
+      const copy = [...packagesList];
+      copy[editingPackageIndex] = updatedPackage;
+      setPackagesList(copy);
+    } else {
+      const copy = [...packagesList, updatedPackage].sort((a, b) => (a.days || 0) - (b.days || 0));
+      setPackagesList(copy);
+    }
+
+    setIsPackageModalOpen(false);
+  };
+
+  const handleDeletePackage = (index: number) => {
+    const target = packagesList[index];
+    if (window.confirm(`Are you sure you want to delete the "${target.label}" package?`)) {
+      setPackagesList(packagesList.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleQuickAddPreset = (days: number, label: string, price: number, originalPrice: number, badge: string) => {
+    const exists = packagesList.some(p => p.days === days);
+    if (exists) {
+      alert(`A package for ${days} days already exists. You can edit it from the list.`);
+      return;
+    }
+    const newPkg: AdPackage = {
+      id: `pkg-${days}-${Date.now()}`,
+      days,
+      price,
+      originalPrice,
+      label,
+      discount: `${Math.round(((originalPrice - price) / originalPrice) * 100)}% off`,
+      perDay: `₹${Math.round(price / days)} / day`,
+      badge,
+      popular: days === 15 || days === 30
+    };
+    setPackagesList([...packagesList, newPkg].sort((a, b) => a.days - b.days));
+  };
+
+  const handleSlotMultiplierChange = (slotKey: string, multiplier: string | number) => {
+    setSlotPricingMap(prev => ({
+      ...prev,
+      [slotKey]: {
+        ...prev[slotKey],
+        rateMultiplier: multiplier as any
+      }
+    }));
+  };
+
+  const handleSlotLabelChange = (slotKey: string, customLabel: string) => {
+    setSlotPricingMap(prev => ({
+      ...prev,
+      [slotKey]: {
+        ...prev[slotKey],
+        customLabel: customLabel.trim()
+      }
+    }));
+  };
+
+  const handleResetSlotMultiplier = (slotKey: string) => {
+    setSlotPricingMap(prev => {
+      const copy = { ...prev };
+      delete copy[slotKey];
+      return copy;
+    });
+  };
+
   useEffect(() => {
     fetchAds();
     checkPendingCount();
+    fetchPricingConfig();
   }, []);
 
   useEffect(() => {
     if (activeMainTab === 'ORDERS') {
       fetchOrders();
+    } else if (activeMainTab === 'PRICING') {
+      fetchPricingConfig();
     }
   }, [activeMainTab, ordersPage, ordersLimit, ordersStatusFilter, ordersSearch]);
 
@@ -298,6 +595,84 @@ function AdStudioContent() {
       setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  // Direct Client Ad Extension Modal Handlers
+  const openExtendModal = (ad: AdvertisementData) => {
+    setExtendingAd(ad);
+    setExtendPresetDays(3);
+    const now = new Date();
+    // If ad endDate is in the future, extend from that date; if expired or not set, extend from today
+    const baseDate = (ad.endDate && new Date(ad.endDate) > now) ? new Date(ad.endDate) : now;
+    const initialTarget = new Date(baseDate);
+    initialTarget.setDate(initialTarget.getDate() + 3);
+    setExtendCustomDate(initialTarget.toISOString().slice(0, 10));
+    setExtendPaymentNote('');
+    setIsExtending(false);
+  };
+
+  const handleSelectExtendPreset = (days: number) => {
+    setExtendPresetDays(days);
+    if (!extendingAd) return;
+    const now = new Date();
+    const baseDate = (extendingAd.endDate && new Date(extendingAd.endDate) > now) ? new Date(extendingAd.endDate) : now;
+    const target = new Date(baseDate);
+    target.setDate(target.getDate() + days);
+    setExtendCustomDate(target.toISOString().slice(0, 10));
+  };
+
+  const handleConfirmExtend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!extendingAd) return;
+    if (!extendCustomDate) {
+      alert('Please choose a valid target end date.');
+      return;
+    }
+
+    try {
+      setIsExtending(true);
+      const targetEndDate = new Date(extendCustomDate + 'T23:59:59.999Z');
+
+      const payload: Partial<AdvertisementData> = {
+        endDate: targetEndDate.toISOString(),
+        isActive: true,
+        approvalStatus: 'APPROVED'
+      };
+
+      await adService.updateAd(extendingAd.id, payload);
+
+      const formattedDate = targetEndDate.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+
+      setToastMessage({
+        text: `Ad "${extendingAd.title}" has been successfully extended until ${formattedDate}! It is now Active & Live on the portal.`,
+        type: 'success'
+      });
+      setTimeout(() => setToastMessage(null), 6000);
+
+      // Local optimistic update
+      setAds(prev => prev.map(a => a.id === extendingAd.id ? { ...a, ...payload } : a));
+      setOrders(prev => prev.map(o => o.id === extendingAd.id ? { ...o, ...payload } : o));
+      if (selectedOrder?.id === extendingAd.id) {
+        setSelectedOrder(prev => prev ? { ...prev, ...payload } : null);
+      }
+
+      await fetchAds();
+      await fetchOrders();
+      setExtendingAd(null);
+    } catch (err: any) {
+      console.error('Failed to extend ad duration:', err);
+      setToastMessage({
+        text: `Failed to extend ad: ${err.message || 'Server error'}`,
+        type: 'error'
+      });
+      setTimeout(() => setToastMessage(null), 5000);
+    } finally {
+      setIsExtending(false);
     }
   };
 
@@ -423,8 +798,10 @@ function AdStudioContent() {
     }
   };
 
-  // Filter Ads
-  const filteredAds = ads.filter(ad => {
+  // Filter Direct Ads (Exclude self-serve ads booked by public users)
+  const directAds = ads.filter(ad => !ad.isSelfServe);
+
+  const filteredAds = directAds.filter(ad => {
     const matchesSearch =
       ad.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (ad.targetUrl && ad.targetUrl.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -437,11 +814,11 @@ function AdStudioContent() {
     return matchesSearch && matchesSlot;
   });
 
-  // Calculate Metrics
-  const totalCampaigns = ads.length;
-  const activeCampaigns = ads.filter(a => a.isActive).length;
-  const totalViews = ads.reduce((sum, a) => sum + (a.viewsCount || 0), 0);
-  const totalClicks = ads.reduce((sum, a) => sum + (a.clicksCount || 0), 0);
+  // Calculate Metrics for Direct Campaigns
+  const totalCampaigns = directAds.length;
+  const activeCampaigns = directAds.filter(a => a.isActive).length;
+  const totalViews = directAds.reduce((sum, a) => sum + (a.viewsCount || 0), 0);
+  const totalClicks = directAds.reduce((sum, a) => sum + (a.clicksCount || 0), 0);
   const overallCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : '0.00';
 
   // Order Metrics
@@ -529,19 +906,19 @@ function AdStudioContent() {
           {/* Header Action Banner */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
             <div>
-              <div className="inline-flex items-center space-x-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-red-600" />
-                <span>Monetization &amp; Self-Serve Ad Portal Suite</span>
-              </div>
               <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900">
                 {activeMainTab === 'CAMPAIGNS'
                   ? `Direct Campaigns & Placements (${totalCampaigns})`
-                  : `Self-Serve Orders & Payments (${ordersTotal})`}
+                  : activeMainTab === 'ORDERS'
+                  ? `Self-Serve Orders & Payments (${ordersTotal})`
+                  : `Ad Pricing & Duration Packages`}
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-xs text-slate-500 font-medium mt-1">
                 {activeMainTab === 'CAMPAIGNS'
-                  ? 'Manage direct sponsor banners, Google AdSense placements, schedules, and real-time impression analytics.'
-                  : 'Verify customer payments (UTR), review ad creatives, and approve ads live with automatic email notifications.'}
+                  ? 'Manage direct sponsor banners, Google AdSense placements, schedules, and impression analytics.'
+                  : activeMainTab === 'ORDERS'
+                  ? 'Verify customer payments (UTR), review ad creatives, and approve ads live.'
+                  : 'Manage duration packages (days, price, discount) and direct UPI payment details.'}
               </p>
             </div>
 
@@ -549,15 +926,17 @@ function AdStudioContent() {
               <button
                 onClick={() => {
                   if (activeMainTab === 'CAMPAIGNS') fetchAds();
-                  else {
+                  else if (activeMainTab === 'ORDERS') {
                     fetchOrders();
                     checkPendingCount();
+                  } else {
+                    fetchPricingConfig();
                   }
                 }}
                 className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
                 title="Refresh List"
               >
-                <RefreshCw className={`w-4 h-4 ${(loading || ordersLoading) ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${(loading || ordersLoading || pricingLoading) ? 'animate-spin' : ''}`} />
               </button>
 
               {activeMainTab === 'CAMPAIGNS' && (
@@ -581,46 +960,18 @@ function AdStudioContent() {
                   <span>Public Ad Page</span>
                 </a>
               )}
-            </div>
-          </div>
 
-          {/* MAIN TABS SWITCHER */}
-          <div className="flex items-center space-x-2 bg-slate-200/70 p-1 rounded-2xl w-fit">
-            <button
-              onClick={() => setActiveMainTab('CAMPAIGNS')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeMainTab === 'CAMPAIGNS'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-            >
-              <Megaphone className="w-3.5 h-3.5" />
-              <span>Direct Campaigns &amp; Banners</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-700">
-                {totalCampaigns}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveMainTab('ORDERS')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeMainTab === 'ORDERS'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-            >
-              <IndianRupee className="w-3.5 h-3.5" />
-              <span>Self-Serve Orders &amp; Payments</span>
-              {pendingOrdersCount > 0 ? (
-                <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse">
-                  {pendingOrdersCount} Pending
-                </span>
-              ) : (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-700">
-                  {ordersTotal}
-                </span>
+              {activeMainTab === 'PRICING' && (
+                <button
+                  onClick={handleSavePricingConfig}
+                  disabled={pricingSaving}
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Save className={`w-4 h-4 ${pricingSaving ? 'animate-spin' : ''}`} />
+                  <span>{pricingSaving ? 'Saving...' : 'Save Settings'}</span>
+                </button>
               )}
-            </button>
+            </div>
           </div>
 
           {/* TAB 1: CAMPAIGNS METRICS & FILTERS */}
@@ -931,10 +1282,20 @@ function AdStudioContent() {
 
                               <td className="py-3.5 px-4">
                                 {isExpired ? (
-                                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                    <Clock className="w-3 h-3 text-amber-600" />
-                                    <span>Expired</span>
-                                  </span>
+                                  <div className="flex items-center space-x-1.5">
+                                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                      <Clock className="w-3 h-3 text-amber-600" />
+                                      <span>Expired</span>
+                                    </span>
+                                    <button
+                                      onClick={() => openExtendModal(ad)}
+                                      className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors cursor-pointer"
+                                      title="Renew / Extend Ad"
+                                    >
+                                      <Zap className="w-2.5 h-2.5" />
+                                      <span>Renew</span>
+                                    </button>
+                                  </div>
                                 ) : ad.isActive ? (
                                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     <CheckCircle className="w-3 h-3 text-emerald-600" />
@@ -989,6 +1350,14 @@ function AdStudioContent() {
                                     title={ad.isActive ? 'Suspend / Pause Ad' : 'Activate Ad'}
                                   >
                                     {ad.isActive ? 'Suspend' : 'Activate'}
+                                  </button>
+
+                                  <button
+                                    onClick={() => openExtendModal(ad)}
+                                    className="p-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors cursor-pointer"
+                                    title="Extend Ad Duration"
+                                  >
+                                    <CalendarPlus className="w-3.5 h-3.5" />
                                   </button>
 
                                   <button
@@ -1360,17 +1729,27 @@ function AdStudioContent() {
                                   )}
 
                                   {isApproved && (
-                                    <button
-                                      onClick={() => handleToggleActive(order)}
-                                      className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                                        order.isActive
-                                          ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800'
-                                          : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                                      }`}
-                                      title={order.isActive ? 'Pause Live Ad' : 'Resume Live Ad'}
-                                    >
-                                      {order.isActive ? 'Pause Ad' : 'Resume Ad'}
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() => openExtendModal(order)}
+                                        className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs transition-colors cursor-pointer"
+                                        title="Extend / Renew Ad Duration"
+                                      >
+                                        <CalendarPlus className="w-3.5 h-3.5" />
+                                        <span>Extend</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleToggleActive(order)}
+                                        className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                                          order.isActive
+                                            ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                                            : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                                        }`}
+                                        title={order.isActive ? 'Pause Live Ad' : 'Resume Live Ad'}
+                                      >
+                                        {order.isActive ? 'Pause Ad' : 'Resume Ad'}
+                                      </button>
+                                    </>
                                   )}
 
                                   {isRejected && (
@@ -1453,9 +1832,614 @@ function AdStudioContent() {
               </>
             )}
 
+            {/* VIEW 3: PRICING, PACKAGES & UPI GATEWAY TAB */}
+            {activeMainTab === 'PRICING' && (
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+
+                {pricingLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-500 space-y-2">
+                    <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-xs font-semibold">Loading pricing configuration...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* CARD 1: UPI & QR Gateway Settings */}
+                    <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-5">
+                      <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                        <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200">
+                          <QrCode className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">UPI Payment & QR Code Gateway</h3>
+                          <p className="text-[11px] text-slate-500">Set the UPI ID and payee name for all self-serve ad bookings. Live QR code preview updates instantly.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                        {/* UPI ID & Payee Name Fields */}
+                        <div className="md:col-span-2 space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5">UPI ID (Merchant VPA) *</label>
+                            <input
+                              type="text"
+                              value={upiIdInput}
+                              onChange={(e) => setUpiIdInput(e.target.value)}
+                              placeholder="e.g. business@okaxis or 9876543210@upi"
+                              className="w-full px-4 py-3 text-sm font-mono font-semibold text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-all"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">This UPI ID will appear on the public ad booking QR code and payment instructions.</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5">Payee / Merchant Name</label>
+                            <input
+                              type="text"
+                              value={payeeNameInput}
+                              onChange={(e) => setPayeeNameInput(e.target.value)}
+                              placeholder="e.g. Vartiq News or Your Business Name"
+                              className="w-full px-4 py-3 text-sm font-semibold text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-all"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Displayed to the advertiser in the UPI payment confirmation dialog.</p>
+                          </div>
+                        </div>
+
+                        {/* Live QR Code Preview */}
+                        <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Live QR Preview</span>
+                          <div className="w-36 h-36 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-center">
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                                `upi://pay?pa=${upiIdInput || '9798223366@okbizaxis'}&pn=${encodeURIComponent(payeeNameInput || 'NewsPortal')}&am=599&cu=INR&tn=AdBooking_7days`
+                              )}`}
+                              alt="UPI QR Preview"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 truncate max-w-full">
+                            {upiIdInput || '9798223366@okbizaxis'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">{payeeNameInput || 'Vartiq News'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD 2: Duration Packages Manager */}
+                    <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-5">
+                      <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl border border-blue-200">
+                            <Tag className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Duration Packages ({packagesList.length})</h3>
+                            <p className="text-[11px] text-slate-500">Custom pricing packs shown to advertisers: 1 day, 7 days, 10 days, 1 month, 1 year — jitne chaho utne add karo.</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={openAddPackageModal}
+                          className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 transition-all cursor-pointer shrink-0"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Add Package</span>
+                        </button>
+                      </div>
+
+{/* Duration Packages List Table with Pagination */}
+                      {packagesList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+                          <Tag className="w-8 h-8 text-slate-300" />
+                          <p className="text-xs font-bold text-slate-500">No duration packages configured yet.</p>
+                          <p className="text-[11px] text-slate-400">Click &quot;Add Package&quot; button above to create your first pricing plan.</p>
+                        </div>
+                      ) : (
+                        (() => {
+                          const totalPkgPages = Math.max(1, Math.ceil(packagesList.length / pkgLimit));
+                          const currentPkgPage = Math.min(pkgPage, totalPkgPages);
+                          const startPkgIdx = (currentPkgPage - 1) * pkgLimit;
+                          const paginatedPackages = packagesList.slice(startPkgIdx, startPkgIdx + pkgLimit);
+
+                          return (
+                            <div className="space-y-3">
+                              <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                                    <tr>
+                                      <th className="py-3 px-4">Package Plan</th>
+                                      <th className="py-3 px-4 text-center">Duration</th>
+                                      <th className="py-3 px-4 text-center">Selling Price</th>
+                                      <th className="py-3 px-4 text-center">Original MRP</th>
+                                      <th className="py-3 px-4 text-center">Discount</th>
+                                      <th className="py-3 px-4 text-center">Daily Rate</th>
+                                      <th className="py-3 px-4 text-center">Tag / Badge</th>
+                                      <th className="py-3 px-4 text-right">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {paginatedPackages.map((pkg, pIdx) => {
+                                      const actualIdx = startPkgIdx + pIdx;
+                                      return (
+                                        <tr key={pkg.id || actualIdx} className="hover:bg-slate-50/80 transition-colors">
+                                          <td className="py-3 px-4">
+                                            <div className="flex items-center space-x-2">
+                                              <span className="font-bold text-slate-900 text-xs">{pkg.label}</span>
+                                              {pkg.popular && (
+                                                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                                  ⭐ Recommended
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="py-3 px-4 text-center font-bold text-slate-700">
+                                            {pkg.days} {pkg.days === 1 ? 'Day' : 'Days'}
+                                          </td>
+                                          <td className="py-3 px-4 text-center">
+                                            <span className="font-black text-slate-900 text-sm">
+                                              ₹{pkg.price?.toLocaleString()}
+                                            </span>
+                                          </td>
+                                          <td className="py-3 px-4 text-center text-slate-400">
+                                            {pkg.originalPrice && pkg.originalPrice > pkg.price ? (
+                                              <span className="line-through text-xs">₹{pkg.originalPrice?.toLocaleString()}</span>
+                                            ) : (
+                                              <span className="text-slate-300">—</span>
+                                            )}
+                                          </td>
+                                          <td className="py-3 px-4 text-center">
+                                            {pkg.discount ? (
+                                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                                {pkg.discount}
+                                              </span>
+                                            ) : (
+                                              <span className="text-slate-300">—</span>
+                                            )}
+                                          </td>
+                                          <td className="py-3 px-4 text-center font-semibold text-slate-600 text-[11px]">
+                                            {pkg.perDay || `₹${pkg.days > 0 ? Math.round(pkg.price / pkg.days) : 0} / day`}
+                                          </td>
+                                          <td className="py-3 px-4 text-center">
+                                            {pkg.badge ? (
+                                              <span className="text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white px-2 py-0.5 rounded-full shadow-2xs">
+                                                {pkg.badge}
+                                              </span>
+                                            ) : (
+                                              <span className="text-slate-300">—</span>
+                                            )}
+                                          </td>
+                                          <td className="py-3 px-4 text-right">
+                                            <div className="flex items-center justify-end space-x-1.5">
+                                              <button
+                                                onClick={() => openEditPackageModal(pkg, actualIdx)}
+                                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-slate-600 hover:text-blue-700 text-[11px] font-bold transition-colors cursor-pointer"
+                                              >
+                                                <Edit2 className="w-3 h-3" />
+                                                <span>Edit</span>
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeletePackage(actualIdx)}
+                                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-rose-50 hover:border-rose-300 text-slate-400 hover:text-rose-600 text-[11px] font-bold transition-colors cursor-pointer"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                                <span>Delete</span>
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Duration Packages Pagination Controls */}
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold text-slate-500 pt-1">
+                                <div className="flex items-center space-x-3">
+                                  <span>
+                                    Showing {packagesList.length === 0 ? 0 : startPkgIdx + 1} to {Math.min(startPkgIdx + pkgLimit, packagesList.length)} of {packagesList.length} packages
+                                  </span>
+                                  <div className="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
+                                    <span className="text-slate-400 font-normal text-[11px]">Show:</span>
+                                    <select
+                                      value={pkgLimit}
+                                      onChange={(e) => {
+                                        setPkgLimit(Number(e.target.value));
+                                        setPkgPage(1);
+                                      }}
+                                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-slate-300 focus:outline-none cursor-pointer"
+                                    >
+                                      <option value={5}>5 / page</option>
+                                      <option value={10}>10 / page</option>
+                                      <option value={20}>20 / page</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-1.5">
+                                  <button
+                                    disabled={currentPkgPage <= 1}
+                                    onClick={() => setPkgPage(p => Math.max(1, p - 1))}
+                                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                  >
+                                    Previous
+                                  </button>
+                                  {Array.from({ length: totalPkgPages }, (_, i) => i + 1).map((pNum) => (
+                                    <button
+                                      key={pNum}
+                                      onClick={() => setPkgPage(pNum)}
+                                      className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                                        currentPkgPage === pNum
+                                          ? 'bg-blue-600 text-white shadow-xs'
+                                          : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                                      }`}
+                                    >
+                                      {pNum}
+                                    </button>
+                                  ))}
+                                  <button
+                                    disabled={currentPkgPage >= totalPkgPages}
+                                    onClick={() => setPkgPage(p => Math.min(totalPkgPages, p + 1))}
+                                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      )}
+                    </div>
+
+                    {/* CARD 3: Slot-Wise Rate Multipliers with Pagination */}
+                    {(() => {
+                      const allSlots = slotOptions.flatMap(group =>
+                        group.slots.map(s => ({ ...s, groupCategory: group.category }))
+                      );
+                      const totalSlotPages = Math.max(1, Math.ceil(allSlots.length / slotLimit));
+                      const currentSlotPage = Math.min(slotPage, totalSlotPages);
+                      const startSlotIdx = (currentSlotPage - 1) * slotLimit;
+                      const paginatedSlots = allSlots.slice(startSlotIdx, startSlotIdx + slotLimit);
+
+                      return (
+                        <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-5">
+                          <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                            <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl border border-purple-200">
+                              <Layers className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Slot-Wise Rate Multiplier & Pricing ({allSlots.length})</h3>
+                              <p className="text-[11px] text-slate-500">Set custom rate multiplier per slot. 1.0x = base price, 1.5x = 50% premium. Leave 1.0 for standard pricing.</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                                  <tr>
+                                    <th className="py-3 px-4">Slot Name</th>
+                                    <th className="py-3 px-4 text-center">Rate Multiplier</th>
+                                    <th className="py-3 px-4 text-center">Example Price (7-day ₹599)</th>
+                                    <th className="py-3 px-4 text-center">Custom Label</th>
+                                    <th className="py-3 px-4 text-center">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {paginatedSlots.map((s) => {
+                                    const mult = slotPricingMap[s.value]?.rateMultiplier ?? 1.0;
+                                    const label = slotPricingMap[s.value]?.customLabel ?? '';
+                                    const examplePrice = Math.round(599 * mult);
+                                    const isCustom = mult !== 1.0 || label.trim() !== '';
+
+                                    return (
+                                      <tr key={s.value} className={`hover:bg-slate-50/80 transition-colors ${isCustom ? 'bg-purple-50/50' : ''}`}>
+                                        <td className="py-3 px-4">
+                                          <div className="font-bold text-slate-800 text-xs">{s.label}</div>
+                                          <div className="text-[10px] text-slate-400">{s.desc}</div>
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0.1"
+                                            max="10"
+                                            value={mult}
+                                            onChange={(e) => handleSlotMultiplierChange(s.value, parseFloat(e.target.value))}
+                                            className={`w-20 px-2.5 py-1.5 text-center text-xs font-bold rounded-lg border focus:outline-none focus:ring-1 transition-all ${
+                                              mult !== 1.0
+                                                ? 'border-purple-300 bg-purple-50 text-purple-800 focus:ring-purple-500 focus:border-purple-500'
+                                                : 'border-slate-200 bg-white text-slate-700 focus:ring-slate-400 focus:border-slate-400'
+                                            }`}
+                                          />
+                                          <span className="text-[10px] text-slate-400 ml-1">×</span>
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          <span className={`font-bold text-xs ${mult > 1 ? 'text-amber-700' : mult < 1 ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                            ₹{examplePrice.toLocaleString()}
+                                          </span>
+                                          {mult !== 1.0 && (
+                                            <span className={`ml-1 text-[9px] font-bold px-1 py-0.5 rounded ${
+                                              mult > 1 ? 'text-amber-700 bg-amber-100' : 'text-emerald-700 bg-emerald-100'
+                                            }`}>
+                                              {mult > 1 ? `+${Math.round((mult - 1) * 100)}%` : `${Math.round((mult - 1) * 100)}%`}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          <input
+                                            type="text"
+                                            value={label}
+                                            onChange={(e) => handleSlotLabelChange(s.value, e.target.value)}
+                                            placeholder="Optional label"
+                                            className="w-full max-w-[140px] mx-auto px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400 transition-all"
+                                          />
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          {isCustom && (
+                                            <button
+                                              onClick={() => handleResetSlotMultiplier(s.value)}
+                                              className="px-2 py-1 rounded-lg border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-400 hover:text-rose-600 text-[10px] font-bold transition-colors cursor-pointer"
+                                            >
+                                              Reset
+                                            </button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Slot-Wise Pagination Controls */}
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold text-slate-500 pt-1">
+                              <div className="flex items-center space-x-3">
+                                <span>
+                                  Showing {allSlots.length === 0 ? 0 : startSlotIdx + 1} to {Math.min(startSlotIdx + slotLimit, allSlots.length)} of {allSlots.length} slots
+                                </span>
+                                <div className="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
+                                  <span className="text-slate-400 font-normal text-[11px]">Show:</span>
+                                  <select
+                                    value={slotLimit}
+                                    onChange={(e) => {
+                                      setSlotLimit(Number(e.target.value));
+                                      setSlotPage(1);
+                                    }}
+                                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-slate-300 focus:outline-none cursor-pointer"
+                                  >
+                                    <option value={5}>5 / page</option>
+                                    <option value={10}>10 / page</option>
+                                    <option value={20}>20 / page</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-1.5">
+                                <button
+                                  disabled={currentSlotPage <= 1}
+                                  onClick={() => setSlotPage(p => Math.max(1, p - 1))}
+                                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                >
+                                  Previous
+                                </button>
+                                {Array.from({ length: totalSlotPages }, (_, i) => i + 1).map((pNum) => (
+                                  <button
+                                    key={pNum}
+                                    onClick={() => setSlotPage(pNum)}
+                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                                      currentSlotPage === pNum
+                                        ? 'bg-purple-600 text-white shadow-xs'
+                                        : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                  >
+                                    {pNum}
+                                  </button>
+                                ))}
+                                <button
+                                  disabled={currentSlotPage >= totalSlotPages}
+                                  onClick={() => setSlotPage(p => Math.min(totalSlotPages, p + 1))}
+                                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       </div>
+
+      {/* ================= ADD / EDIT PACKAGE MODAL ================= */}
+      {isPackageModalOpen && (
+        <div
+          onClick={() => setIsPackageModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 font-serif">
+                    {editingPackageIndex !== null ? 'Edit Duration Package' : 'Add New Duration Package'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Set the number of days, pricing, discount badge, and labels.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPackageModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSavePackageModal} className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Duration (Days) *</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pkgDays}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d*$/.test(val)) {
+                        handleDaysChange(val);
+                      }
+                    }}
+                    placeholder="e.g. 7"
+                    className="w-full px-4 py-3 text-sm font-bold text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Price (₹) *</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pkgPrice}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d*$/.test(val)) {
+                        handlePriceChange(val);
+                      }
+                    }}
+                    placeholder="e.g. 599"
+                    className="w-full px-4 py-3 text-sm font-bold text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Original / MRP Price (₹)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pkgOriginalPrice}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d*$/.test(val)) {
+                        handleOriginalPriceChange(val);
+                      }
+                    }}
+                    placeholder="e.g. 999"
+                    className="w-full px-4 py-3 text-sm text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Strikethrough price shown to customer</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Discount Text</label>
+                  <input
+                    type="text"
+                    value={pkgDiscount}
+                    onChange={(e) => {
+                      setPkgDiscount(e.target.value);
+                      setIsManualDiscount(true);
+                    }}
+                    placeholder="Auto-calculated (e.g. 40% off)"
+                    className="w-full px-4 py-3 text-sm text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Auto-updates from Price & MRP</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Package Label / Title *</label>
+                <input
+                  type="text"
+                  value={pkgLabel}
+                  onChange={(e) => setPkgLabel(e.target.value)}
+                  placeholder="e.g. 7 Days (Trial Pack)"
+                  className="w-full px-4 py-3 text-sm text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Badge Text</label>
+                  <input
+                    type="text"
+                    value={pkgBadge}
+                    onChange={(e) => setPkgBadge(e.target.value)}
+                    placeholder="e.g. Most Popular ⭐"
+                    className="w-full px-4 py-3 text-sm text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all"
+                  />
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pkgPopular}
+                      onChange={(e) => setPkgPopular(e.target.checked)}
+                      className="w-4 h-4 accent-amber-600 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-700">⭐ Mark as Popular / Recommended</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Preview</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-slate-600">{pkgLabel || 'Package Label'}</div>
+                    <div className="text-lg font-black text-slate-900">₹{(Number(pkgPrice) || 0).toLocaleString()}</div>
+                    <div className="text-[11px] text-emerald-600 font-bold">
+                      {pkgDiscount || computeDiscount(pkgPrice, pkgOriginalPrice) || ''}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-slate-500">
+                    <div className="font-semibold">
+                      ₹{Number(pkgDays) > 0 ? Math.round((Number(pkgPrice) || 0) / Number(pkgDays)) : 0} / day
+                    </div>
+                    <div>
+                      {Number(pkgDays) || 0} {Number(pkgDays) === 1 ? 'Day' : 'Days'}
+                    </div>
+                    {pkgBadge && (
+                      <span className="inline-block mt-1 text-[9px] font-black uppercase bg-amber-500 text-white px-1.5 py-0.5 rounded-full">{pkgBadge}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            {/* Modal Footer */}
+            <div className="p-5 border-t border-slate-100 flex items-center justify-end space-x-3 shrink-0 bg-slate-50/30">
+              <button
+                onClick={() => setIsPackageModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={(e) => handleSavePackageModal(e as any)}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer flex items-center space-x-1.5"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>{editingPackageIndex !== null ? 'Update Package' : 'Add Package'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= ORDER DETAILS & FULL CREATIVE MODAL ================= */}
       {selectedOrder && (
@@ -1492,6 +2476,49 @@ function AdStudioContent() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5 text-xs">
+              {/* Live Performance Analytics Strip */}
+              {selectedOrder.approvalStatus === 'APPROVED' ? (
+                <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md">
+                  <div className="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-center gap-1.5 text-blue-400 text-xs font-bold mb-1">
+                      <Eye className="w-4 h-4" />
+                      <span>Total Impressions</span>
+                    </div>
+                    <div className="text-xl font-black text-white">
+                      {(selectedOrder.viewsCount || 0).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Ad Impressions</div>
+                  </div>
+
+                  <div className="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-center gap-1.5 text-purple-400 text-xs font-bold mb-1">
+                      <MousePointerClick className="w-4 h-4" />
+                      <span>Total Clicks</span>
+                    </div>
+                    <div className="text-xl font-black text-white">
+                      {(selectedOrder.clicksCount || 0).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Direct Clicks</div>
+                  </div>
+
+                  <div className="text-center p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-center gap-1.5 text-emerald-400 text-xs font-bold mb-1">
+                      <TrendingUp className="w-4 h-4" />
+                      <span>Click Rate (CTR)</span>
+                    </div>
+                    <div className="text-xl font-black text-emerald-400">
+                      {selectedOrder.viewsCount > 0 ? (((selectedOrder.clicksCount || 0) / selectedOrder.viewsCount) * 100).toFixed(1) : '0.0'}%
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Engagement Rate</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2.5 text-amber-800">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-medium">This campaign is pending verification. Performance analytics will be tracked live once approved and published.</span>
+                </div>
+              )}
+
               {/* Creative Media Preview */}
               <div className="space-y-1.5">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
@@ -1551,7 +2578,7 @@ function AdStudioContent() {
                   {selectedOrder.advertiserPhone && (
                     <div className="pt-2 flex items-center space-x-2">
                       <a
-                        href={`https://wa.me/91${selectedOrder.advertiserPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`नमस्ते ${selectedOrder.advertiserName || ''}, e-News पर आपके विज्ञापन "${selectedOrder.title}" के संबंध में:`)}`}
+                        href={`https://wa.me/91${selectedOrder.advertiserPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${selectedOrder.advertiserName || ''}, regarding your advertisement "${selectedOrder.title}" on e-News:`)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
@@ -1582,7 +2609,7 @@ function AdStudioContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 block">Target District</span>
-                      <span className="font-bold text-xs text-red-600">{selectedOrder.targetDistrict || 'सभी जिले'}</span>
+                      <span className="font-bold text-xs text-red-600">{selectedOrder.targetDistrict || 'All Districts'}</span>
                     </div>
                     {selectedOrder.targetUrl && (
                       <div>
@@ -1727,16 +2754,26 @@ function AdStudioContent() {
                 )}
 
                 {selectedOrder.approvalStatus === 'APPROVED' && (
-                  <button
-                    onClick={() => handleToggleActive(selectedOrder)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                      selectedOrder.isActive
-                        ? 'border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800'
-                        : 'border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                    }`}
-                  >
-                    {selectedOrder.isActive ? 'Pause Live Ad' : 'Resume Live Ad'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => openExtendModal(selectedOrder)}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                      title="Extend Ad Duration"
+                    >
+                      <CalendarPlus className="w-3.5 h-3.5" />
+                      <span>Extend Duration</span>
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(selectedOrder)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                        selectedOrder.isActive
+                          ? 'border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                          : 'border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
+                      {selectedOrder.isActive ? 'Pause Live Ad' : 'Resume Live Ad'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -2180,6 +3217,171 @@ function AdStudioContent() {
           </div>
         </div>
       )}
+
+      {/* ================= EXTEND AD DURATION MODAL (DIRECT CLIENT RENEWAL) ================= */}
+      {extendingAd && (
+        <div
+          onClick={() => setExtendingAd(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 space-y-5 shadow-2xl text-left"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0">
+                  <CalendarPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Extend Campaign Duration</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-[280px]">
+                    {extendingAd.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setExtendingAd(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Status Box */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Placement Slot:</span>
+                <span className="font-bold text-slate-800">{getSlotBadgeInfo(extendingAd.slot).label}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Current Expiry:</span>
+                <span className="font-bold text-slate-800 flex items-center space-x-1.5">
+                  <span>
+                    {extendingAd.endDate
+                      ? new Date(extendingAd.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Ongoing / No End Date'}
+                  </span>
+                  {extendingAd.endDate && new Date(extendingAd.endDate) < new Date() && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      Expired
+                    </span>
+                  )}
+                </span>
+              </div>
+              {(extendingAd.advertiserName || extendingAd.advertiserPhone) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Client / Advertiser:</span>
+                  <span className="font-bold text-slate-800">
+                    {extendingAd.advertiserName || 'Direct Client'} {extendingAd.advertiserPhone ? `(${extendingAd.advertiserPhone})` : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Presets */}
+            <div className="space-y-2">
+              <label className="block text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                Select Extension Period
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { days: 1, label: '+1 Day', sub: '24 Hours' },
+                  { days: 2, label: '+2 Days', sub: 'Short Boost' },
+                  { days: 3, label: '+3 Days', sub: 'Weekend Plan' },
+                  { days: 7, label: '+7 Days', sub: '1 Week' },
+                  { days: 15, label: '+15 Days', sub: 'Fortnight' },
+                  { days: 30, label: '+30 Days', sub: '1 Month', popular: true },
+                ].map((preset) => {
+                  const isSelected = extendPresetDays === preset.days;
+                  return (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() => handleSelectExtendPreset(preset.days)}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'border-purple-600 bg-purple-50/80 text-purple-900 shadow-xs'
+                          : 'border-slate-200 hover:border-purple-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {preset.popular && (
+                        <span className="absolute -top-1.5 right-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-purple-600 text-white">
+                          Popular
+                        </span>
+                      )}
+                      <div className="text-xs font-black">{preset.label}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{preset.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Target Date Picker */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                Target Expiry Date (Custom)
+              </label>
+              <input
+                type="date"
+                value={extendCustomDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => {
+                  setExtendCustomDate(e.target.value);
+                  setExtendPresetDays(0);
+                }}
+                className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:border-purple-500 transition-colors"
+              />
+              <p className="text-[11px] text-purple-700 font-medium flex items-center space-x-1 mt-1">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-purple-600" />
+                <span>
+                  Ad will remain live until {extendCustomDate ? new Date(extendCustomDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '---'} 11:59 PM.
+                </span>
+              </p>
+            </div>
+
+            {/* Offline Payment Note (Optional) */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                Direct Payment Note (Optional)
+              </label>
+              <input
+                type="text"
+                value={extendPaymentNote}
+                onChange={(e) => setExtendPaymentNote(e.target.value)}
+                placeholder="e.g. Paid ₹1,200 directly via direct UPI / PhonePe / Cash"
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:border-purple-500 focus:bg-white transition-colors"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setExtendingAd(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isExtending || !extendCustomDate}
+                onClick={handleConfirmExtend}
+                className="inline-flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/20 cursor-pointer disabled:opacity-50"
+              >
+                {isExtending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Zap className="w-3.5 h-3.5" />
+                )}
+                <span>Confirm &amp; Make Live Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2187,7 +3389,9 @@ function AdStudioContent() {
 export default function AdminAdsPage() {
   return (
     <AdminAuthProvider>
-      <AdStudioContent />
+      <Suspense fallback={<div className="min-h-screen bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">Loading Ad Studio...</div>}>
+        <AdStudioContent />
+      </Suspense>
     </AdminAuthProvider>
   );
 }

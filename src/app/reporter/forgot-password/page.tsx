@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Mail, ArrowLeft, AlertCircle, KeyRound, MailCheck, ExternalLink,
-  Sparkles, ShieldCheck, Lock, CheckCircle2, ShieldAlert
+  ShieldCheck, Lock, CheckCircle2, ShieldAlert
 } from 'lucide-react';
 import { reporterAuthService } from '@/services/reporterAuthService';
 
@@ -53,7 +53,7 @@ export default function ReporterForgotPasswordPage() {
           
           {/* 1. LEFT COLUMN: Luxury Animated Newsroom Showcase Card */}
           <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center lg:h-full">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-8 xl:p-10 text-white shadow-2xl border border-slate-800/80 h-full max-h-[620px] flex flex-col justify-between">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-7 xl:p-8 text-white shadow-2xl border border-slate-800/80 min-h-[580px] flex flex-col justify-between">
               
               {/* Glowing Background Radial Effects */}
               <div className="absolute -top-24 -right-24 w-80 h-80 bg-red-600/25 rounded-full blur-3xl pointer-events-none animate-pulse-soft" />
@@ -77,14 +77,14 @@ export default function ReporterForgotPasswordPage() {
                   <span>Vartiq Reporter Desk</span>
                 </div>
                 <div className="flex items-center space-x-2 text-xs font-medium text-slate-300 bg-slate-900/60 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-full">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   <span>Account Recovery Desk</span>
                 </div>
               </div>
 
               {/* Centerpiece: Clean Editorial Photography Scene */}
-              <div className="relative z-10 my-6 flex items-center justify-center">
-                <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
+              <div className="relative z-10 my-3 sm:my-4 flex items-center justify-center">
+                <div className="relative w-full max-w-sm aspect-[16/10] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
                   <img
                     src="/images/editorial-newspaper.jpg"
                     alt="Vartiq Editorial Newspaper & Modern Journalism Desk"
@@ -139,7 +139,7 @@ export default function ReporterForgotPasswordPage() {
               </div>
 
               {/* Bottom Content & Metrics */}
-              <div className="relative z-10 space-y-4 pt-2 border-t border-white/10">
+              <div className="relative z-10 space-y-3.5 pt-3 border-t border-white/10 pb-2">
                 <div className="space-y-1">
                   <h3 className="text-lg xl:text-xl font-black font-serif text-white tracking-tight">
                     Recover Your Newsroom Desk.
@@ -150,7 +150,7 @@ export default function ReporterForgotPasswordPage() {
                 </div>
 
                 {/* 3 Metric Pills */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
+                <div className="grid grid-cols-3 gap-3 pt-1 pb-1">
                   <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center backdrop-blur-sm">
                     <p className="text-base xl:text-lg font-black text-amber-400">Instant</p>
                     <p className="text-[10px] text-slate-400 font-medium">Link Delivery</p>
@@ -181,37 +181,23 @@ export default function ReporterForgotPasswordPage() {
 
                   <div className="space-y-1.5">
                     <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900">
-                      पासवर्ड रीसेट लिंक भेज दिया गया है!
+                      Password reset link has been sent!
                     </h1>
                     <p className="text-xs text-slate-500 font-medium">
                       Password Reset Instructions Dispatched
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2 text-left">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 text-left">
                     <p className="leading-relaxed">
-                      हमने आपके रजिस्टर्ड ईमेल <strong className="text-slate-900">{email}</strong> पर पासवर्ड रीसेट लिंक भेज दिया है।
-                    </p>
-                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      कृपया अपना Gmail इनबॉक्स (या Spam फोल्डर) चेक करें और ईमेल में दिए गए <strong>"Reset My Password"</strong> बटन पर क्लिक करके तुरंत नया पासवर्ड सेट करें।
+                      We have sent the password reset link to your registered email <strong className="text-slate-900">{email}</strong>.
                     </p>
                   </div>
 
-                  <div className="space-y-2.5 pt-1">
-                    <a
-                      href="https://mail.google.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-xs shadow-md shadow-red-600/20 text-center flex items-center justify-center space-x-2 transition-all cursor-pointer"
-                    >
-                      <Mail className="w-4 h-4" />
-                      <span>Open Gmail Inbox (ईमेल चेक करें)</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-                    </a>
-
+                  <div className="pt-2">
                     <Link
                       href="/reporter/login"
-                      className="block w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs text-center transition-colors"
+                      className="block w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs text-center transition-colors shadow-sm"
                     >
                       Return to Sign In Screen
                     </Link>

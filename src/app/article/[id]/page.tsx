@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import NotFound from '@/app/not-found';
 import { API_BASE_URL } from '@/config/env';
 import { stripHtml } from '@/utils/textUtils';
 import { PRODUCTION_CANONICAL_ORIGIN, getArticleCanonicalUrl, getSafeMediaUrl } from '@/utils/seoUtils';
@@ -96,7 +97,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const article = await getArticle(id);
 
   if (!article) {
-    return notFound();
+    return <NotFound />;
   }
 
   const canonicalUrl = getArticleCanonicalUrl(article);

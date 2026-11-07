@@ -328,3 +328,42 @@ font[style] {
 .animate-pulse-soft {
   animation: pulse-soft 3.5s ease-in-out infinite;
 }
+
+/* Metallic Shimmer Effect for 404 Typography */
+@keyframes textShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shimmer-text {
+  background-size: 200% auto;
+  animation: textShimmer 6s ease-in-out infinite;
+}
+
+/* Floating Card Keyframe Animation matching Fabfit */
+@keyframes fabfitFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-12px) rotate(-4deg) scale(1.04);
+  }
+  50% {
+    transform: translateY(-22px) rotate(4deg) scale(1.08);
+  }
+  75% {
+    transform: translateY(-10px) rotate(-2deg) scale(1.04);
+  }
+}
+
+.animate-fabfit-float {
+  animation: fabfitFloat 3.2s ease-in-out infinite;
+}
+

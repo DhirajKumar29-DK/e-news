@@ -5,14 +5,14 @@ import Link from 'next/link';
 import {
   Megaphone, ArrowLeft, ArrowRight, CheckCircle2, Phone, Mail, MapPin,
   UploadCloud, ExternalLink, MessageCircle, Globe, Store,
-  Check, AlertCircle, Sparkles, Copy, Clock, ShieldCheck,
+  Check, AlertCircle, Copy, Clock, ShieldCheck,
   ChevronRight, X, PhoneCall, HelpCircle, Eye, Plus, Trash2,
   FileText, CheckCircle, ChevronDown, ChevronUp, Award, Users,
   TrendingUp, Zap, Edit3, Smartphone, Building2, ShoppingBag,
   GraduationCap, Stethoscope, RefreshCw, Layers, Star, Utensils,
   Car, Shield, ArrowUpRight
 } from 'lucide-react';
-import { adService, AdSlotType, AdActionType } from '@/services/adService';
+import { adService, AdSlotType, AdActionType, AdPackage, AdPricingConfig } from '@/services/adService';
 import { categoryService, CategoryData } from '@/services/categoryService';
 
 // Core 4 fixed layout cards for the ad booking form (section slots are dynamic)
@@ -231,6 +231,21 @@ export default function AdvertisePage() {
   const [submissionSuccess, setSubmissionSuccess] = useState<any>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
 
+  // Custom UI Modals & Notifications (replacing native browser alerts/confirm)
+  const [showSlotOccupiedModal, setShowSlotOccupiedModal] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'error' | 'success' | 'info' } | null>(null);
+
+  const showToast = (text: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Dynamic Pricing Config from Admin Database
+  const [pricingConfig, setPricingConfig] = useState<AdPricingConfig | null>(null);
+  const [dynamicPackages, setDynamicPackages] = useState<AdPackage[]>(PACKAGES);
+  const [dynamicUpiId, setDynamicUpiId] = useState<string>('9798223366@okbizaxis');
+  const [dynamicPayeeName, setDynamicPayeeName] = useState<string>('NewsPortalAds');
+
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -239,7 +254,7 @@ export default function AdvertisePage() {
   const [slotAvailability, setSlotAvailability] = useState<Record<string, { isOccupied: boolean; adId?: string; endDate?: string | null; startDate?: string | null }>>({});
   const [loadingAvailability, setLoadingAvailability] = useState<boolean>(true);
 
-  // Load categories and slot availability on mount
+  // Load categories, slot availability, and admin pricing configuration on mount
   useEffect(() => {
     categoryService.getCategories().then((cats) => {
       if (Array.isArray(cats) && cats.length > 0) {
@@ -253,6 +268,24 @@ export default function AdvertisePage() {
       }
     }).catch(() => {}).finally(() => {
       setLoadingAvailability(false);
+    });
+
+    // Fetch dynamic admin pricing config (Packages, Slot Multipliers, UPI)
+    adService.getPricingConfig().then((cfg) => {
+      if (cfg) {
+        setPricingConfig(cfg);
+        if (cfg.upiId && cfg.upiId.trim()) setDynamicUpiId(cfg.upiId.trim());
+        if (cfg.payeeName && cfg.payeeName.trim()) setDynamicPayeeName(cfg.payeeName.trim());
+        if (Array.isArray(cfg.packages) && cfg.packages.length > 0) {
+          setDynamicPackages(cfg.packages);
+          setSelectedDays((prev) => {
+            const exists = cfg.packages.some(p => p.days === prev);
+            return exists ? prev : cfg.packages[0].days;
+          });
+        }
+      }
+    }).catch((err) => {
+      console.warn('Failed to load dynamic pricing config:', err);
     });
   }, []);
 
@@ -334,9 +367,18 @@ export default function AdvertisePage() {
   const isSectionSlot = selectedSlot.startsWith('HOMEPAGE_SECTION_') || selectedSlot === 'HOMEPAGE_BEFORE_VIDEOS';
   const currentSelectedStatus = getSlotStatus(selectedSlot);
 
-  // Calculate current price
-  const currentPackage = PACKAGES.find(p => p.days === selectedDays) || PACKAGES[0];
-  const totalPrice = currentPackage.price;
+  // Dynamic pricing calculation with Slot Rate Multiplier
+  const slotMultiplier = pricingConfig?.slotPricing?.[selectedSlot]?.rateMultiplier ?? 1.0;
+  const slotCustomLabel = pricingConfig?.slotPricing?.[selectedSlot]?.customLabel || '';
+  const currentPackage = dynamicPackages.find(p => p.days === selectedDays) || dynamicPackages[0] || PACKAGES[0];
+  const basePackagePrice = currentPackage?.price || 1;
+  const rawCalculatedPrice = basePackagePrice * slotMultiplier;
+  const totalPrice = rawCalculatedPrice < 10
+    ? (rawCalculatedPrice % 1 === 0 ? rawCalculatedPrice : Number(rawCalculatedPrice.toFixed(2)))
+    : Math.round(rawCalculatedPrice);
+
+  // Lowest package price for overview displays
+  const minPrice = dynamicPackages.length > 0 ? Math.min(...dynamicPackages.map(p => p.price)) : 1;
 
   // Initialize calling phone and WhatsApp when advertiser phone updates
   useEffect(() => {
@@ -486,57 +528,61 @@ export default function AdvertisePage() {
     e.preventDefault();
 
     if (!advertiserName.trim()) {
-      alert('Please enter your full name');
+      showToast('Please enter your full name');
       return;
     }
     if (!advertiserPhone || advertiserPhone.length !== 10) {
-      alert('Please enter a valid 10-digit mobile number');
+      showToast('Please enter a valid 10-digit mobile number');
       return;
     }
     if (!advertiserEmail.trim()) {
-      alert('Please enter your email address for invoice & confirmation');
+      showToast('Please enter your email address for invoice & confirmation');
       return;
     }
     if (!title.trim()) {
-      alert('Please enter ad headline');
+      showToast('Please enter ad headline');
       return;
     }
     if (!mediaFile) {
-      alert('Please upload an ad banner or video creative');
+      showToast('Please upload an ad banner or video creative');
       return;
     }
 
     // Destination validation
     if (!actionType) {
-      alert('Please choose where readers should be directed when tapping your ad (Step 4: Website, Store, WhatsApp, or Lead Form)');
+      showToast('Please choose where readers should be directed when tapping your ad (Step 4: Website, Store, WhatsApp, or Lead Form)');
       return;
     }
     if (actionType === 'WEBSITE' && !websiteUrl.trim()) {
-      alert('Please enter your website URL');
+      showToast('Please enter your website URL');
       return;
     }
     if (actionType === 'SHOP' && !shopUrl.trim()) {
-      alert('Please enter your Google Maps location or store link');
+      showToast('Please enter your Google Maps location or store link');
       return;
     }
     if (actionType === 'WHATSAPP' && (!whatsappNumber || whatsappNumber.length !== 10)) {
-      alert('Please enter a valid 10-digit WhatsApp number');
+      showToast('Please enter a valid 10-digit WhatsApp number');
       return;
     }
     if (actionType === 'LEAD_FORM' && (!leadSavedConfig || leadSavedConfig.questions.length === 0)) {
-      alert('Please configure at least one question in the lead form and save it');
+      showToast('Please configure at least one question in the lead form and save it');
       return;
     }
 
-    // Slot availability confirmation if currently occupied
+    // Slot availability confirmation if currently occupied -> trigger custom branded UI modal
     const slotStatus = getSlotStatus(selectedSlot);
     if (slotStatus.isOccupied) {
-      const proceed = window.confirm(
-        `Notice: The slot '${getSlotDisplayName(selectedSlot)}' is currently booked ${slotStatus.formattedDate ? `until ${slotStatus.formattedDate}` : 'by an active advertiser'}.\n\nIf you book now, your slot will be reserved and activated immediately after that date.\n\nDo you want to proceed to payment?`
-      );
-      if (!proceed) return;
+      setShowSlotOccupiedModal(true);
+      return;
     }
 
+    setPageView('PAYMENT');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const confirmSlotAndProceed = () => {
+    setShowSlotOccupiedModal(false);
     setPageView('PAYMENT');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -544,11 +590,11 @@ export default function AdvertisePage() {
   // Final submit ad with payment details
   const handleFinalSubmit = async () => {
     if (!utrNumber.trim() || utrNumber.trim().length < 6) {
-      alert('Please enter a valid UPI UTR or reference number (at least 6 digits)');
+      showToast('Please enter a valid UPI UTR or reference number (at least 6 digits)');
       return;
     }
     if (!actionType) {
-      alert('Please select where readers should be directed (Step 4)');
+      showToast('Please select where readers should be directed (Step 4)');
       return;
     }
 
@@ -594,26 +640,30 @@ export default function AdvertisePage() {
       const res = await adService.submitSelfServeAd(formData);
       setSubmissionSuccess(res);
     } catch (err: any) {
-      alert(err.message || 'Failed to submit advertisement. Please try again.');
+      showToast(err.message || 'Failed to submit advertisement. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const copyUpiId = () => {
-    navigator.clipboard.writeText('9798223366@okbizaxis');
+    navigator.clipboard.writeText(dynamicUpiId);
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-32 md:pb-16 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-36 md:pb-16 font-sans">
       {/* =========================================================================
           PREMIUM TOP NAVIGATION BAR (Crisp, High-Trust, Clean)
+          Mobile: Left title/breadcrumbs hidden (as requested in Image 1), right has Create Ad / Back button.
+          Desktop: Full breadcrumbs, title, and actions.
           ========================================================================= */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
+          
+          {/* Desktop Left: Back to Home | 📢 Advertising Center (Hidden on mobile) */}
+          <div className="hidden md:flex items-center gap-3.5">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-red-600 transition group py-1"
@@ -632,7 +682,8 @@ export default function AdvertisePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Mobile Left: Back Button when in FORM or PAYMENT views */}
+          <div className="flex md:hidden items-center gap-2">
             {pageView === 'PAYMENT' ? (
               <button
                 type="button"
@@ -640,9 +691,9 @@ export default function AdvertisePage() {
                   setPageView('FORM');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-red-600 py-1.5 px-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-4 h-4 text-slate-500" />
                 <span>Back to Form</span>
               </button>
             ) : pageView === 'FORM' ? (
@@ -652,18 +703,58 @@ export default function AdvertisePage() {
                   setPageView('LANDING');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-red-600 py-1.5 px-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-4 h-4 text-slate-500" />
                 <span>Back to Overview</span>
               </button>
+            ) : (
+              /* Mobile Landing View: Clean minimal label */
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Megaphone className="w-4 h-4 text-red-600" />
+                <span>Ad Studio</span>
+              </span>
+            )}
+          </div>
+
+          {/* Top Right Action Button */}
+          <div className="flex items-center gap-3">
+            {pageView === 'PAYMENT' ? (
+              <>
+                <span className="text-[11px] font-bold text-slate-400 md:hidden">Step 2: Payment</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPageView('FORM');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="hidden md:inline-flex text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Form</span>
+                </button>
+              </>
+            ) : pageView === 'FORM' ? (
+              <>
+                <span className="text-[11px] font-bold text-slate-400 md:hidden">Step 1: Details</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPageView('LANDING');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="hidden md:inline-flex text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Overview</span>
+                </button>
+              </>
             ) : (
               <button
                 type="button"
                 onClick={() => handleStartAdCreation()}
-                className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs sm:text-sm px-6 sm:px-7 py-2.5 rounded-xl shadow-md shadow-red-500/20 transition active:scale-95 cursor-pointer whitespace-nowrap tracking-wide"
+                className="inline-flex items-center justify-center gap-1.5 bg-[#D80032] hover:bg-red-700 text-white font-bold text-xs sm:text-sm px-5 sm:px-7 py-2.5 rounded-xl shadow-md shadow-red-500/20 transition active:scale-95 cursor-pointer whitespace-nowrap tracking-wide"
               >
-                <Sparkles className="w-4 h-4" />
                 <span>Create Ad</span>
               </button>
             )}
@@ -703,8 +794,8 @@ export default function AdvertisePage() {
                 {/* Left Column: Clean & Concise Content */}
                 <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
                   {/* Clean Pill Badge */}
-                  <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold px-3.5 py-1.5 rounded-full shadow-sm">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                     <span>Local Business Advertising</span>
                   </div>
 
@@ -726,9 +817,8 @@ export default function AdvertisePage() {
                     <button
                       type="button"
                       onClick={() => handleStartAdCreation()}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-base sm:text-lg px-8 py-4 rounded-2xl shadow-xl shadow-red-600/30 hover:shadow-red-500/50 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-base sm:text-lg px-8 py-4 rounded-2xl shadow-xl shadow-red-600/30 hover:shadow-red-500/50 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
                     >
-                      <Sparkles className="w-5 h-5 text-amber-200 animate-pulse" />
                       <span>Create Ad Now</span>
                       <ArrowRight className="w-5 h-5" />
                     </button>
@@ -753,7 +843,7 @@ export default function AdvertisePage() {
                       <div className="text-xs font-semibold text-slate-300 mt-1">Local Reach</div>
                     </div>
                     <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/70 hover:border-sky-400/50 rounded-2xl p-3 sm:p-4 text-center transition-all hover:scale-[1.02] shadow-lg">
-                      <div className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">₹599</div>
+                      <div className="text-2xl sm:text-3xl font-black text-sky-400 tracking-tight">₹{minPrice}</div>
                       <div className="text-xs font-semibold text-slate-300 mt-1">Starting Price</div>
                     </div>
                     <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/70 hover:border-rose-400/50 rounded-2xl p-3 sm:p-4 text-center transition-all hover:scale-[1.02] shadow-lg">
@@ -763,8 +853,8 @@ export default function AdvertisePage() {
                   </div>
                 </div>
 
-                {/* Right Column: Premium Digital Advertising Showcase Image */}
-                <div className="lg:col-span-5 flex justify-center items-center">
+                {/* Right Column: Premium Digital Advertising Showcase Image & Action Button */}
+                <div className="lg:col-span-5 flex flex-col justify-center items-center gap-4 w-full">
                   <div className="relative rounded-3xl overflow-hidden border border-slate-700/80 shadow-2xl shadow-red-950/50 max-w-lg w-full bg-slate-900 group">
                     <img
                       src="/images/advertise-hero.jpg"
@@ -772,6 +862,17 @@ export default function AdvertisePage() {
                       className="w-full h-auto max-h-[50vh] sm:max-h-[54vh] object-cover rounded-3xl transform group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
+
+                  {/* Create Ad Button directly in the Right Column of the Hero Section */}
+                  <button
+                    type="button"
+                    onClick={() => handleStartAdCreation()}
+                    className="w-full max-w-lg inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-2xl shadow-xl shadow-red-600/35 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Megaphone className="w-4 h-4" />
+                    <span>Create Advertisement Now</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -857,7 +958,7 @@ export default function AdvertisePage() {
                   </div>
                   <h3 className="font-extrabold text-slate-900 text-lg mb-2">Secure UPI Payment</h3>
                   <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-                    Scan the official QR code using PhonePe, Google Pay, Paytm, or any UPI app to pay ₹599 and enter the transaction UTR number.
+                    Scan the official QR code using PhonePe, Google Pay, Paytm, or any UPI app to pay the plan amount and enter the transaction UTR number.
                   </p>
                 </div>
 
@@ -882,24 +983,23 @@ export default function AdvertisePage() {
                 }}
               >
                 <div className="relative z-10 max-w-2xl mx-auto space-y-4">
-                  <span className="inline-flex items-center gap-2 bg-red-500/20 text-red-300 text-xs font-bold px-3.5 py-1 rounded-full border border-red-500/30">
-                    <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span className="inline-flex items-center gap-2 bg-red-500/20 text-red-300 text-xs font-semibold px-3.5 py-1 rounded-full border border-red-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                     <span>LIMITED TIME SPECIAL OFFER</span>
                   </span>
                   <h3 className="text-2xl sm:text-4xl font-black tracking-tight">
-                    Advertise Today & Dominate Your Local Market
+                    Advertise Today &amp; Dominate Your Local Market
                   </h3>
                   <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                    Reach thousands of active daily readers starting at just ₹599 for 7 days.
+                    Reach thousands of active daily readers starting at just ₹{minPrice}.
                   </p>
                   <div className="pt-3">
                     <button
                       type="button"
                       onClick={() => handleStartAdCreation()}
-                      className="inline-flex items-center gap-3 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-base px-9 py-4 rounded-2xl shadow-xl shadow-red-600/40 transition active:scale-95 cursor-pointer border border-red-400/30"
+                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-base px-9 py-4 rounded-2xl shadow-xl shadow-red-600/40 transition active:scale-95 cursor-pointer border border-red-400/30"
                     >
-                      <Sparkles className="w-5 h-5 text-amber-200" />
-                      <span>Create Ad Now — ₹599</span>
+                      <span>Create Ad Now</span>
                       <ArrowRight className="w-5 h-5" />
                     </button>
                   </div>
@@ -938,7 +1038,7 @@ export default function AdvertisePage() {
                   },
                   {
                     q: 'How do I make the payment and is it secure?',
-                    a: 'Yes, 100% secure. You scan the official QR code using PhonePe, Google Pay, Paytm, or any banking UPI app, pay ₹599, and enter the transaction UTR number.'
+                    a: 'Yes, 100% secure. You scan the official QR code using PhonePe, Google Pay, Paytm, or any banking UPI app, pay the selected plan amount, and enter the transaction UTR number.'
                   },
                   {
                     q: 'What if I need assistance designing my ad banner?',
@@ -978,18 +1078,26 @@ export default function AdvertisePage() {
             </div>
           </section>
 
-          {/* Floating Mobile Bottom Action Bar (Clean, sits safely above mobile bottom nav) */}
-          <div className="fixed bottom-[56px] left-0 right-0 z-30 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 shadow-xl flex items-center justify-between gap-3">
+          {/* Floating Mobile Bottom Action Island (Image 2) - Safely elevated above mobile bottom nav so it never sticks */}
+          <div
+            style={{
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)'
+            }}
+            className="fixed left-3 right-3 z-40 md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border border-slate-200/90 dark:border-slate-800/90 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200"
+          >
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase">Starting Price</div>
-              <div className="text-sm font-black text-red-600">₹599 / 7 Days</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Starting Price</div>
+              <div className="text-sm font-black text-red-600 dark:text-red-400">
+                ₹{minPrice} {dynamicPackages[0] ? `/ ${dynamicPackages[0].days} Days` : ''}
+              </div>
             </div>
             <button
               type="button"
               onClick={() => handleStartAdCreation()}
-              className="inline-flex items-center justify-center bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs px-6 py-2.5 rounded-xl shadow-md active:scale-95 transition whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-red-500/25 active:scale-95 transition cursor-pointer"
             >
               <span>Create Ad</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </main>
@@ -1000,17 +1108,9 @@ export default function AdvertisePage() {
           ========================================================================= */}
       {pageView === 'FORM' && (
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
-          {/* Top Form Header with Back link */}
+          {/* Top Form Header */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
             <div>
-              <button
-                type="button"
-                onClick={() => setPageView('LANDING')}
-                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 hover:text-red-600 transition mb-1"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>← Back to Overview</span>
-              </button>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 Create New Advertisement (Ad Studio)
               </h1>
@@ -1264,10 +1364,20 @@ export default function AdvertisePage() {
                   onClick={() => setIsSlotDropdownOpen(!isSlotDropdownOpen)}
                   className="w-full px-4 sm:px-5 py-3.5 rounded-2xl border border-slate-300 bg-white hover:border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer group"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
                     <span className="text-sm font-bold text-slate-900 truncate">
                       {getSlotDisplayName(selectedSlot)}
                     </span>
+                    {slotMultiplier !== 1.0 && (
+                      <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full shrink-0">
+                        {slotMultiplier}x Rate
+                      </span>
+                    )}
+                    {slotCustomLabel && (
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full shrink-0">
+                        {slotCustomLabel}
+                      </span>
+                    )}
                     <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${
                       currentSelectedStatus.isOccupied
                         ? 'bg-amber-100 text-amber-900 border border-amber-300'
@@ -1325,9 +1435,21 @@ export default function AdvertisePage() {
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs sm:text-sm font-semibold truncate">
-                                  {opt.label}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs sm:text-sm font-semibold truncate">
+                                    {opt.label}
+                                  </span>
+                                  {pricingConfig?.slotPricing?.[opt.value]?.rateMultiplier && pricingConfig.slotPricing[opt.value].rateMultiplier !== 1.0 && (
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[opt.value].rateMultiplier}x
+                                    </span>
+                                  )}
+                                  {pricingConfig?.slotPricing?.[opt.value]?.customLabel && (
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[opt.value].customLabel}
+                                    </span>
+                                  )}
+                                </div>
                                 {st.isOccupied ? (
                                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-amber-700" />
@@ -1382,9 +1504,21 @@ export default function AdvertisePage() {
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs sm:text-sm font-semibold truncate">
-                                  Section {idx + 1}: After {cat.name}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs sm:text-sm font-semibold truncate">
+                                    Section {idx + 1}: After {cat.name}
+                                  </span>
+                                  {pricingConfig?.slotPricing?.[slotKey]?.rateMultiplier && pricingConfig.slotPricing[slotKey].rateMultiplier !== 1.0 && (
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[slotKey].rateMultiplier}x
+                                    </span>
+                                  )}
+                                  {pricingConfig?.slotPricing?.[slotKey]?.customLabel && (
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[slotKey].customLabel}
+                                    </span>
+                                  )}
+                                </div>
                                 {st.isOccupied ? (
                                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-amber-700" />
@@ -1432,9 +1566,21 @@ export default function AdvertisePage() {
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs sm:text-sm font-semibold truncate">
-                                  Above Videos Showcase Banner
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs sm:text-sm font-semibold truncate">
+                                    Above Videos Showcase Banner
+                                  </span>
+                                  {pricingConfig?.slotPricing?.[slotKey]?.rateMultiplier && pricingConfig.slotPricing[slotKey].rateMultiplier !== 1.0 && (
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[slotKey].rateMultiplier}x
+                                    </span>
+                                  )}
+                                  {pricingConfig?.slotPricing?.[slotKey]?.customLabel && (
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[slotKey].customLabel}
+                                    </span>
+                                  )}
+                                </div>
                                 {st.isOccupied ? (
                                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-amber-700" />
@@ -1487,9 +1633,21 @@ export default function AdvertisePage() {
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs sm:text-sm font-semibold truncate">
-                                  {opt.label}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xs sm:text-sm font-semibold truncate">
+                                    {opt.label}
+                                  </span>
+                                  {pricingConfig?.slotPricing?.[opt.value]?.rateMultiplier && pricingConfig.slotPricing[opt.value].rateMultiplier !== 1.0 && (
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[opt.value].rateMultiplier}x
+                                    </span>
+                                  )}
+                                  {pricingConfig?.slotPricing?.[opt.value]?.customLabel && (
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                                      {pricingConfig.slotPricing[opt.value].customLabel}
+                                    </span>
+                                  )}
+                                </div>
                                 {st.isOccupied ? (
                                   <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-amber-700" />
@@ -1851,20 +2009,9 @@ export default function AdvertisePage() {
           ========================================================================= */}
       {pageView === 'PAYMENT' && (
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
-          {/* Top Breadcrumb & Navigation */}
+          {/* Top Header */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
             <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setPageView('FORM');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 hover:text-red-600 transition mb-1 cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>← Back to Edit Form</span>
-              </button>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 Review Campaign & Make Payment
               </h1>
@@ -1898,11 +2045,17 @@ export default function AdvertisePage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {PACKAGES.map((pkg) => {
+                  {dynamicPackages.map((pkg) => {
                     const isSelected = selectedDays === pkg.days;
+                    const pkgAdjustedPrice = slotMultiplier === 1.0
+                      ? pkg.price
+                      : (pkg.price * slotMultiplier < 10
+                          ? (pkg.price * slotMultiplier % 1 === 0 ? pkg.price * slotMultiplier : Number((pkg.price * slotMultiplier).toFixed(2)))
+                          : Math.round(pkg.price * slotMultiplier));
+
                     return (
                       <div
-                        key={pkg.days}
+                        key={pkg.id || pkg.days}
                         onClick={() => setSelectedDays(pkg.days)}
                         className={`p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition relative flex flex-col justify-between shadow-xs ${
                           isSelected
@@ -1916,12 +2069,26 @@ export default function AdvertisePage() {
                           </span>
                         )}
                         <div>
-                          <div className="text-xs font-bold text-slate-500">{pkg.label}</div>
-                          <div className="text-2xl font-black text-slate-900 mt-1">₹{pkg.price}</div>
-                          <div className="text-[11px] text-emerald-600 font-bold">{pkg.discount}</div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-slate-500 truncate">{pkg.label}</span>
+                            {slotMultiplier !== 1.0 && (
+                              <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
+                                {slotMultiplier}x
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-black text-slate-900 mt-1">₹{pkgAdjustedPrice}</div>
+                          {pkg.originalPrice && pkg.originalPrice > pkg.price && (
+                            <div className="text-[11px] text-slate-400 line-through">
+                              ₹{slotMultiplier !== 1.0 ? Math.round(pkg.originalPrice * slotMultiplier) : pkg.originalPrice}
+                            </div>
+                          )}
+                          <div className="text-[11px] text-emerald-600 font-bold">{pkg.discount || `${pkg.days} Days Pack`}</div>
                         </div>
                         <div className="mt-4 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
-                          <span className="font-semibold text-slate-600">{pkg.perDay}</span>
+                          <span className="font-semibold text-slate-600">
+                            ₹{pkg.days > 0 ? (pkgAdjustedPrice / pkg.days < 10 ? Number((pkgAdjustedPrice / pkg.days).toFixed(2)) : Math.round(pkgAdjustedPrice / pkg.days)) : 0} / day
+                          </span>
                           <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                             isSelected ? 'border-red-600 bg-red-600 text-white shadow-2xs' : 'border-slate-300 bg-white'
                           }`}>
@@ -2035,10 +2202,20 @@ export default function AdvertisePage() {
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
                       <div className="text-xs text-slate-500">Selected Plan: <strong>{selectedDays} Days Campaign</strong></div>
-                      <div className="text-[11px] text-emerald-600 font-bold">Includes platform banner hosting & tracking</div>
+                      <div className="text-[11px] text-emerald-600 font-bold">
+                        {slotMultiplier !== 1.0 ? (
+                          <span>Slot Multiplier: {slotMultiplier}x (Base ₹{basePackagePrice})</span>
+                        ) : (
+                          <span>Standard Slot Rate (1.0x Base)</span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-slate-400 line-through">₹{currentPackage.originalPrice}</div>
+                      {currentPackage.originalPrice && currentPackage.originalPrice > currentPackage.price && (
+                        <div className="text-xs text-slate-400 line-through">
+                          ₹{slotMultiplier !== 1.0 ? Math.round(currentPackage.originalPrice * slotMultiplier) : currentPackage.originalPrice}
+                        </div>
+                      )}
                       <div className="text-2xl font-black text-red-600">₹{totalPrice}</div>
                     </div>
                   </div>
@@ -2074,7 +2251,7 @@ export default function AdvertisePage() {
                   <div className="w-48 h-48 mx-auto bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-center">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                        `upi://pay?pa=9798223366@okbizaxis&pn=NewsPortalAds&am=${totalPrice}&cu=INR&tn=AdBooking_${selectedDays}days`
+                        `upi://pay?pa=${dynamicUpiId}&pn=${encodeURIComponent(dynamicPayeeName)}&am=${totalPrice}&cu=INR&tn=AdBooking_${selectedDays}days`
                       )}`}
                       alt="UPI Payment QR Code"
                       className="w-full h-full object-contain"
@@ -2087,7 +2264,7 @@ export default function AdvertisePage() {
 
                   {/* UPI ID with copy */}
                   <div className="inline-flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-mono">
-                    <span>9798223366@okbizaxis</span>
+                    <span>{dynamicUpiId}</span>
                     <button
                       type="button"
                       onClick={copyUpiId}
@@ -2097,6 +2274,12 @@ export default function AdvertisePage() {
                       <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>
+
+                  {dynamicPayeeName && (
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      Payee: <span className="font-bold text-slate-600">{dynamicPayeeName}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-center gap-2.5 pt-1 text-[11px] text-slate-500">
                     <span>PhonePe</span> • <span>Google Pay</span> • <span>Paytm</span> • <span>BHIM</span>
@@ -2280,7 +2463,7 @@ export default function AdvertisePage() {
                 {leadQuestions.length === 0 ? (
                   <div className="bg-[#EAE8FE] rounded-2xl p-6 text-center text-[#5540D9] space-y-2 mb-4">
                     <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center mx-auto text-[#6C5CE7]">
-                      <Sparkles className="w-5 h-5" />
+                      <HelpCircle className="w-5 h-5" />
                     </div>
                     <p className="text-xs sm:text-sm font-medium leading-relaxed">
                       Add question fields for readers to answer by clicking the button below.
@@ -2598,6 +2781,110 @@ export default function AdvertisePage() {
                 Create Another Ad
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          CUSTOM UI MODAL: SLOT OCCUPIED / ADVANCE RESERVATION NOTICE
+          ========================================================================= */}
+      {showSlotOccupiedModal && (() => {
+        const slotStatus = getSlotStatus(selectedSlot);
+        const slotName = getSlotDisplayName(selectedSlot);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95">
+              <button
+                type="button"
+                onClick={() => setShowSlotOccupiedModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto shadow-xs">
+                <Clock className="w-8 h-8 stroke-[2.2]" />
+              </div>
+
+              <div>
+                <span className="inline-flex items-center space-x-1 text-[11px] font-black uppercase tracking-wider text-amber-700 bg-amber-100/80 border border-amber-200 px-2.5 py-0.5 rounded-full mb-1.5">
+                  Slot Currently Active
+                </span>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                  Advance Reservation Notice
+                </h3>
+              </div>
+
+              <div className="bg-gradient-to-br from-amber-50/70 via-orange-50/30 to-slate-50 border border-amber-200 rounded-2xl p-4 text-left space-y-2.5 shadow-2xs">
+                <div className="flex items-start justify-between gap-2 border-b border-amber-200/60 pb-2.5">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase text-slate-400">Selected Slot</span>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm">{slotName}</div>
+                  </div>
+                  {slotStatus.formattedDate && (
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] font-extrabold uppercase text-amber-600">Booked Until</span>
+                      <div className="font-mono font-bold text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                        {slotStatus.formattedDate}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                  Notice: The slot <strong className="text-slate-900">&apos;{slotName}&apos;</strong> is currently booked {slotStatus.formattedDate ? `until ${slotStatus.formattedDate}` : 'by an active advertiser'}.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  If you book now, your slot will be reserved and activated immediately after that date.
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-700 font-bold">
+                Do you want to proceed to payment?
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSlotOccupiedModal(false)}
+                  className="w-full sm:w-1/2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSlotAndProceed}
+                  className="w-full sm:w-1/2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center space-x-1.5"
+                >
+                  <span>OK / Proceed</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 duration-200">
+          <div className={`px-4 py-3 rounded-2xl shadow-xl border flex items-center space-x-2 text-xs font-bold ${
+            toastMessage.type === 'error'
+              ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-rose-500/10'
+              : toastMessage.type === 'success'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-500/10'
+              : 'bg-slate-900 text-white border-slate-800 shadow-slate-900/10'
+          }`}>
+            <AlertCircle className="w-4 h-4 shrink-0 text-current" />
+            <span>{toastMessage.text}</span>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="ml-2 text-current opacity-60 hover:opacity-100 p-0.5 rounded cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

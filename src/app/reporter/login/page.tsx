@@ -8,7 +8,7 @@ import {
   Clock, CheckCircle2, Sparkles, UserPlus, User, Phone,
   MapPin, UploadCloud, FileCheck, ArrowRight, X, ShieldCheck, Eye, EyeOff, Flame,
   Send, TrendingUp, ChevronDown, ChevronUp, Trash2, Check, FileText, Share2, Store, PhoneCall,
-  Home, XCircle
+  Home, XCircle, MessageCircle
 } from 'lucide-react';
 import { ReporterAuthProvider, useReporterAuth } from '@/context/ReporterAuthContext';
 import { PasswordStrengthIndicator, evaluatePassword } from '@/components/common/PasswordStrengthIndicator';
@@ -322,12 +322,12 @@ function ReporterAuthForm() {
         </Link>
       </div>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-4 lg:overflow-hidden flex items-center">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center lg:h-[calc(100vh-4.5rem)]">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-center">
           
           {/* 1. LEFT COLUMN: STICKY Animated Newsroom Showcase Card (Login & Signup) */}
-          <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center lg:h-full">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-8 xl:p-10 text-white shadow-2xl border border-slate-800/80 h-full max-h-[620px] flex flex-col justify-between">
+          <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-7 xl:p-8 text-white shadow-2xl border border-slate-800/80 min-h-[580px] flex flex-col justify-between">
               
               {/* Glowing Background Radial Effects */}
               <div className="absolute -top-24 -right-24 w-80 h-80 bg-red-600/25 rounded-full blur-3xl pointer-events-none animate-pulse-soft" />
@@ -357,8 +357,8 @@ function ReporterAuthForm() {
               </div>
 
               {/* Centerpiece: Clean Editorial Photography Scene */}
-              <div className="relative z-10 my-6 flex items-center justify-center">
-                <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
+              <div className="relative z-10 my-3 sm:my-4 flex items-center justify-center">
+                <div className="relative w-full max-w-sm aspect-[16/10] rounded-2xl overflow-hidden border border-white/15 shadow-2xl group bg-slate-900">
                   <img
                     src="/images/editorial-newspaper.jpg"
                     alt="Vartiq Editorial Newspaper & Modern Journalism Desk"
@@ -447,7 +447,7 @@ function ReporterAuthForm() {
               </div>
 
               {/* Bottom Content & Metrics */}
-              <div className="relative z-10 space-y-4 pt-2 border-t border-white/10">
+              <div className="relative z-10 space-y-3.5 pt-3 border-t border-white/10 pb-2">
                 <div className="space-y-1">
                   <h3 className="text-lg xl:text-xl font-black font-serif text-white tracking-tight">
                     {mode === 'login' ? 'The Editor’s Desk.' : 'The Independent Press.'}
@@ -460,7 +460,7 @@ function ReporterAuthForm() {
                 </div>
 
                 {/* 3 Metric Pills */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
+                <div className="grid grid-cols-3 gap-3 pt-1 pb-1">
                   {mode === 'login' ? (
                     <>
                       <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center backdrop-blur-sm">
@@ -512,13 +512,13 @@ function ReporterAuthForm() {
               <div className="space-y-1.5">
                 <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase tracking-wider">
                   <Clock className="w-3.5 h-3.5 text-amber-700" />
-                  <span>आवेदन समीक्षाधीन (Under Review)</span>
+                  <span>Application Under Review</span>
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black font-serif text-slate-900 pt-1">
-                  आवेदन सफलतापूर्वक प्राप्त हुआ!
+                  Application Submitted Successfully!
                 </h2>
                 <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
-                  आपका रिपोर्टर आवेदन और पहचान दस्तावेज़ एडमिन टीम को समीक्षा के लिए सुरक्षित भेज दिए गए हैं।
+                  Your reporter application and identification credentials have been securely submitted to the administrative team for verification.
                 </p>
               </div>
 
@@ -526,12 +526,12 @@ function ReporterAuthForm() {
               <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl text-left text-xs text-amber-950 space-y-2 max-w-sm mx-auto">
                 <div className="font-bold flex items-center gap-1.5 text-amber-900 text-xs sm:text-sm">
                   <ShieldCheck className="w-4 h-4 text-amber-700" />
-                  <span>अगला कदम (Next Steps):</span>
+                  <span>Next Steps:</span>
                 </div>
                 <div className="text-[11.5px] text-amber-900/90 leading-relaxed space-y-1.5">
-                  <p>1. <strong>दस्तावेज़ सत्यापन:</strong> एडमिन टीम आपके द्वारा अपलोड किए गए प्रेस कार्ड व आधार कार्ड की जांच करेगी।</p>
-                  <p>2. <strong>ईमेल सूचना:</strong> आवेदन स्वीकृत (Approved) होते ही आपके सत्यापित ईमेल (<strong>{signupEmail}</strong>) पर कन्फर्मेशन मेल भेजा जाएगा।</p>
-                  <p>3. <strong>लॉगिन:</strong> एडमिन द्वारा अप्रूवल मिलने के बाद ही आप अपने ईमेल व पासवर्ड से रिपोर्टर पैनल में लॉगिन कर पाएँगे।</p>
+                  <p>1. <strong>Document Verification:</strong> The administrative desk will verify your uploaded press credentials and ID proofs.</p>
+                  <p>2. <strong>Email Notification:</strong> Once your application is approved, an official confirmation email will be sent to <strong>{signupEmail}</strong>.</p>
+                  <p>3. <strong>Newsroom Sign In:</strong> After administrator approval, you will be able to sign in to your reporter desk with your email and password.</p>
                 </div>
               </div>
 
@@ -545,7 +545,7 @@ function ReporterAuthForm() {
                   No fee is ever charged to become an accredited reporter on e-News. If anyone asks you for money, please inform our team immediately.
                 </p>
                 <a
-                  href="tel:+919876543210"
+                  href="tel:+918985025794"
                   className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-rose-900 bg-rose-200/60 hover:bg-rose-200 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   <PhoneCall className="w-3.5 h-3.5 text-rose-800" />
@@ -580,7 +580,7 @@ function ReporterAuthForm() {
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Account Status:</span>
                   <span className="font-black text-amber-700 uppercase text-[11px] bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md">
-                    समीक्षाधीन (Under Review)
+                    Under Review
                   </span>
                 </div>
               </div>
@@ -596,9 +596,80 @@ function ReporterAuthForm() {
                 }}
                 className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
               >
-                <span>लॉगिन स्क्रीन पर जाएँ (Go to Sign In)</span>
+                <span>Go to Sign In</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+            </div>
+          ) : errorInfo && (errorInfo.code === 'ACCOUNT_SUSPENDED' || (errorInfo.message && errorInfo.message.toLowerCase().includes('suspended'))) ? (
+            /* DEDICATED ACCOUNT SUSPENDED SCREEN - NO EMAIL/PASSWORD INPUTS SHOWN */
+            <div className="text-center py-4 space-y-5 animate-in fade-in zoom-in-95">
+              <div className="w-16 h-16 rounded-3xl bg-rose-600 text-white flex items-center justify-center mx-auto shadow-[0_8px_24px_rgba(225,29,72,0.35)]">
+                <ShieldAlert className="w-8 h-8 stroke-[2.2]" />
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+                  <span>Account Suspended</span>
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black font-serif text-slate-900 pt-1">
+                  Account Has Been Suspended
+                </h2>
+                <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+                  Your reporter account ({loginEmail || 'associated with this email'}) has been suspended by the administration desk. You cannot sign in or post news stories until an administrator reactivates your account.
+                </p>
+              </div>
+
+              {/* Contact Support Section */}
+              <div className="p-5 bg-gradient-to-b from-rose-50/90 via-white to-rose-50/40 border border-rose-200 rounded-2xl text-left space-y-3.5 max-w-sm mx-auto shadow-xs">
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">
+                    Contact Support Team
+                  </span>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Reach out to the administrative desk to appeal the suspension or request account reactivation:
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {/* WhatsApp Direct Contact */}
+                  <a
+                    href={`https://wa.me/918985025794?text=${encodeURIComponent(`Hello Admin, my reporter account (${loginEmail || 'registered email'}) has been suspended. Please review my account for reactivation.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs group cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <span>WhatsApp Admin</span>
+                  </a>
+
+                  {/* Email Support */}
+                  <a
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=support@nighwantech.com&su=${encodeURIComponent(`Reporter Account Suspension Inquiry - ${loginEmail || ''}`)}&body=${encodeURIComponent(`Hello Administrator,\n\nMy reporter account (${loginEmail || ''}) has been suspended. Please review my case for account reactivation.\n\nThank you.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs group cursor-pointer"
+                  >
+                    <Mail className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <span>Gmail Support</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Back to Sign In / Try Another Account Button */}
+              <div className="pt-2 max-w-sm mx-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorInfo(null);
+                    setLoginPassword('');
+                  }}
+                  className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer flex items-center justify-center space-x-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Try Another Account / Back to Sign In</span>
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -621,31 +692,31 @@ function ReporterAuthForm() {
                 </p>
               </div>
 
-              {/* Error / Status Notice */}
+              {/* Non-Suspended Error Notice */}
               {errorInfo && (
-                <div className={`p-4 rounded-2xl border text-xs space-y-1.5 animate-in fade-in text-left ${
-                  errorInfo.code === 'ACCOUNT_PENDING'
-                    ? 'bg-amber-50 border-amber-200 text-amber-950'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
-                }`}>
-                  <div className="flex items-start space-x-2.5">
-                    {errorInfo.code === 'ACCOUNT_PENDING' ? (
+                errorInfo.code === 'ACCOUNT_PENDING' ? (
+                  <div className="p-4 rounded-2xl border text-xs space-y-1.5 animate-in fade-in text-left bg-amber-50 border-amber-200 text-amber-950">
+                    <div className="flex items-start space-x-2.5">
                       <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                    )}
-                    <div>
-                      <div className="font-bold text-sm">
-                        {errorInfo.code === 'ACCOUNT_PENDING' ? 'खाता समीक्षाधीन है (Account Under Review)' : 'त्रुटि (Error)'}
+                      <div>
+                        <div className="font-bold text-sm">Account Under Review</div>
+                        <p className="mt-1 leading-relaxed text-xs">
+                          Your reporter application is currently under review by the administrator. Once approved, you will receive an email confirmation and can sign in to your desk.
+                        </p>
                       </div>
-                      <p className="mt-1 leading-relaxed text-xs">
-                        {errorInfo.code === 'ACCOUNT_PENDING'
-                          ? 'आपका रिपोर्टर आवेदन वर्तमान में एडमिन द्वारा समीक्षाधीन है। एडमिन द्वारा आपके दस्तावेज़ अप्रूव होते ही आपके रजिस्टर्ड ईमेल पर सूचना भेजी जाएगी, जिसके बाद आप लॉगिन कर सकेंगे।'
-                          : errorInfo.message}
-                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-2xl border text-xs space-y-1.5 animate-in fade-in text-left bg-rose-50 border-rose-200 text-rose-800">
+                    <div className="flex items-start space-x-2.5">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-sm">Authentication Error</div>
+                        <p className="mt-1 leading-relaxed text-xs">{errorInfo.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
               )}
 
           {/* 1. LOGIN FORM */}

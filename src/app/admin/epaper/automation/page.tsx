@@ -22,14 +22,14 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_STARTER_BLUEPRINTS: PageBlueprint[] = [
-  { pageNumber: 1, pageTitle: 'Main Headlines & Front Page', headerType: 'grand', targetTopic: 'top breaking news in india', slotCount: 7, order: 1, isActive: true },
-  { pageNumber: 2, pageTitle: 'Patna City & Local News', headerType: 'folio', targetTopic: 'patna top news and breaking news', slotCount: 7, order: 2, isActive: true },
-  { pageNumber: 3, pageTitle: 'Bihar State & Regional Affairs', headerType: 'folio', targetTopic: 'bihar state development and governance', slotCount: 6, order: 3, isActive: true },
-  { pageNumber: 4, pageTitle: 'National Politics & Governance', headerType: 'folio', targetTopic: 'national politics and policy', slotCount: 6, order: 4, isActive: true },
-  { pageNumber: 5, pageTitle: 'Business, Markets & Economy', headerType: 'folio', targetTopic: 'share market economy business', slotCount: 6, order: 5, isActive: true },
-  { pageNumber: 6, pageTitle: 'Sports & Cricket Arena', headerType: 'folio', targetTopic: 'cricket sports news and matches', slotCount: 6, order: 6, isActive: true },
-  { pageNumber: 7, pageTitle: 'Entertainment & Cinema', headerType: 'folio', targetTopic: 'bollywood cinema and entertainment', slotCount: 6, order: 7, isActive: true },
-  { pageNumber: 8, pageTitle: 'World News & Global Wire', headerType: 'folio', targetTopic: 'world breaking international news', slotCount: 6, order: 8, isActive: true },
+  { pageNumber: 1, pageTitle: 'Front Page (Top Stories)', headerType: 'grand', targetTopic: 'top national and regional breaking headlines', slotCount: 7, order: 1, isActive: true },
+  { pageNumber: 2, pageTitle: 'Patna City & Local News', headerType: 'folio', targetTopic: 'patna city development and local updates', slotCount: 7, order: 2, isActive: true },
+  { pageNumber: 3, pageTitle: 'State & Regional Affairs', headerType: 'folio', targetTopic: 'state governance, public policy, and regional events', slotCount: 6, order: 3, isActive: true },
+  { pageNumber: 4, pageTitle: 'National Politics & Policy', headerType: 'folio', targetTopic: 'national politics, parliament, and governance', slotCount: 6, order: 4, isActive: true },
+  { pageNumber: 5, pageTitle: 'Business & Economy', headerType: 'folio', targetTopic: 'markets, business economy, trade, and finance', slotCount: 6, order: 5, isActive: true },
+  { pageNumber: 6, pageTitle: 'Sports Arena', headerType: 'folio', targetTopic: 'cricket matches, sports tournaments, and athletic achievements', slotCount: 6, order: 6, isActive: true },
+  { pageNumber: 7, pageTitle: 'Entertainment & Culture', headerType: 'folio', targetTopic: 'cinema, entertainment, arts, and lifestyle', slotCount: 6, order: 7, isActive: true },
+  { pageNumber: 8, pageTitle: 'World & International Wire', headerType: 'folio', targetTopic: 'international affairs, diplomacy, and global headlines', slotCount: 6, order: 8, isActive: true },
 ];
 
 function AutomationDashboardContent() {
@@ -45,7 +45,7 @@ function AutomationDashboardContent() {
   const [config, setConfig] = useState<AutomationConfig | null>(null);
   const [isEnabled, setIsEnabled] = useState<boolean>(true);
   const [scheduleTime, setScheduleTime] = useState<string>('05:00');
-  const [targetCity, setTargetCity] = useState<string>('पटना');
+  const [targetCity, setTargetCity] = useState<string>('Patna');
   const [autoPublish, setAutoPublish] = useState<boolean>(false);
   const [blueprints, setBlueprints] = useState<PageBlueprint[]>(DEFAULT_STARTER_BLUEPRINTS);
 
@@ -63,7 +63,7 @@ function AutomationDashboardContent() {
       try {
         const eds = await fetchAdminEditions();
         if (Array.isArray(eds) && eds.length > 0) {
-          setEditionsList(eds.map(e => ({ slug: e.slug, name: e.name || e.title, city: e.city || 'पटना' })));
+          setEditionsList(eds.map(e => ({ slug: e.slug, name: e.name || e.title, city: e.city || 'Patna' })));
         }
       } catch (err) {
         console.warn('Failed loading editions list:', err);
@@ -85,7 +85,7 @@ function AutomationDashboardContent() {
       setConfig(cfg);
       setIsEnabled(Boolean(cfg.isEnabled));
       setScheduleTime(cfg.scheduleTime || '05:00');
-      setTargetCity(cfg.targetCity || 'पटना');
+      setTargetCity(cfg.targetCity || 'Patna');
       setAutoPublish(Boolean(cfg.autoPublish));
 
       if (Array.isArray(cfg.blueprints) && cfg.blueprints.length > 0) {
@@ -129,7 +129,7 @@ function AutomationDashboardContent() {
       });
 
       setConfig(updated);
-      setFeedback({ type: 'success', message: 'Automation configuration & page blueprints saved successfully!' });
+      setFeedback({ type: 'success', message: 'Schedule settings & page layouts saved successfully!' });
       setTimeout(() => setFeedback(null), 4000);
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to save configuration' });
@@ -149,7 +149,7 @@ function AutomationDashboardContent() {
       setTriggerSuccessJob({ id: res?.jobId, date: triggerDate });
       setFeedback({
         type: 'info',
-        message: `Generation started for ${triggerDate}! The AI engine is assembling all ${blueprints.length} pages in the background.`
+        message: `Generation started for ${triggerDate}! Compiling all ${blueprints.length} pages in the background.`
       });
 
       // Poll history after 4s
@@ -269,6 +269,13 @@ function AutomationDashboardContent() {
             Generating...
           </span>
         );
+      case 'INTERRUPTED':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            <AlertTriangle className="w-3 h-3 mr-1 text-amber-700" />
+            Interrupted
+          </span>
+        );
       case 'FAILED':
         return (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
@@ -290,7 +297,7 @@ function AutomationDashboardContent() {
       <AdminSidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <AdminHeader />
+        <AdminHeader title="E-Paper Scheduler" />
 
         <main className="p-6 max-w-7xl w-full mx-auto space-y-6 pb-20">
           {/* TOP BREADCRUMB & HEADER */}
@@ -301,14 +308,14 @@ function AutomationDashboardContent() {
                   E-Paper Studio
                 </Link>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-900 font-bold">Automatic Scheduler</span>
+                <span className="text-slate-900 font-bold">Daily Scheduler</span>
               </div>
               <h1 className="text-2xl font-black text-slate-900 font-serif flex items-center space-x-2">
                 <CalendarClock className="w-7 h-7 text-red-600" />
-                <span>AI E-Paper Auto-Scheduler Studio</span>
+                <span>Daily E-Paper Scheduler</span>
               </h1>
               <p className="text-xs text-slate-500">
-                Configure your daily automated newspaper publishing engine: custom schedules, dynamic page blueprints, and human editorial review.
+                Configure daily newspaper publication schedules, manage page layouts, and monitor edition generation.
               </p>
             </div>
 
@@ -337,7 +344,7 @@ function AutomationDashboardContent() {
               <Link
                 href={`/admin/epaper?edition=${selectedEdition}`}
                 className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-xs flex items-center space-x-1.5 transition-all"
-                title="Open current edition in broadsheet visual editor"
+                title="Open Edition in Canvas Editor"
               >
                 <Newspaper className="w-4 h-4 text-slate-600" />
                 <span>Canvas Editor</span>
@@ -358,7 +365,7 @@ function AutomationDashboardContent() {
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    <span>Save Blueprint</span>
+                    <span>Save Settings</span>
                   </>
                 )}
               </button>
@@ -402,9 +409,9 @@ function AutomationDashboardContent() {
                     <Clock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-slate-900">Daily Automated Schedule</h2>
+                    <h2 className="text-base font-bold text-slate-900">Daily Auto Schedule</h2>
                     <p className="text-xs text-slate-500">
-                      When enabled, the background worker awakens daily to generate today&apos;s full edition.
+                      When active, today&apos;s full edition is automatically compiled and readied at the specified time.
                     </p>
                   </div>
                 </div>
@@ -446,16 +453,16 @@ function AutomationDashboardContent() {
                 {/* 2. Target City */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 block">
-                    Edition City Anchor
+                    Edition Focus City (City Anchor)
                   </label>
                   <input
                     type="text"
                     value={targetCity}
                     onChange={e => setTargetCity(e.target.value)}
-                    placeholder="e.g. पटना, गया, भागलपुर"
+                    placeholder="e.g. Patna, Gaya, Bhagalpur"
                     className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:border-red-500 focus:bg-white transition-colors"
                   />
-                  <span className="text-[11px] text-slate-500 block">Local breaking news priority anchor</span>
+                  <span className="text-[11px] text-slate-500 block">Prioritizes local breaking news for this region</span>
                 </div>
 
                 {/* 3. Automation Mode */}
@@ -474,7 +481,7 @@ function AutomationDashboardContent() {
                       <span>Direct Auto-Publish</span>
                     </label>
                     <p className="text-[10px] text-slate-500 leading-tight">
-                      {autoPublish ? '⚠️ Publishes live immediately.' : '🛡️ Hybrid Mode: Awaits Admin final approval (Recommended).'}
+                      {autoPublish ? 'Direct Publish: Goes live on the portal immediately upon generation.' : 'Safe Mode: Saved as draft for editorial review before publishing (Recommended).'}
                     </p>
                   </div>
                 </div>
@@ -485,11 +492,11 @@ function AutomationDashboardContent() {
                 <div className="flex items-center space-x-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    Status: <b>{isEnabled ? `Active daily at ${scheduleTime} AM IST` : 'Automation Paused'}</b> • Total <b>{blueprints.length} Pages</b> configured
+                    Status: <b>{isEnabled ? `Active daily at ${scheduleTime} IST` : 'Scheduler is paused'}</b> • Total <b>{blueprints.length} Pages</b> configured
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-400">
-                  Target Timezone: Asia/Kolkata (IST)
+                  Timezone: Asia/Kolkata (IST)
                 </span>
               </div>
             </div>
@@ -499,11 +506,11 @@ function AutomationDashboardContent() {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-amber-400">
                   <Sparkles className="w-5 h-5" />
-                  <span className="text-xs font-black uppercase tracking-wider">Manual Trigger Engine</span>
+                  <span className="text-xs font-black uppercase tracking-wider">Generate Edition</span>
                 </div>
                 <h3 className="text-base font-bold font-serif">Generate Edition Now</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Need today&apos;s paper right now? Trigger the multi-page engine immediately for any edition date.
+                  Need today&apos;s or a specific date&apos;s full edition right away? Select a date and generate instantly.
                 </p>
               </div>
 
@@ -527,7 +534,7 @@ function AutomationDashboardContent() {
                   {isTriggering ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Generating Full Edition ({blueprints.length} Pages)...</span>
+                      <span>Generating Edition ({blueprints.length} Pages)...</span>
                     </>
                   ) : (
                     <>
@@ -543,7 +550,7 @@ function AutomationDashboardContent() {
                     className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors shadow-sm cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Open {triggerSuccessJob.date} in E-Paper Canvas</span>
+                    <span>Open {triggerSuccessJob.date} Edition in Canvas</span>
                   </Link>
                 )}
               </div>
@@ -557,11 +564,11 @@ function AutomationDashboardContent() {
                 <div className="flex items-center space-x-2">
                   <Layers className="w-5 h-5 text-red-600" />
                   <h2 className="text-base font-black text-slate-900 font-serif">
-                    Newspaper Page Blueprints & Editorial Structure
+                    Newspaper Pages &amp; Sections
                   </h2>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Define what topic, category, header style, and number of news stories each newspaper page will have.
+                  Configure page beats, masthead styles, and story counts for each page of the daily edition.
                 </p>
               </div>
 
@@ -570,9 +577,9 @@ function AutomationDashboardContent() {
                   type="button"
                   onClick={handleResetBlueprints}
                   className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
-                  title="Reset to 8 standard pages"
+                  title="Reset to default 8-page structure"
                 >
-                  Reset Defaults
+                  Reset to Default
                 </button>
                 <button
                   type="button"
@@ -580,7 +587,7 @@ function AutomationDashboardContent() {
                   className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add New Page</span>
+                  <span>+ Add New Page</span>
                 </button>
               </div>
             </div>
@@ -635,7 +642,7 @@ function AutomationDashboardContent() {
                           type="text"
                           value={bp.pageTitle}
                           onChange={e => handleUpdateBlueprint(idx, { pageTitle: e.target.value })}
-                          placeholder="e.g. Main Headlines"
+                          placeholder="e.g. Front Page, State Affairs"
                           className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500"
                         />
                       </div>
@@ -643,22 +650,22 @@ function AutomationDashboardContent() {
                       {/* 2. Header Style */}
                       <div className="space-y-1">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                          Header Style
+                          Header Style (Masthead)
                         </label>
                         <select
                           value={bp.headerType}
                           onChange={e => handleUpdateBlueprint(idx, { headerType: e.target.value as 'grand' | 'folio' })}
                           className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500 cursor-pointer"
                         >
-                          <option value="grand">Grand Masthead (Main Logo)</option>
-                          <option value="folio">Folio Bar (Standard Top)</option>
+                          <option value="grand">Grand Masthead (Main Brand Logo)</option>
+                          <option value="folio">Folio Bar (Standard Section Header)</option>
                         </select>
                       </div>
 
                       {/* 3. Slot Count */}
                       <div className="space-y-1">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                          Stories / Slots Count
+                          Stories Count (Slots)
                         </label>
                         <select
                           value={bp.slotCount}
@@ -676,14 +683,14 @@ function AutomationDashboardContent() {
                       {/* 4. Topic Directive */}
                       <div className="space-y-1">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                          News Topic Directive
+                          News Topic / Beat
                         </label>
                         <input
                           type="text"
                           value={bp.targetTopic}
                           onChange={e => handleUpdateBlueprint(idx, { targetTopic: e.target.value })}
-                          placeholder="e.g. patna city breaking news"
-                          className="w-full text-xs text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500 font-mono"
+                          placeholder="e.g. top breaking national and regional headlines"
+                          className="w-full text-xs text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500"
                         />
                       </div>
                     </div>
@@ -734,7 +741,7 @@ function AutomationDashboardContent() {
                 disabled={isSaving}
                 className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-colors self-end sm:self-auto cursor-pointer"
               >
-                {isSaving ? 'Saving Changes...' : 'Save Page Blueprints'}
+                {isSaving ? 'Saving...' : 'Save Page Layouts'}
               </button>
             </div>
           </div>
@@ -744,10 +751,10 @@ function AutomationDashboardContent() {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-900 font-serif">
-                  Automated Generation History & Logs
+                  Generation History &amp; Records
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Track every run, inspect execution timing, and review draft editions before publishing.
+                  Track daily edition runs, monitor completion status, and review draft editions.
                 </p>
               </div>
 
@@ -755,7 +762,7 @@ function AutomationDashboardContent() {
                 type="button"
                 onClick={() => loadData(selectedEdition)}
                 className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                title="Refresh history"
+                title="Refresh History"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -764,9 +771,9 @@ function AutomationDashboardContent() {
             {history.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 space-y-2">
                 <CalendarClock className="w-8 h-8 text-slate-300 mx-auto" />
-                <p>No automated generation jobs recorded yet for {selectedEdition}.</p>
+                <p>No generation history recorded yet for {selectedEdition}.</p>
                 <p className="text-[11px] text-slate-400">
-                  Use the &quot;Generate Edition Now&quot; button above to create your first automated edition!
+                  Use the &quot;Generate Edition Now&quot; button above to create today&apos;s edition.
                 </p>
               </div>
             ) : (
@@ -838,14 +845,14 @@ function AutomationDashboardContent() {
         </main>
 
         
-        {/* DELETE RUN CONFIRMATION MODAL (Matching Articles CMS Design) */}
+        {/* DELETE RUN CONFIRMATION MODAL */}
         <ConfirmDeleteModal
           isOpen={Boolean(deleteTarget)}
-          title="Delete Automated Run?"
+          title="Delete Generation Run?"
           description={
             deleteTarget ? (
               <span>
-                Are you sure you want to delete the automated generation run for <strong className="text-slate-800">{deleteTarget.targetDate}</strong>? This will remove its draft edition and associated page slots.
+                Are you sure you want to delete the automated generation run for <strong className="text-slate-800">{deleteTarget.targetDate}</strong>? This will remove its draft edition and page slots.
               </span>
             ) : ''
           }
@@ -858,8 +865,8 @@ function AutomationDashboardContent() {
         {/* RESET BLUEPRINTS CONFIRMATION MODAL */}
         <ConfirmDeleteModal
           isOpen={isResetModalOpen}
-          title="Reset Blueprints?"
-          description="Are you sure you want to reset all pages to standard 8-page newspaper blueprint template?"
+          title="Reset Page Layouts?"
+          description="Are you sure you want to reset all pages to the standard 8-page newspaper template?"
           confirmLabel="Reset Template"
           onConfirm={confirmResetBlueprints}
           onClose={() => setIsResetModalOpen(false)}

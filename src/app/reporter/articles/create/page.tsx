@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   FileText, Send, Save, ArrowLeft, UploadCloud, X,
-  AlertCircle, CheckCircle2, Sparkles, Image as ImageIcon, Plus, Trash2
+  AlertCircle, CheckCircle2, Image as ImageIcon, Plus, Trash2
 } from 'lucide-react';
 import { ReporterLayout } from '@/components/reporter/ReporterLayout';
 import { useReporterAuth } from '@/context/ReporterAuthContext';
@@ -310,7 +310,7 @@ function CreateArticleContent() {
         <div className="p-5 sm:p-6 rounded-2xl border border-amber-200/80 bg-amber-50/30 space-y-3">
           <div className="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
             <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-amber-900">
-              <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400" />
+              <FileText className="w-4 h-4 text-amber-700" />
               <span>Key Story Highlights (Bullet Points)</span>
             </div>
             <button

@@ -12,6 +12,7 @@ import VideosPage from '@/app/videos/page';
 import { formatTimeAgo } from '@/utils/timeAgo';
 import { stripHtml } from '@/utils/textUtils';
 import { SITE_URL } from '@/config/env';
+import NotFound from '@/app/not-found';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -265,6 +266,14 @@ export default function CategoryPage() {
     category: typeof art.category === 'string' ? art.category.toUpperCase() : 'NEWS',
     title: typeof art.title === 'string' ? art.title : ((art.title as any)?.en || '')
   }));
+
+  const isSpecialSlug = [
+    'latest', 'latest-news', 'videos', 'opinion', 'explainer', 'cricket', 'epaper', 'horoscope', 'weather'
+  ].includes(slug);
+
+  if (!isLoading && !isSpecialSlug && !matchedCategory && dynamicArticles.length === 0) {
+    return <NotFound />;
+  }
 
   return (
     <main className="min-h-screen flex flex-col bg-jagran-bg dark:bg-brand-dark-bg text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
