@@ -391,6 +391,14 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
           setGridVideos(cleanRegularVideos.length > 0 ? cleanRegularVideos : FALLBACK_VIDEOS);
           setShortsList(cleanShorts);
 
+          // Priority: If admin specifically assigned Lead Hero (isFeaturedHero: true), prioritize it for the lead player
+          const explicitHero = cleanRegularVideos.find(v => Boolean(v.isFeaturedHero));
+          const urlTarget = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('v') : null;
+          if (explicitHero && !initialVideoId && !urlTarget) {
+            setLeadVideo(explicitHero);
+            updateVideoSEO(explicitHero);
+          }
+
           // If a video is requested via ?v= in URL and modal is not open yet, open it
           if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);

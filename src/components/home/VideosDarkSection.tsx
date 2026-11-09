@@ -25,13 +25,16 @@ export const VideosDarkSection: React.FC = () => {
           const cleanTrending = (data.trendingVideos || []).filter(isRegularVideo);
           let hero = (data.heroVideo && isRegularVideo(data.heroVideo)) ? data.heroVideo : cleanTrending[0] || null;
 
-          // If trending videos had shorts removed and list is small, fetch more regular videos
+          // If trending videos had shorts removed or hero is not explicit hero, check all videos
           let list = cleanTrending;
-          if (list.length < 5) {
+          if (list.length < 5 || !hero?.isFeaturedHero) {
             try {
               const allRes = await videoService.getVideos({ limit: 25, status: 'PUBLISHED' });
               const cleanAll = (allRes.videos || []).filter(isRegularVideo);
-              if (!hero && cleanAll.length > 0) {
+              const explicitHero = cleanAll.find(v => Boolean(v.isFeaturedHero));
+              if (explicitHero) {
+                hero = explicitHero;
+              } else if (!hero && cleanAll.length > 0) {
                 hero = cleanAll[0];
               }
               list = cleanAll.slice(0, 10);
