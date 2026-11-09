@@ -110,6 +110,7 @@ function AdStudioContent() {
 
   // Package Modal state (Add / Edit Package)
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [deletePackageIndex, setDeletePackageIndex] = useState<number | null>(null);
   const [editingPackageIndex, setEditingPackageIndex] = useState<number | null>(null);
   const [pkgDays, setPkgDays] = useState<string | number>(7);
   const [pkgPrice, setPkgPrice] = useState<string | number>(599);
@@ -458,10 +459,14 @@ function AdStudioContent() {
   };
 
   const handleDeletePackage = (index: number) => {
-    const target = packagesList[index];
-    if (window.confirm(`Are you sure you want to delete the "${target.label}" package?`)) {
-      setPackagesList(packagesList.filter((_, i) => i !== index));
-    }
+    setDeletePackageIndex(index);
+  };
+
+  const confirmDeletePackage = () => {
+    if (deletePackageIndex === null) return;
+    setPackagesList(packagesList.filter((_, i) => i !== deletePackageIndex));
+    setDeletePackageIndex(null);
+    setToastMessage({ text: 'Advertising package deleted successfully.', type: 'success' });
   };
 
   const handleQuickAddPreset = (days: number, label: string, price: number, originalPrice: number, badge: string) => {
@@ -2254,6 +2259,39 @@ function AdStudioContent() {
           </div>
         </div>
       </div>
+
+      {/* ================= DELETE PACKAGE MODAL ================= */}
+      {deletePackageIndex !== null && packagesList[deletePackageIndex] && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Delete Ad Package?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Are you sure you want to delete the package &ldquo;{packagesList[deletePackageIndex]?.label}&rdquo;?
+              </p>
+            </div>
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletePackageIndex(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletePackage}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white shadow-md shadow-red-600/20 cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= ADD / EDIT PACKAGE MODAL ================= */}
       {isPackageModalOpen && (

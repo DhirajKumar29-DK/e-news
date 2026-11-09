@@ -30,6 +30,7 @@ function EditArticleContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -277,7 +278,6 @@ function EditArticleContent() {
   };
 
   const handleDeleteArticle = async () => {
-    if (!confirm('Are you sure you want to permanently delete this article?')) return;
     try {
       setIsDeleting(true);
       await articleService.deleteArticle(articleId);
@@ -285,6 +285,7 @@ function EditArticleContent() {
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to delete article.');
       setIsDeleting(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -348,7 +349,7 @@ function EditArticleContent() {
               <button
                 type="button"
                 disabled={isDeleting || isSubmitting}
-                onClick={handleDeleteArticle}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-colors cursor-pointer"
                 title="Permanently Delete Story"
               >
@@ -1170,6 +1171,46 @@ function EditArticleContent() {
           });
         }}
       />
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Delete News Article?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Are you sure you want to permanently delete this article? This action cannot be undone and will remove it from the database.
+              </p>
+            </div>
+            {title && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 font-bold truncate">
+                {title}
+              </div>
+            )}
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteArticle}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white shadow-md shadow-red-600/20 cursor-pointer"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

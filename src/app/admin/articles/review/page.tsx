@@ -40,7 +40,16 @@ function AdminReviewQueueContent() {
   const [pendingVideos, setPendingVideos] = useState<VideoData[]>([]);
   const [videosLoading, setVideosLoading] = useState(false);
   const [activeVideoModal, setActiveVideoModal] = useState<VideoData | null>(null);
+  const [videoToReject, setVideoToReject] = useState<VideoData | null>(null);
   const [actionLoadingVideoId, setActionLoadingVideoId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Dynamic Categories for editorial re-assignment
   const [categories, setCategories] = useState<CategoryData[]>([]);
@@ -143,15 +152,17 @@ function AdminReviewQueueContent() {
       if (activeVideoModal?.id === videoId) {
         setActiveVideoModal(null);
       }
+      setToastMessage({ text: 'Video broadcast approved and published live!', type: 'success' });
     } catch (err: any) {
-      alert(err.message || 'Failed to approve video');
+      setToastMessage({ text: err.message || 'Failed to approve video', type: 'error' });
     } finally {
       setActionLoadingVideoId(null);
     }
   };
 
-  const handleRejectVideo = async (videoId: string) => {
-    if (!confirm('Are you sure you want to reject and remove this video report?')) return;
+  const confirmRejectVideo = async () => {
+    if (!videoToReject) return;
+    const videoId = videoToReject.id;
     try {
       setActionLoadingVideoId(videoId);
       await videoService.deleteVideo(videoId);
@@ -159,8 +170,10 @@ function AdminReviewQueueContent() {
       if (activeVideoModal?.id === videoId) {
         setActiveVideoModal(null);
       }
+      setVideoToReject(null);
+      setToastMessage({ text: 'Video report rejected and removed successfully.', type: 'success' });
     } catch (err: any) {
-      alert(err.message || 'Failed to reject video');
+      setToastMessage({ text: err.message || 'Failed to reject video', type: 'error' });
     } finally {
       setActionLoadingVideoId(null);
     }
@@ -188,8 +201,16 @@ function AdminReviewQueueContent() {
       setFeedbackNote('');
       setActiveArticle(null);
       await fetchQueue();
+      setToastMessage({
+        text: action === 'PUBLISH' || action === 'APPROVE'
+          ? 'Article published live successfully!'
+          : action === 'REQUEST_REVISION'
+          ? 'Revision request sent to reporter.'
+          : 'Article rejected and removed.',
+        type: 'success'
+      });
     } catch (err: any) {
-      alert(err.message || `Failed to execute ${action}`);
+      setToastMessage({ text: err.message || `Failed to execute ${action}`, type: 'error' });
     } finally {
       setIsActionLoading(false);
     }
@@ -737,7 +758,7 @@ function AdminReviewQueueContent() {
                             </button>
 
                             <button
-                              onClick={() => handleRejectVideo(vid.id)}
+                              onClick={() => setVideoToReject(vid)}
                               disabled={actionLoadingVideoId === vid.id}
                               className="p-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
                               title="Reject video report"
@@ -1136,7 +1157,7 @@ function AdminReviewQueueContent() {
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => handleRejectVideo(activeVideoModal.id)}
+                onClick={() => setVideoToReject(activeVideoModal)}
                 disabled={actionLoadingVideoId === activeVideoModal.id}
                 className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition cursor-pointer disabled:opacity-50"
               >
@@ -1162,6 +1183,96 @@ function AdminReviewQueueContent() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECT VIDEO CONFIRMATION MODAL */}
+      {videoToReject && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <Trash2 className="w-6 h-6 text-rose-600" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-extrabold text-slate-900 font-serif">
+                Reject Video Report?
+              </h3>
+              <p className="text-xs text-slate-500">
+                Are you sure you want to reject and remove this video report? This will discard the submission from the review queue.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1 text-left">
+              <div className="flex items-center space-x-2">
+                <span className="text-[9px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full">
+                  {videoToReject.badge || 'REPORT'}
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 uppercase">
+                  {videoToReject.category}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-900 line-clamp-2 pt-1 font-serif">
+                {videoToReject.title}
+              </p>
+              <div className="flex items-center space-x-2 text-[11px] text-slate-500 pt-0.5 font-medium">
+                <span>By {videoToReject.reporterName || 'Field Reporter'}</span>
+                {videoToReject.duration && (
+                  <>
+                    <span>•</span>
+                    <span>{videoToReject.duration}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setVideoToReject(null)}
+                disabled={actionLoadingVideoId === videoToReject.id}
+                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRejectVideo}
+                disabled={actionLoadingVideoId === videoToReject.id}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{actionLoadingVideoId === videoToReject.id ? 'Rejecting...' : 'Yes, Reject Video'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-[70] max-w-sm animate-in fade-in slide-in-from-top-3 duration-200">
+          <div
+            className={`p-3.5 rounded-2xl flex items-center space-x-3 shadow-xl text-xs font-bold ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-rose-600 text-white'
+            }`}
+          >
+            {toastMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span className="flex-1">{toastMessage.text}</span>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="p-1 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}
