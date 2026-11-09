@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
-import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp, ChevronDown, Flame, Maximize2 } from 'lucide-react';
+import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp, ChevronDown, Flame, Maximize2, Minimize2 } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
 import { buildVideoEmbedUrl, getVideoThumbnail, getYouTubeId, isRegularVideo, isShortVideo } from '@/utils/videoUtils';
 
@@ -171,7 +171,11 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     }
   }, []);
 
-  // Automatic Landscape Orientation on Fullscreen: When user taps fullscreen (via YouTube or custom action), lock to landscape
+  // Fullscreen Landscape Mode State (Provides true 90-degree rotation when in portrait, just like YouTube)
+  const [isLandscapeMode, setIsLandscapeMode] = useState<boolean>(false);
+  const justSwitchedToLandscapeRef = useRef(false);
+
+  // Automatic Landscape Orientation on Fullscreen: When user taps fullscreen (via YouTube or custom action), lock or rotate to landscape
   useEffect(() => {
     const handleFullscreenChange = async () => {
       const isFullscreen = Boolean(
@@ -182,18 +186,35 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
       );
 
       if (isFullscreen) {
+        const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+        // Try hardware lock
         if (typeof window !== 'undefined' && window.screen?.orientation) {
           try {
             await (window.screen.orientation as any).lock?.('landscape');
-          } catch (err) {
-            console.warn('Orientation lock to landscape error:', err);
-          }
+          } catch {}
+        }
+        // If device is in portrait, native fullscreen only letterboxes with big black bars.
+        // Automatically switch to our full-screen rotated Landscape mode!
+        if (isPortrait) {
+          justSwitchedToLandscapeRef.current = true;
+          try {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if ((document as any).webkitExitFullscreen) {
+              await (document as any).webkitExitFullscreen();
+            }
+          } catch {}
+          setIsLandscapeMode(true);
         }
       } else {
-        if (typeof window !== 'undefined' && window.screen?.orientation) {
-          try {
-            (window.screen.orientation as any).unlock?.();
-          } catch {}
+        if (!justSwitchedToLandscapeRef.current) {
+          if (typeof window !== 'undefined' && window.screen?.orientation) {
+            try {
+              (window.screen.orientation as any).unlock?.();
+            } catch {}
+          }
+        } else {
+          justSwitchedToLandscapeRef.current = false;
         }
       }
     };
@@ -216,37 +237,46 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     };
   }, []);
 
+  // Back button / Escape listener to smoothly exit Landscape mode
+  useEffect(() => {
+    if (!isLandscapeMode) return;
+    const handleBack = (e: Event) => {
+      e.preventDefault();
+      setIsLandscapeMode(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsLandscapeMode(false);
+      }
+    };
+    window.addEventListener('app_back_pressed', handleBack);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('app_back_pressed', handleBack);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [isLandscapeMode]);
+
   // Explicit Toggle Landscape / Maximize Handler
   const handleToggleLandscape = async () => {
     try {
-      const isFs = Boolean(
-        document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
-      );
-
-      if (!isFs) {
-        const el = modalVideoStageRef.current;
-        if (el) {
-          if (el.requestFullscreen) {
-            await el.requestFullscreen();
-          } else if ((el as any).webkitRequestFullscreen) {
-            await (el as any).webkitRequestFullscreen();
-          }
-        }
+      if (!isLandscapeMode) {
+        setIsLandscapeMode(true);
         if (typeof window !== 'undefined' && window.screen?.orientation) {
           try {
             await (window.screen.orientation as any).lock?.('landscape');
-          } catch (err) {
-            console.warn('Orientation lock landscape error:', err);
-          }
+          } catch {}
         }
       } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
+        setIsLandscapeMode(false);
+        if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+          try {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if ((document as any).webkitExitFullscreen) {
+              await (document as any).webkitExitFullscreen();
+            }
+          } catch {}
         }
         if (typeof window !== 'undefined' && window.screen?.orientation) {
           try {
@@ -257,6 +287,42 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     } catch (err) {
       console.warn('Landscape toggle error:', err);
     }
+  };
+
+  // Dynamic CSS style for full-screen landscape rotation
+  const getLandscapeStyle = (): React.CSSProperties | undefined => {
+    if (!isLandscapeMode) return undefined;
+
+    if (typeof window !== 'undefined' && window.innerWidth > window.innerHeight) {
+      // Already physically landscape: fill full viewport
+      return {
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        backgroundColor: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      };
+    }
+
+    // Phone in portrait: rotate 90 degrees to fill whole screen horizontally (YouTube mobile app style)
+    return {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      width: '100dvh',
+      height: '100dvw',
+      transform: 'translate(-50%, -50%) rotate(90deg)',
+      transformOrigin: 'center center',
+      zIndex: 99999,
+      backgroundColor: '#000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    };
   };
 
   // Send commands to YouTube IFrame API via postMessage
@@ -612,6 +678,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
 
   // Closes modal and unmounts player completely, terminating all sound instantly and restoring orientation
   const handleCloseModal = () => {
+    setIsLandscapeMode(false);
     if (typeof document !== 'undefined' && (document.fullscreenElement || (document as any).webkitFullscreenElement)) {
       try {
         if (document.exitFullscreen) {
@@ -621,9 +688,9 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
         }
       } catch {}
     }
-    if (typeof window !== 'undefined' && window.screen?.orientation && typeof window.screen.orientation.unlock === 'function') {
+    if (typeof window !== 'undefined' && window.screen?.orientation) {
       try {
-        window.screen.orientation.unlock();
+        (window.screen.orientation as any).unlock?.();
       } catch {}
     }
     setModalVideo(null);
@@ -1327,12 +1394,21 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                 <button
                   type="button"
                   onClick={handleToggleLandscape}
-                  className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center gap-1"
-                  title="Landscape Mode (बड़ा / रोटेट करें)"
+                  className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center gap-1.5 px-3"
+                  title={isLandscapeMode ? "Exit Landscape (सामान्य दृश्य)" : "Landscape Mode (बड़ा / रोटेट करें)"}
                   aria-label="Toggle Landscape Fullscreen"
                 >
-                  <Maximize2 className="w-4 h-4 text-amber-400" />
-                  <span className="hidden sm:inline text-[11px] text-slate-300 font-semibold">Landscape</span>
+                  {isLandscapeMode ? (
+                    <>
+                      <Minimize2 className="w-4 h-4 text-amber-400" />
+                      <span className="text-[11px] text-slate-200 font-bold">Portrait</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-4 h-4 text-amber-400" />
+                      <span className="text-[11px] text-slate-200 font-bold">Landscape</span>
+                    </>
+                  )}
                 </button>
 
                 <button
@@ -1350,7 +1426,12 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
             {/* 16:9 Cinema Player Stage with unique key per video for clean teardown */}
             <div 
               ref={modalVideoStageRef}
-              className="aspect-video w-full bg-black relative overflow-hidden flex items-center justify-center shrink-0 [&:fullscreen]:w-screen [&:fullscreen]:h-screen [&:fullscreen]:aspect-auto"
+              style={getLandscapeStyle()}
+              className={`bg-black relative overflow-hidden flex items-center justify-center shrink-0 transition-all duration-300 ${
+                isLandscapeMode
+                  ? 'w-full h-full'
+                  : 'aspect-video w-full'
+              }`}
             >
               {modalVideo.videoType === 'FILE' ? (
                 <video
@@ -1371,6 +1452,39 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                   referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
                 />
+              )}
+
+              {/* Landscape Overlay Controls (Exit button & title) */}
+              {isLandscapeMode ? (
+                <div className="absolute top-3 left-4 right-4 z-40 flex items-center justify-between pointer-events-auto">
+                  <div className="flex items-center space-x-2 bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-xl">
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                    <span className="text-xs font-bold text-white truncate max-w-[220px] sm:max-w-md font-serif">
+                      {modalVideo.title}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleLandscape}
+                    className="flex items-center space-x-1.5 bg-black/85 hover:bg-red-600 text-white px-4 py-1.5 rounded-full backdrop-blur-md border border-white/30 shadow-2xl transition-all cursor-pointer text-xs font-bold active:scale-95"
+                    title="Exit Landscape (सामान्य दृश्य)"
+                  >
+                    <Minimize2 className="w-4 h-4 text-amber-400" />
+                    <span>Exit Fullscreen</span>
+                  </button>
+                </div>
+              ) : (
+                /* Portrait Overlay Floating Landscape Button (placed at bottom right over video for instant 1-tap rotation) */
+                <button
+                  type="button"
+                  onClick={handleToggleLandscape}
+                  className="absolute bottom-3 right-3 z-30 px-2.5 py-1.5 rounded-lg bg-black/80 hover:bg-black text-white hover:text-amber-400 backdrop-blur-md shadow-2xl border border-white/25 flex items-center space-x-1.5 cursor-pointer transition active:scale-95 group"
+                  title="Landscape Mode (बड़ा / रोटेट करें)"
+                >
+                  <Maximize2 className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[11px] font-bold text-white tracking-wide">Landscape</span>
+                </button>
               )}
             </div>
 
