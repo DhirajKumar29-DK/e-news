@@ -3141,16 +3141,6 @@ function FullStudioInner() {
                 <Eye className="w-3.5 h-3.5" />
                 <span>Slot Borders: {showSlotGuides ? 'VISIBLE' : 'HIDDEN'}</span>
               </button>
-              {/* ✨ Smart Content-Aware Auto-Pack Button */}
-              <button
-                type="button"
-                onClick={handleAutoPackCurrentPage}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans flex items-center space-x-1.5 transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transform hover:scale-105 active:scale-95 border border-emerald-400/40"
-                title="Automatically size and arrange slots based on each story's content length (Zero blank spaces)"
-              >
-                <Layout className="w-3.5 h-3.5 text-white" />
-                <span>✨ Auto-Pack Slots</span>
-              </button>
             </div>
           </div>
 
