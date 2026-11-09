@@ -491,23 +491,23 @@ function AdminReviewQueueContent() {
                       return (
                         <div
                           key={art.id}
-                          className="p-5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                          className="py-3 px-4 sm:py-3.5 sm:px-5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3.5"
                         >
                           {/* Left: Thumbnail & Details */}
-                          <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          <div className="flex items-center space-x-3.5 min-w-0 flex-1">
                             {(art.imageUrl || art.featuredImage) ? (
                               <img
                                 src={(art.imageUrl || art.featuredImage)!}
                                 alt={art.title}
-                                className="w-24 h-18 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
+                                className="w-24 h-16 sm:w-28 sm:h-18 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
                               />
                             ) : (
-                              <div className="w-24 h-18 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
-                                <Tag className="w-6 h-6 text-slate-300" />
+                              <div className="w-24 h-16 sm:w-28 sm:h-18 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                                <Tag className="w-5 h-5 text-slate-300" />
                               </div>
                             )}
 
-                            <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                                 {getStatusBadge(art.status)}
                                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100">
@@ -520,7 +520,7 @@ function AdminReviewQueueContent() {
 
                               <h3
                                 onClick={() => openPreview(art)}
-                                className="text-sm font-bold text-slate-900 leading-snug line-clamp-2 cursor-pointer hover:text-red-600 transition-colors"
+                                className="text-sm font-bold text-slate-900 leading-snug line-clamp-1 sm:line-clamp-2 cursor-pointer hover:text-red-600 transition-colors"
                               >
                                 {art.title}
                               </h3>
@@ -662,13 +662,13 @@ function AdminReviewQueueContent() {
                       return (
                         <div
                           key={vid.id}
-                          className="p-5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                          className="py-3 px-4 sm:py-3.5 sm:px-5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3.5"
                         >
                           {/* Left: Thumbnail & Details */}
-                          <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          <div className="flex items-center space-x-3.5 min-w-0 flex-1">
                             <div
                               onClick={() => setActiveVideoModal(vid)}
-                              className="relative w-36 aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shrink-0 shadow-xs cursor-pointer group"
+                              className="relative w-28 sm:w-32 aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shrink-0 shadow-2xs cursor-pointer group"
                             >
                               <img
                                 src={thumb}
@@ -687,15 +687,17 @@ function AdminReviewQueueContent() {
                               )}
                             </div>
 
-                            <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                                 <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
                                   <Clock className="w-3 h-3 text-amber-600" />
                                   <span>Pending Approval</span>
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100">
-                                  {vid.category || 'General'}
-                                </span>
+                                {vid.category && vid.category.toLowerCase() !== 'latest' && (
+                                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100">
+                                    {vid.category}
+                                  </span>
+                                )}
                                 {vid.badge && (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
                                     {vid.badge}
@@ -1093,9 +1095,11 @@ function AdminReviewQueueContent() {
                 <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full">
                   {activeVideoModal.badge || 'GROUND REPORT'}
                 </span>
-                <span className="text-xs font-bold text-slate-800 uppercase">
-                  {activeVideoModal.category}
-                </span>
+                {activeVideoModal.category && activeVideoModal.category.toLowerCase() !== 'latest' && (
+                  <span className="text-xs font-bold text-slate-800 uppercase">
+                    {activeVideoModal.category}
+                  </span>
+                )}
               </div>
               <button
                 type="button"

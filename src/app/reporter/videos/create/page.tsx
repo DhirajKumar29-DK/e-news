@@ -42,8 +42,8 @@ function CreateVideoContent() {
   const [youtubeId, setYoutubeId] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [duration, setDuration] = useState('03:30');
-  const [badge, setBadge] = useState('');
-  const [category, setCategory] = useState('latest');
+  const [badge, setBadge] = useState('GROUND REPORT');
+  const [category, setCategory] = useState('india');
   const [tags, setTags] = useState('');
 
   // Upload States
@@ -56,7 +56,8 @@ function CreateVideoContent() {
     categoryService.getCategories().then((cats) => {
       if (cats && cats.length > 0) {
         setCategories(cats);
-        if (cats[0]) setCategory(cats[0].slug);
+        const realCats = cats.filter(c => c.slug !== 'latest');
+        if (realCats[0]) setCategory(realCats[0].slug);
       }
     }).catch(console.warn);
   }, []);
@@ -354,8 +355,25 @@ function CreateVideoContent() {
           />
         </div>
 
-        {/* Step 4: Badge & Approx. Duration */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Step 4: Category, Badge & Duration */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600">
+              News Category *
+            </label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all capitalize"
+            >
+              {categories.map(cat => (
+                <option key={cat.id || cat.slug} value={cat.slug}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-1.5">
             <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600">
               Report Badge
@@ -364,7 +382,7 @@ function CreateVideoContent() {
               type="text"
               value={badge}
               onChange={e => setBadge(e.target.value.toUpperCase())}
-              placeholder="e.g. BREAKING NEWS, GROUND REPORT, EXCLUSIVE"
+              placeholder="e.g. BREAKING NEWS, GROUND REPORT"
               className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
             />
           </div>
