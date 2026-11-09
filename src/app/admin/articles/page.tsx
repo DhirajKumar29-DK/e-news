@@ -301,7 +301,7 @@ function AdminArticlesListContent() {
                       <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                         
                         {/* Title & Thumbnail */}
-                        <td className="py-3.5 px-4 max-w-md">
+                        <td className="py-3.5 px-4 max-w-xs">
                           <div className="flex items-center space-x-3">
                             <div className="w-14 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                               {item.featuredImage ? (
@@ -316,7 +316,7 @@ function AdminArticlesListContent() {
                                 </div>
                               )}
                             </div>
-                            <div className="min-w-0 space-y-0.5">
+                            <div className="min-w-0 max-w-[250px] space-y-0.5">
                               <h4 className="font-bold text-slate-900 font-serif line-clamp-1 hover:text-red-600 transition-colors">
                                 {item.title}
                               </h4>
