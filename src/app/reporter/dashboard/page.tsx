@@ -342,13 +342,13 @@ function ReporterDashboardContent() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-5">
               {videos.slice(0, 6).map((video) => (
                 <div
                   key={video.id}
-                  className="flex gap-4 p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-xs transition-all bg-white"
+                  className="flex gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-xs transition-all bg-white overflow-hidden"
                 >
-                  <div className="relative w-36 h-24 rounded-xl overflow-hidden bg-slate-950 shrink-0">
+                  <div className="relative w-28 h-20 sm:w-36 sm:h-24 rounded-xl overflow-hidden bg-slate-950 shrink-0">
                     {video.thumbnailUrl ? (
                       <img
                         src={video.thumbnailUrl}
@@ -374,33 +374,24 @@ function ReporterDashboardContent() {
 
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                     <div>
-                      <div className="flex items-center space-x-1.5 text-[10px] font-black uppercase text-red-600">
-                        <span>{video.category}</span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-black uppercase text-red-600 mb-1">
+                        <span className="shrink-0">{video.category}</span>
                         {video.status === 'PENDING_REVIEW' ? (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 font-bold">
-                              In Review
-                            </span>
-                          </>
+                          <span className="text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-bold shrink-0">
+                            In Review
+                          </span>
                         ) : video.status === 'PUBLISHED' ? (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-bold">
-                              Live
-                            </span>
-                          </>
+                          <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-bold shrink-0">
+                            Live
+                          </span>
                         ) : null}
                         {video.badge && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
-                              {video.badge}
-                            </span>
-                          </>
+                          <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-semibold shrink-0 truncate max-w-[100px] sm:max-w-none">
+                            {video.badge}
+                          </span>
                         )}
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mt-1 leading-snug">
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
                         {video.title}
                       </h4>
                     </div>

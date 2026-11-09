@@ -36,8 +36,16 @@ export const CapacitorBridge = () => {
   // 1. Android Hardware Back Button & Native App Lifecycle
   useEffect(() => {
     let removeNativeListener: (() => void) | null = null;
+    let lastBackPressTime = 0;
 
     const handleBackPress = (AppInstance: any) => {
+      // Debounce: Ignore duplicate calls fired within 450ms
+      const now = Date.now();
+      if (now - lastBackPressTime < 450) {
+        return;
+      }
+      lastBackPressTime = now;
+
       // Step A: If the exit confirmation popup is already visible and user taps back again on Android -> Exit App!
       if (showExitModalRef.current) {
         setShowExitModal(false);
@@ -66,10 +74,9 @@ export const CapacitorBridge = () => {
       const isRoot = currentPath === '/' || currentPath === '';
 
       if (!isRoot) {
-        // User is on a subpage on phone (e.g. /cricket, /entertainment, /article/123)
-        // Step back one page
+        // User is on a subpage on phone (e.g. /reporter/dashboard, /cricket, /article/123)
+        // Step back one page via Next.js router
         if (window.history.length > 1) {
-          window.history.back();
           routerRef.current.back();
         } else {
           routerRef.current.push('/');
@@ -91,7 +98,7 @@ export const CapacitorBridge = () => {
 
         const { App } = await import('@capacitor/app');
 
-        // Register Android hardware back button listener
+        // Register Android hardware back button listener (single listener)
         const listener = await App.addListener('backButton', () => {
           handleBackPress(App);
         });
@@ -110,19 +117,7 @@ export const CapacitorBridge = () => {
 
     initCapacitor();
 
-    // Android WebView backbutton event fallback
-    const onDocBackButton = async () => {
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        if (!Capacitor.isNativePlatform()) return;
-        const { App } = await import('@capacitor/app');
-        handleBackPress(App);
-      } catch (_) {}
-    };
-    document.addEventListener('backbutton', onDocBackButton);
-
     return () => {
-      document.removeEventListener('backbutton', onDocBackButton);
       if (removeNativeListener) removeNativeListener();
     };
   }, []);

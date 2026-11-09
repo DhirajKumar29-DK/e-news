@@ -27,7 +27,7 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
   const navLinks = [
     { href: '/reporter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/reporter/articles/create', label: 'Write Story', icon: Plus },
-    { href: '/reporter/videos/create', label: 'Post Video Report', icon: Video },
+    { href: '/reporter/videos/create', label: 'Post Video', icon: Video },
     { href: '/reporter/articles', label: 'My Articles', icon: FileText },
     { href: '/reporter/videos', label: 'My Videos', icon: PlaySquare },
     { href: '/reporter/profile', label: 'Profile & Settings', icon: User }
@@ -36,74 +36,71 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col justify-between">
       
-      {/* Main Reporter Workspace Layout */}
+      {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
+      {/* WhatsApp / Instagram style sticky header: Starts at top-0, spans full width, opaque background so scrolled content NEVER bleeds through or mashes up with phone status bar! */}
       <div
         style={{
-          paddingTop: 'max(30px, env(safe-area-inset-top, 0px))'
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)'
         }}
-        className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:py-6 lg:!pt-6"
+        className="lg:hidden sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2.5 shadow-xs"
       >
-        
-        {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
-        <div
-          style={{
-            top: 'max(12px, env(safe-area-inset-top, 0px))'
-          }}
-          className="lg:hidden sticky z-40 mb-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-3.5 shadow-md space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                {reporter?.name?.charAt(0) || 'R'}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              {reporter?.name?.charAt(0) || 'R'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-black text-slate-900 truncate">
+                  {reporter?.name || 'Reporter'}
+                </span>
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[9px] font-black uppercase tracking-wider shrink-0">
+                  <ShieldCheck className="w-2.5 h-2.5 text-red-600" />
+                  <span>Reporter Desk</span>
+                </span>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-black text-slate-900 truncate">
-                    {reporter?.name || 'Reporter'}
-                  </span>
-                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[9px] font-black uppercase tracking-wider">
-                    <ShieldCheck className="w-2.5 h-2.5 text-red-600" />
-                    <span>Reporter Desk</span>
-                  </span>
-                </div>
-                <div className="text-[10px] font-bold text-emerald-600 flex items-center space-x-1 mt-0.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Verified Reporter</span>
-                </div>
+              <div className="text-[10px] font-bold text-emerald-600 flex items-center space-x-1 mt-0.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Verified Reporter</span>
               </div>
             </div>
-
-            <button
-              onClick={logout}
-              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
 
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-1">
-            {navLinks.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'bg-red-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+          <button
+            onClick={logout}
+            className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
+            title="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
+        {/* Action Tabs with horizontal scrolling */}
+        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-2">
+          {navLinks.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                  isActive
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Reporter Workspace Layout */}
+      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-28 sm:py-6">
+        
         {/* Desktop 2-Column Grid (Left Sidebar + Right Main Content) */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           
