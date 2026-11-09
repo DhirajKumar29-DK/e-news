@@ -38,6 +38,7 @@ export default function RichTextEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const modalEditorRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
+  const lastContentRef = useRef(value || '');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
   const [tweetInput, setTweetInput] = useState('');
@@ -102,19 +103,23 @@ export default function RichTextEditor({
     }
   }, []);
 
+  const getTarget = useCallback(() => (isFullscreen ? modalEditorRef.current : editorRef.current), [isFullscreen]);
+
   // Synchronize editor content when value is initialized or updated externally
   useEffect(() => {
     if (!editorRef.current) return;
     if (isFirstLoad.current) {
       if (value) {
         editorRef.current.innerHTML = value;
+        lastContentRef.current = value;
         isFirstLoad.current = false;
       }
       return;
     }
-    // External synchronization (e.g. article loaded in edit mode or form reset)
-    if (document.activeElement !== editorRef.current && editorRef.current.innerHTML !== (value || '')) {
+    // Only update innerHTML if value changed externally and differs from what was typed/formatted
+    if (value !== lastContentRef.current && document.activeElement !== editorRef.current) {
       editorRef.current.innerHTML = value || '';
+      lastContentRef.current = value || '';
     }
   }, [value]);
 
@@ -131,6 +136,7 @@ export default function RichTextEditor({
       const html = targetRef.current.innerHTML;
       // If user clears everything, don't leave rogue <br>
       const cleanVal = html === '<p><br></p>' || html === '<br>' ? '' : html;
+      lastContentRef.current = cleanVal;
       onChange(cleanVal);
       // Sync other editor
       if (isFullscreen && editorRef.current) {
@@ -142,30 +148,56 @@ export default function RichTextEditor({
     }
   };
 
-  const saveCurrentSelection = () => {
+  const saveCurrentSelection = useCallback(() => {
     if (typeof window === 'undefined') return;
+    const target = getTarget();
+    if (!target) return;
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
-      savedRangeRef.current = sel.getRangeAt(0);
+      const range = sel.getRangeAt(0);
+      // Only save if selection is inside our active editor
+      if (target.contains(range.commonAncestorContainer) || target.contains(sel.anchorNode)) {
+        savedRangeRef.current = range.cloneRange();
+      }
     }
-  };
+  }, [getTarget]);
 
   const handleSelectionSave = () => {
     saveCurrentSelection();
     updateActiveStates();
   };
 
-  const restoreSelection = () => {
-    if (savedRangeRef.current && typeof window !== 'undefined') {
-      try {
-        const sel = window.getSelection();
-        if (sel) {
-          sel.removeAllRanges();
-          sel.addRange(savedRangeRef.current);
-        }
-      } catch { }
-    }
-  };
+  const restoreSelection = useCallback(() => {
+    if (!savedRangeRef.current || typeof window === 'undefined') return;
+    try {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current.cloneRange());
+      }
+    } catch { }
+  }, []);
+
+  // Track selection changes across the document so bold/italic buttons work reliably
+  useEffect(() => {
+    const handleDocSelectionChange = () => {
+      const target = getTarget();
+      if (!target || typeof window === 'undefined') return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+
+      const anchor = sel.anchorNode;
+      if (anchor && target.contains(anchor)) {
+        savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+        updateActiveStates();
+      }
+    };
+
+    document.addEventListener('selectionchange', handleDocSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleDocSelectionChange);
+    };
+  }, [getTarget, updateActiveStates]);
 
   const handleFocus = (e: React.FocusEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -178,9 +210,14 @@ export default function RichTextEditor({
         range.collapse(true);
         sel?.removeAllRanges();
         sel?.addRange(range);
+        savedRangeRef.current = range.cloneRange();
+      }
+    } else {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+        saveCurrentSelection();
       }
     }
-    saveCurrentSelection();
     updateActiveStates();
   };
 
@@ -188,6 +225,7 @@ export default function RichTextEditor({
     const target = e.currentTarget;
     if (target.innerHTML === '<p><br></p>' || target.innerHTML === '<br>') {
       target.innerHTML = '';
+      lastContentRef.current = '';
       onChange('');
     }
   };
@@ -196,7 +234,12 @@ export default function RichTextEditor({
     const sel = window.getSelection();
     if (!sel) return;
 
-    container.focus();
+    // Never collapse or displace active user selection
+    if (!sel.isCollapsed && sel.toString().length > 0) {
+      return;
+    }
+
+    container.focus({ preventScroll: true });
 
     if (!container.innerHTML || container.innerHTML.trim() === '' || container.innerHTML === '<br>') {
       container.innerHTML = '<p><br></p>';
@@ -220,11 +263,20 @@ export default function RichTextEditor({
 
     sel.removeAllRanges();
     sel.addRange(range);
-    savedRangeRef.current = range;
+    savedRangeRef.current = range.cloneRange();
   };
 
   const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
+    const sel = window.getSelection();
+
+    // If text is currently highlighted / selected, NEVER collapse or move caret!
+    if (sel && !sel.isCollapsed && sel.toString().length > 0) {
+      saveCurrentSelection();
+      updateActiveStates();
+      return;
+    }
+
     if (e.target === target) {
       // Clicked on empty area of editor container
       placeCaretAtEnd(target);
@@ -235,15 +287,22 @@ export default function RichTextEditor({
     updateActiveStates();
   };
 
-  const getTarget = () => (isFullscreen ? modalEditorRef.current : editorRef.current);
-
   const execCommand = (cmd: string, val: string | undefined = undefined) => {
     const target = getTarget();
-    if (target) {
-      target.focus();
-      restoreSelection();
+    if (!target) return;
+
+    // Restore saved selection and focus target safely
+    restoreSelection();
+    target.focus({ preventScroll: true });
+    restoreSelection();
+
+    try {
+      document.execCommand(cmd, false, val);
+    } catch (err) {
+      console.warn('execCommand failed:', cmd, err);
     }
-    document.execCommand(cmd, false, val);
+
+    saveCurrentSelection();
     handleInput();
     updateActiveStates();
   };
@@ -252,27 +311,41 @@ export default function RichTextEditor({
     setCurrentColor(color);
     setIsColorPickerOpen(false);
     const target = getTarget();
-    if (target) {
-      target.focus();
-      restoreSelection();
+    if (!target) return;
+
+    restoreSelection();
+    target.focus({ preventScroll: true });
+    restoreSelection();
+
+    try {
+      document.execCommand('foreColor', false, color);
+    } catch (err) {
+      console.warn('foreColor failed', err);
     }
-    document.execCommand('foreColor', false, color);
+
+    saveCurrentSelection();
     handleInput();
     updateActiveStates();
   };
 
   const formatBlock = (tag: 'p' | 'h2' | 'h3' | 'blockquote') => {
     const target = getTarget();
-    if (target) {
-      target.focus();
-    }
+    if (!target) return;
+
+    restoreSelection();
+    target.focus({ preventScroll: true });
+    restoreSelection();
+
     // Cross-browser formatBlock tag handling
     try {
       document.execCommand('formatBlock', false, `<${tag}>`);
     } catch {
       document.execCommand('formatBlock', false, tag);
     }
+
+    saveCurrentSelection();
     handleInput();
+    updateActiveStates();
   };
 
   // Debounced search for published internal articles
@@ -475,6 +548,12 @@ export default function RichTextEditor({
   const renderToolbar = () => (
     <div
       className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200 select-none text-slate-700"
+      onMouseDownCapture={(e) => {
+        // Prevent clicking toolbar buttons from stealing focus/selection
+        if ((e.target as HTMLElement).tagName !== 'INPUT') {
+          e.preventDefault();
+        }
+      }}
       onMouseDown={(e) => {
         // Prevent clicking toolbar buttons from stealing focus/selection
         if ((e.target as HTMLElement).tagName !== 'INPUT') {
@@ -486,6 +565,7 @@ export default function RichTextEditor({
       <div className="flex items-center space-x-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatBlock('p')}
           className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${activeFormats.p ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -497,6 +577,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatBlock('h2')}
           className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${activeFormats.h2 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
             }`}
@@ -508,6 +589,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatBlock('h3')}
           className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-black transition-colors cursor-pointer ${activeFormats.h3 ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-800'
             }`}
@@ -524,6 +606,7 @@ export default function RichTextEditor({
       <div className="flex items-center space-x-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('bold')}
           className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.bold ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -534,6 +617,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('italic')}
           className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.italic ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -544,6 +628,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('underline')}
           className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.underline ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -556,6 +641,7 @@ export default function RichTextEditor({
         <div className="relative">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               saveCurrentSelection();
               setIsColorPickerOpen(prev => !prev);
@@ -586,6 +672,7 @@ export default function RichTextEditor({
                   <button
                     key={c.value}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyColor(c.value)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 hover:scale-110 transition-transform cursor-pointer relative shadow-2xs"
                     style={{ backgroundColor: c.value }}
@@ -617,6 +704,7 @@ export default function RichTextEditor({
       <div className="flex items-center space-x-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('insertUnorderedList')}
           className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.ul ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -627,6 +715,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('insertOrderedList')}
           className={`h-7 w-7 rounded flex items-center justify-center transition-colors cursor-pointer ${activeFormats.ol ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -642,6 +731,7 @@ export default function RichTextEditor({
       <div className="flex items-center space-x-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => formatBlock('blockquote')}
           className={`h-7 px-2 rounded flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${activeFormats.blockquote ? 'bg-red-600 text-white' : 'hover:bg-slate-100 text-slate-700'
             }`}
@@ -653,6 +743,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleOpenLinkModal}
           className="h-7 px-2 rounded flex items-center space-x-1 hover:bg-blue-50 text-blue-600 transition-colors cursor-pointer border border-blue-200/60"
           title="Insert Link (Internal Article / External Source - Ctrl+K)"
@@ -663,6 +754,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleOpenTweetModal}
           className="h-7 px-2 rounded flex items-center space-x-1 text-xs font-black bg-slate-900 hover:bg-black text-white transition-colors cursor-pointer"
           title="Embed X (Twitter) Post / Video at Current Cursor Position"
@@ -678,6 +770,7 @@ export default function RichTextEditor({
       <div className="flex items-center space-x-0.5 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('undo')}
           className="h-7 w-7 rounded flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
           title="Undo (Ctrl+Z)"
@@ -687,6 +780,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('redo')}
           className="h-7 w-7 rounded flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
           title="Redo (Ctrl+Y)"
@@ -696,6 +790,7 @@ export default function RichTextEditor({
 
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleClearFormat}
           className="h-7 w-7 rounded flex items-center justify-center hover:bg-slate-100 text-slate-500 hover:text-amber-600 transition-colors cursor-pointer"
           title="Clear Formatting"
@@ -736,6 +831,8 @@ export default function RichTextEditor({
         <div
           className="relative cursor-text"
           onClick={(e) => {
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
             if (e.target === e.currentTarget && editorRef.current) {
               placeCaretAtEnd(editorRef.current);
             }
@@ -812,16 +909,20 @@ export default function RichTextEditor({
             <div
               className="flex-1 p-6 sm:p-10 overflow-y-auto bg-slate-100/60 cursor-text"
               onClick={(e) => {
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
                 if (e.target === e.currentTarget && modalEditorRef.current) {
-                  modalEditorRef.current.focus();
+                  placeCaretAtEnd(modalEditorRef.current);
                 }
               }}
             >
               <div
                 className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-xl p-8 shadow-xs min-h-[500px] relative cursor-text"
                 onClick={() => {
+                  const sel = window.getSelection();
+                  if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
                   if (modalEditorRef.current && document.activeElement !== modalEditorRef.current) {
-                    modalEditorRef.current.focus();
+                    modalEditorRef.current.focus({ preventScroll: true });
                   }
                 }}
               >
