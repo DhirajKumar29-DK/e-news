@@ -787,46 +787,48 @@ function AdminReviewQueueContent() {
       {/* FULL ARTICLE REVIEW DRAWER / MODAL */}
       {isPreviewOpen && activeArticle && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col overflow-hidden">
             
-            {/* Top Bar */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-red-600" />
-                <h3 className="text-base font-bold text-slate-900">Editorial Proofing & Publishing Desk</h3>
-              </div>
+            {/* Pinned Sticky Top Bar (Icon removed per user request) */}
+            <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-6 sm:px-8 py-4 bg-white z-10">
+              <h3 className="text-base font-extrabold text-slate-900 font-serif">
+                Editorial Proofing &amp; Publishing Desk
+              </h3>
               <button
+                type="button"
                 onClick={() => setIsPreviewOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Reporter Bylines */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-red-600 text-white font-serif font-black flex items-center justify-center text-sm">
-                  {activeArticle.reporter?.name?.charAt(0) || 'R'}
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900">
-                    By {activeArticle.reporter?.name || activeArticle.authorName}
+            {/* Scrollable Story Body */}
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+              {/* Reporter Bylines */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-600 text-white font-serif font-black flex items-center justify-center text-sm">
+                    {activeArticle.reporter?.name?.charAt(0) || 'R'}
                   </div>
-                  <div className="text-slate-500">
-                    {activeArticle.reporter?.email}
-                    {activeArticle.reporter?.phone ? ` • ${activeArticle.reporter.phone}` : ''}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      By {activeArticle.reporter?.name || activeArticle.authorName}
+                    </div>
+                    <div className="text-slate-500">
+                      {activeArticle.reporter?.email}
+                      {activeArticle.reporter?.phone ? ` • ${activeArticle.reporter.phone}` : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Submitted</span>
-                <span className="font-bold text-slate-700">
-                  {formatTimeAgo(activeArticle.submittedAt || activeArticle.createdAt).en}
-                </span>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Submitted</span>
+                  <span className="font-bold text-slate-700">
+                    {formatTimeAgo(activeArticle.submittedAt || activeArticle.createdAt).en}
+                  </span>
+                </div>
               </div>
-            </div>
 
             {/* Story Content Preview */}
             <div className="space-y-4">
@@ -932,8 +934,11 @@ function AdminReviewQueueContent() {
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            {/* End of Scrollable Body */}
+            </div>
+
+            {/* Pinned Bottom Actions Bar */}
+            <div className="shrink-0 border-t border-slate-200/80 px-6 sm:px-8 py-3.5 bg-slate-50/90 backdrop-blur-xs flex flex-wrap items-center justify-between gap-3 z-10">
               
               <Link
                 href={`/admin/articles/edit/${activeArticle.id}`}
