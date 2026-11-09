@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone,
   ClipboardCheck, Users, Bot, CalendarClock, ChevronDown, IndianRupee, Sliders
@@ -11,9 +11,16 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [currentTab, setCurrentTab] = useState('campaigns');
   const { user, logout } = useAdminAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setCurrentTab(params.get('tab') || 'campaigns');
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const handleToggle = () => setIsMobileOpen(prev => !prev);
@@ -136,14 +143,10 @@ export const AdminSidebar: React.FC = () => {
                   <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-red-500/40 ml-4 animate-in fade-in duration-150">
                     {item.children.map((sub) => {
                       const SubIcon = sub.icon;
-                      let activeTab = 'campaigns';
-                      try {
-                        activeTab = searchParams?.get('tab') || 'campaigns';
-                      } catch {}
                       const isSubActive = pathname === '/admin/ads' && (
-                        (sub.href.includes('tab=campaigns') && activeTab === 'campaigns') ||
-                        (sub.href.includes('tab=orders') && activeTab === 'orders') ||
-                        (sub.href.includes('tab=pricing') && activeTab === 'pricing')
+                        (sub.href.includes('tab=campaigns') && currentTab === 'campaigns') ||
+                        (sub.href.includes('tab=orders') && currentTab === 'orders') ||
+                        (sub.href.includes('tab=pricing') && currentTab === 'pricing')
                       );
                       return (
                         <Link

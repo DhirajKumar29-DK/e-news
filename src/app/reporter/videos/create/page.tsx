@@ -172,11 +172,11 @@ function CreateVideoContent() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Top Breadcrumb & Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="pb-4 border-b border-slate-200">
         <div>
           <Link
             href="/reporter/dashboard"
-            className="inline-flex items-center space-x-1 text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors mb-1"
+            className="hidden sm:inline-flex items-center space-x-1 text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors mb-1"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Dashboard</span>
@@ -188,27 +188,6 @@ function CreateVideoContent() {
           <p className="text-xs text-slate-500">
             Submitted ground video reports undergo editorial verification before live publication.
           </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSubmit('DRAFT')}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Save Draft</span>
-          </button>
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSubmit('PENDING_REVIEW')}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center space-x-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>{isSubmitting ? 'Submitting...' : 'Submit to Editorial Desk'}</span>
-          </button>
         </div>
       </div>
 

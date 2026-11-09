@@ -37,31 +37,26 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col justify-between">
       
       {/* Main Reporter Workspace Layout */}
-      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6 sm:py-6">
         
         {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
-        <div className="lg:hidden sticky top-2 z-40 mb-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-4 shadow-md space-y-3">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <Link href="/" className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 hover:text-red-600 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Home</span>
-            </Link>
-            <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wider">
-              <ShieldCheck className="w-3 h-3 text-red-600" />
-              <span>Reporter Desk</span>
-            </div>
-          </div>
-
+        <div className="lg:hidden sticky top-3.5 z-40 mb-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-3.5 shadow-md space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
                 {reporter?.name?.charAt(0) || 'R'}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-slate-900 truncate">
-                  {reporter?.name || 'Reporter'}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-black text-slate-900 truncate">
+                    {reporter?.name || 'Reporter'}
+                  </span>
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[9px] font-black uppercase tracking-wider">
+                    <ShieldCheck className="w-2.5 h-2.5 text-red-600" />
+                    <span>Reporter Desk</span>
+                  </span>
                 </div>
-                <div className="text-[10px] font-bold text-emerald-600 flex items-center space-x-1">
+                <div className="text-[10px] font-bold text-emerald-600 flex items-center space-x-1 mt-0.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span>Verified Reporter</span>
                 </div>
@@ -190,18 +185,7 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
               })}
             </div>
 
-            {/* 5. Editorial Information Card */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-200 rounded-2xl p-4 text-xs space-y-2 shadow-xs">
-              <div className="flex items-center space-x-1.5 text-amber-400 font-bold text-[11px]">
-                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Editorial Workflow</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                Stories submitted by field journalists undergo editorial review before publishing live on Vartiq.
-              </p>
-            </div>
-
-            {/* 6. Sign Out Button */}
+            {/* 5. Sign Out Button */}
             <button
               onClick={logout}
               className="flex items-center justify-between w-full px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold transition-all cursor-pointer shadow-xs"

@@ -134,8 +134,8 @@ function CreateArticleContent() {
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
-      {/* Top Back Navigation */}
-      <div>
+      {/* Top Back Navigation (Desktop only) */}
+      <div className="hidden sm:block">
         <Link
           href="/reporter/dashboard"
           className="inline-flex items-center space-x-2 text-xs font-bold text-slate-500 hover:text-red-600 transition-colors py-1 px-1 group"
@@ -148,7 +148,7 @@ function CreateArticleContent() {
       </div>
 
       {/* Top Header Card */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900">
             Draft Field News Story
@@ -156,28 +156,6 @@ function CreateArticleContent() {
           <p className="text-xs text-slate-500 font-medium">
             Submitted stories are reviewed by the Vartiq editorial desk before live publication.
           </p>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSave(false)}
-            className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-4 h-4 text-slate-500" />
-            <span>Save Draft</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => handleSave(true)}
-            className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all cursor-pointer disabled:opacity-50"
-          >
-            <Send className="w-4 h-4 stroke-[2.5]" />
-            <span>{isSubmitting ? 'Submitting...' : 'Submit to Editorial Desk'}</span>
-          </button>
         </div>
       </div>
 
