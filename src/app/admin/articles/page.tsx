@@ -339,27 +339,25 @@ function AdminArticlesListContent() {
                           <div className="flex items-center space-x-1.5">
                             <button
                               onClick={() => handleToggleLead(item)}
-                              className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+                              className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all ${
                                 item.isLeadStory
-                                  ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-2xs'
-                                  : 'bg-white border-slate-200 text-slate-400 hover:text-amber-600 hover:border-amber-200'
+                                  ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-2xs font-black'
+                                  : 'bg-white border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-200'
                               }`}
                               title={item.isLeadStory ? 'Lead Story Active (Main Hero)' : 'Make Lead Story'}
                             >
-                              <Star className={`w-3.5 h-3.5 ${item.isLeadStory ? 'fill-amber-500 text-amber-500' : ''}`} />
                               <span>Hero</span>
                             </button>
 
                             <button
                               onClick={() => handleToggleTrending(item)}
-                              className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+                              className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all ${
                                 item.isTrending
-                                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
-                                  : 'bg-white border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200'
+                                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs font-black'
+                                  : 'bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200'
                               }`}
                               title={item.isTrending ? 'Top News Active (01-05 Sidebar)' : 'Mark Top News'}
                             >
-                              <TrendingUp className={`w-3.5 h-3.5 ${item.isTrending ? 'text-rose-600' : ''}`} />
                               <span>Top News</span>
                             </button>
 
@@ -368,14 +366,13 @@ function AdminArticlesListContent() {
                               return (
                                 <button
                                   onClick={() => handleToggleQuickHighlight(item)}
-                                  className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-all ${
+                                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all ${
                                     isHighlight
-                                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs'
-                                      : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200'
+                                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs font-black'
+                                      : 'bg-white border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200'
                                   }`}
                                   title={isHighlight ? 'Quick Highlight Active (Left Column)' : 'Mark Quick Highlight'}
                                 >
-                                  <Zap className={`w-3.5 h-3.5 ${isHighlight ? 'fill-indigo-500 text-indigo-600' : ''}`} />
                                   <span>Highlight</span>
                                 </button>
                               );
