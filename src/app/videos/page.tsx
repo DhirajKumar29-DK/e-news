@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Header, Footer, SearchModal } from '@/components/common';
-import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp, ChevronDown, Flame } from 'lucide-react';
+import { Play, Eye, Clock, Share2, Film, Sparkles, Filter, CheckCircle2, X, ChevronUp, ChevronDown, Flame, Maximize2 } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
 import { buildVideoEmbedUrl, getVideoThumbnail, getYouTubeId, isRegularVideo, isShortVideo } from '@/utils/videoUtils';
 
@@ -143,20 +143,121 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>('latest');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  // Mobile-only dual tab switcher: 'shorts' vs 'videos' (matches Dainik Jagran reference)
-  const [mobileSubTab, setMobileSubTab] = useState<'shorts' | 'videos'>('shorts');
+  // Mobile-only dual tab switcher: 'shorts' vs 'videos' (default to 'videos' for seamless 16:9 news playback)
+  const [mobileSubTab, setMobileSubTab] = useState<'shorts' | 'videos'>('videos');
   const [shortsList, setShortsList] = useState<VideoData[]>([]);
   const [activeShortIndex, setActiveShortIndex] = useState<number>(0);
   const [isShortPaused, setIsShortPaused] = useState(false);
 
   const reelContainerRef = useRef<HTMLDivElement>(null);
   const shortIframeRef = useRef<HTMLIFrameElement>(null);
+  const modalVideoStageRef = useRef<HTMLDivElement>(null);
   const lastTapTimeRef = useRef<number>(0);
   const isShortPausedRef = useRef(false);
 
   useEffect(() => {
     isShortPausedRef.current = isShortPaused;
   }, [isShortPaused]);
+
+  // Synchronize subtab with URL query on initial client load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('tab') === 'shorts') {
+        setMobileSubTab('shorts');
+      } else {
+        setMobileSubTab('videos');
+      }
+    }
+  }, []);
+
+  // Automatic Landscape Orientation on Fullscreen: When user taps fullscreen (via YouTube or custom action), lock to landscape
+  useEffect(() => {
+    const handleFullscreenChange = async () => {
+      const isFullscreen = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (isFullscreen) {
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            await (window.screen.orientation as any).lock?.('landscape');
+          } catch (err) {
+            console.warn('Orientation lock to landscape error:', err);
+          }
+        }
+      } else {
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            (window.screen.orientation as any).unlock?.();
+          } catch {}
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      if (typeof window !== 'undefined' && window.screen?.orientation) {
+        try {
+          (window.screen.orientation as any).unlock?.();
+        } catch {}
+      }
+    };
+  }, []);
+
+  // Explicit Toggle Landscape / Maximize Handler
+  const handleToggleLandscape = async () => {
+    try {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (!isFs) {
+        const el = modalVideoStageRef.current;
+        if (el) {
+          if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if ((el as any).webkitRequestFullscreen) {
+            await (el as any).webkitRequestFullscreen();
+          }
+        }
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            await (window.screen.orientation as any).lock?.('landscape');
+          } catch (err) {
+            console.warn('Orientation lock landscape error:', err);
+          }
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            (window.screen.orientation as any).unlock?.();
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.warn('Landscape toggle error:', err);
+    }
+  };
 
   // Send commands to YouTube IFrame API via postMessage
   const sendYtCommand = (command: 'pauseVideo' | 'playVideo') => {
@@ -300,6 +401,9 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   // On Mobile: Clicking ANY video (lead or non-lead) opens the dedicated full-screen mobile video player
   const handleMobileVideoClick = (vid: VideoData) => {
     setIsPlayingLead(false);
+    setIsShortPaused(true);
+    sendYtCommand('pauseVideo');
+    setMobileSubTab('videos');
     setModalVideo(vid);
     setIsModalDescExpanded(false);
     if (vid.id) {
@@ -346,16 +450,26 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
             try {
               const specificVideo = await videoService.getVideoByIdOrSlug(targetIdOrSlug);
               if (specificVideo && isMounted) {
-                if (adminLead && (specificVideo.id === adminLead.id || specificVideo.slug === adminLead.slug)) {
-                  // If requested video is the lead video
-                  if (urlParams?.get('play') === '1' || Boolean(initialVideoId)) {
-                    setIsPlayingLead(true);
-                  }
-                  updateVideoSEO(adminLead);
-                } else {
-                  // Non-lead video requested via URL: opens cleanly in popup modal
+                setMobileSubTab('videos');
+                setIsShortPaused(true);
+                sendYtCommand('pauseVideo');
+                const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                if (isMobile) {
+                  setIsPlayingLead(false);
                   setModalVideo(specificVideo);
                   updateVideoSEO(specificVideo);
+                } else {
+                  if (adminLead && (specificVideo.id === adminLead.id || specificVideo.slug === adminLead.slug)) {
+                    // If requested video is the lead video
+                    if (urlParams?.get('play') === '1' || Boolean(initialVideoId)) {
+                      setIsPlayingLead(true);
+                    }
+                    updateVideoSEO(adminLead);
+                  } else {
+                    // Non-lead video requested via URL: opens cleanly in popup modal
+                    setModalVideo(specificVideo);
+                    updateVideoSEO(specificVideo);
+                  }
                 }
               }
             } catch (err) {
@@ -404,16 +518,25 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
             const params = new URLSearchParams(window.location.search);
             const target = params.get('v');
             if (target) {
+              setMobileSubTab('videos');
+              setIsShortPaused(true);
+              sendYtCommand('pauseVideo');
               const decodedTarget = decodeURIComponent(target).toLowerCase();
               const matched = (data.videos || []).find((v) => 
                 (v.id && v.id.toLowerCase() === decodedTarget) || 
                 (v.slug && v.slug.toLowerCase() === decodedTarget)
               );
               if (matched) {
-                if (leadVideo && (matched.id === leadVideo.id || matched.slug === leadVideo.slug)) {
-                  setIsPlayingLead(true);
-                } else {
+                const isMobile = window.innerWidth < 768;
+                if (isMobile) {
+                  setIsPlayingLead(false);
                   setModalVideo(matched);
+                } else {
+                  if (leadVideo && (matched.id === leadVideo.id || matched.slug === leadVideo.slug)) {
+                    setIsPlayingLead(true);
+                  } else {
+                    setModalVideo(matched);
+                  }
                 }
                 updateVideoSEO(matched);
               }
@@ -435,7 +558,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setModalVideo(null);
+        handleCloseModal();
       }
     };
     if (modalVideo) {
@@ -452,8 +575,13 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
 
   // Opens non-lead videos in popup modal, while lead video plays exclusively in Hero stage
   const handleOpenModalVideo = (vid: VideoData) => {
-    // If clicked video is the Lead video, play it exclusively in the Hero Cinema Stage
-    if (leadVideo && (vid.id === leadVideo.id || vid.slug === leadVideo.slug)) {
+    setIsShortPaused(true);
+    sendYtCommand('pauseVideo');
+    setMobileSubTab('videos');
+
+    // If clicked video is the Lead video, play it exclusively in the Hero Cinema Stage (Desktop only)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (!isMobile && leadVideo && (vid.id === leadVideo.id || vid.slug === leadVideo.slug)) {
       setModalVideo(null);
       setIsPlayingLead(true);
       if (typeof window !== 'undefined') {
@@ -482,8 +610,22 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
     }
   };
 
-  // Closes modal and unmounts player completely, terminating all sound instantly
+  // Closes modal and unmounts player completely, terminating all sound instantly and restoring orientation
   const handleCloseModal = () => {
+    if (typeof document !== 'undefined' && (document.fullscreenElement || (document as any).webkitFullscreenElement)) {
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && window.screen?.orientation && typeof window.screen.orientation.unlock === 'function') {
+      try {
+        window.screen.orientation.unlock();
+      } catch {}
+    }
     setModalVideo(null);
     setIsModalDescExpanded(false);
   };
@@ -491,6 +633,8 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
   // Handle Play on the exclusive Lead cinema player
   const handlePlayLead = () => {
     setModalVideo(null); // Ensure modal is closed
+    setIsShortPaused(true);
+    sendYtCommand('pauseVideo');
     setIsPlayingLead(true);
     if (leadVideo?.id) {
       videoService.incrementViews(leadVideo.id);
@@ -658,8 +802,8 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                   >
                     {/* Centered Genuine 9:16 Frame that never squashes or clips */}
                     <div className="relative w-full h-full max-w-[450px] mx-auto flex items-center justify-center overflow-hidden bg-black">
-                      {isCurrent ? (
-                        /* Live YouTube IFrame Embed (Mounted ONLY for current visible short - Stops all other audio) */
+                      {isCurrent && !modalVideo ? (
+                        /* Live YouTube IFrame Embed (Mounted ONLY for current visible short when NO modal is open - Stops all other audio) */
                         <div className="w-full h-full aspect-[9/16] max-h-full flex items-center justify-center overflow-hidden bg-black">
                           <iframe
                             ref={shortIframeRef}
@@ -1179,19 +1323,35 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                 </h3>
               </div>
 
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center"
-                title="Close Video"
-                aria-label="Close Video"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleLandscape}
+                  className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center gap-1"
+                  title="Landscape Mode (बड़ा / रोटेट करें)"
+                  aria-label="Toggle Landscape Fullscreen"
+                >
+                  <Maximize2 className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline text-[11px] text-slate-300 font-semibold">Landscape</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 shadow flex items-center justify-center"
+                  title="Close Video"
+                  aria-label="Close Video"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* 16:9 Cinema Player Stage with unique key per video for clean teardown */}
-            <div className="aspect-video w-full bg-black relative overflow-hidden flex items-center justify-center shrink-0">
+            <div 
+              ref={modalVideoStageRef}
+              className="aspect-video w-full bg-black relative overflow-hidden flex items-center justify-center shrink-0 [&:fullscreen]:w-screen [&:fullscreen]:h-screen [&:fullscreen]:aspect-auto"
+            >
               {modalVideo.videoType === 'FILE' ? (
                 <video
                   key={`modal-file-${modalVideo.id}`}
@@ -1207,7 +1367,7 @@ export default function VideosPage({ initialVideoId }: VideosPageProps = {}) {
                   src={getEmbedUrl(modalVideo, { autoplay: true })}
                   title={modalVideo.title}
                   className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                   referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
                 />

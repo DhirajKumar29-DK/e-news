@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
-import { X, Play, Film, Eye, Clock, Share2, Sparkles } from 'lucide-react';
+import { X, Play, Film, Eye, Clock, Share2, Sparkles, Maximize2 } from 'lucide-react';
 import { videoService, VideoData } from '@/services/videoService';
 import { buildVideoEmbedUrl, getVideoThumbnail, isRegularVideo } from '@/utils/videoUtils';
 
@@ -21,6 +21,114 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [copied, setCopied] = useState(false);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const videoStageRef = useRef<HTMLDivElement>(null);
+
+  // Automatic Landscape Orientation on Fullscreen
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleFullscreenChange = async () => {
+      const isFullscreen = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (isFullscreen) {
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            await (window.screen.orientation as any).lock?.('landscape');
+          } catch (err) {
+            console.warn('Orientation lock to landscape error:', err);
+          }
+        }
+      } else {
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            (window.screen.orientation as any).unlock?.();
+          } catch {}
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      if (typeof window !== 'undefined' && window.screen?.orientation) {
+        try {
+          (window.screen.orientation as any).unlock?.();
+        } catch {}
+      }
+    };
+  }, [isOpen]);
+
+  const handleToggleLandscape = async () => {
+    try {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      if (!isFs) {
+        const el = videoStageRef.current;
+        if (el) {
+          if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if ((el as any).webkitRequestFullscreen) {
+            await (el as any).webkitRequestFullscreen();
+          }
+        }
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            await (window.screen.orientation as any).lock?.('landscape');
+          } catch (err) {
+            console.warn('Orientation lock landscape error:', err);
+          }
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        if (typeof window !== 'undefined' && window.screen?.orientation) {
+          try {
+            (window.screen.orientation as any).unlock?.();
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.warn('Landscape toggle error:', err);
+    }
+  };
+
+  const handleClose = () => {
+    if (typeof document !== 'undefined' && (document.fullscreenElement || (document as any).webkitFullscreenElement)) {
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && window.screen?.orientation && typeof window.screen.orientation.unlock === 'function') {
+      try {
+        window.screen.orientation.unlock();
+      } catch {}
+    }
+    onClose();
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,11 +158,11 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     const handleBack = (e: Event) => {
       e.preventDefault();
-      onClose();
+      handleClose();
     };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -124,10 +232,21 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
             </span>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             <button
-              onClick={onClose}
-              className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              type="button"
+              onClick={handleToggleLandscape}
+              className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer shadow flex items-center justify-center gap-1"
+              title="Landscape Mode (बड़ा / रोटेट करें)"
+              aria-label="Toggle Landscape Fullscreen"
+            >
+              <Maximize2 className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline text-[11px] text-slate-300 font-semibold">Landscape</span>
+            </button>
+
+            <button
+              onClick={handleClose}
+              className="p-1.5 sm:p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
               title="Close Video Hub"
             >
               <X className="w-5 h-5" />
@@ -141,7 +260,10 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
             
             {/* Left Main Video Cinema Screen (7 Cols) */}
             <div className="lg:col-span-7 space-y-4">
-              <div className="aspect-video bg-black rounded-xl overflow-hidden border border-slate-800 relative group shadow-2xl">
+              <div 
+                ref={videoStageRef}
+                className="aspect-video bg-black rounded-xl overflow-hidden border border-slate-800 relative group shadow-2xl [&:fullscreen]:w-screen [&:fullscreen]:h-screen [&:fullscreen]:aspect-auto [&:fullscreen]:rounded-none"
+              >
                 {isPlaying ? (
                   activeVideo.videoType === 'FILE' ? (
                     <video
@@ -158,7 +280,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, initial
                       src={getEmbedUrl(activeVideo, { autoplay: true })}
                       title={activeVideo.title}
                       className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                       referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
                     />
