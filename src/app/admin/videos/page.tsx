@@ -289,7 +289,7 @@ function AdminVideosListContent() {
             ) : (
               /* Internal Scrollable Table Content */
               <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-                <table className="w-full text-left text-xs">
+                <table className="w-full min-w-[1000px] text-left text-xs">
                   <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 text-slate-500 font-mono text-[11px] uppercase tracking-wider border-b border-slate-200 shadow-xs">
                     <tr>
                       <th className="py-3.5 px-4 font-semibold">Video Clip</th>
@@ -299,7 +299,7 @@ function AdminVideosListContent() {
                       <th className="py-3.5 px-4 font-semibold">Highlights</th>
                       <th className="py-3.5 px-4 font-semibold">Views</th>
                       <th className="py-3.5 px-4 font-semibold">Status</th>
-                      <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
+                      <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap min-w-[120px] w-32">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -398,8 +398,8 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap min-w-[120px] w-32">
+                          <div className="flex items-center justify-end space-x-2 shrink-0">
                             {vid.status === 'PENDING_REVIEW' && (
                               <button
                                 type="button"

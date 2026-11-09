@@ -284,7 +284,7 @@ function AdminArticlesListContent() {
             ) : (
               /* Internal Scrollable Table Content */
               <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full min-w-[1050px] text-left border-collapse">
                   <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider shadow-xs">
                     <tr>
                       <th className="py-3 px-4">Article</th>
@@ -293,7 +293,7 @@ function AdminArticlesListContent() {
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Views</th>
                       <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right whitespace-nowrap min-w-[120px] w-32">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs font-medium">
@@ -413,8 +413,8 @@ function AdminArticlesListContent() {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-1.5">
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap min-w-[120px] w-32">
+                          <div className="flex items-center justify-end space-x-1.5 shrink-0">
                             
                             <a
                               href={`/article/${item.slug || item.id}`}

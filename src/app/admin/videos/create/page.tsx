@@ -221,7 +221,7 @@ function AdminVideoCreateContent() {
             <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-auto">
               {/* Push Notification Quick Checkbox */}
               <label
-                title="पाठकों को तुरंत नोटिफिकेशन भेजें"
+                title="Send instant push notification to subscribers"
                 className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 text-slate-800 font-bold text-xs cursor-pointer transition-all shadow-2xs select-none"
               >
                 <input
@@ -583,9 +583,9 @@ function AdminVideoCreateContent() {
                       <div className="space-y-0.5 pr-2">
                         <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
                           <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
-                          <span>Push Notification (लाइव अलर्ट भेजें)</span>
+                          <span>Push Notification (Send Live Alert)</span>
                         </div>
-                        <span className="text-[10px] text-slate-500 block">पब्लिश होते ही पाठकों को तुरंत वीडियो का नोटिफिकेशन जाएगा</span>
+                        <span className="text-[10px] text-slate-500 block">Instant push notification will be sent to all subscribers upon publishing this video.</span>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
                         <input

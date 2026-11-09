@@ -357,7 +357,7 @@ function EditArticleContent() {
 
               {/* Push Notification Quick Checkbox */}
               <label
-                title="पाठकों को तुरंत नोटिफिकेशन भेजें"
+                title="Send instant push notification to subscribers"
                 className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 text-slate-800 font-bold text-xs cursor-pointer transition-all shadow-2xs select-none"
               >
                 <input
@@ -962,10 +962,10 @@ function EditArticleContent() {
                       <div className="space-y-0.5 pr-3">
                         <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
                           <Bell className={`w-3.5 h-3.5 ${sendNotification ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
-                          <span>Push Notification (लाइव अलर्ट भेजें)</span>
+                          <span>Push Notification (Send Live Alert)</span>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-snug">
-                          पब्लिश/अपडेट होते ही सभी सब्सक्राइबर्स के फोन और कंप्यूटर पर तुरंत नोटिफिकेशन जाएगा।
+                          Instant push notification will be sent to all subscribers on their phones and browsers upon publishing/updating.
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
