@@ -659,7 +659,12 @@ export default function AdvertisePage() {
           Mobile: Left title/breadcrumbs hidden (as requested in Image 1), right has Create Ad / Back button.
           Desktop: Full breadcrumbs, title, and actions.
           ========================================================================= */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+      <header
+        style={{
+          paddingTop: 'max(30px, env(safe-area-inset-top, 0px))'
+        }}
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs lg:!pt-0"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Desktop Left: Back to Home | 📢 Advertising Center (Hidden on mobile) */}

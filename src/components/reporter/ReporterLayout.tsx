@@ -37,10 +37,20 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col justify-between">
       
       {/* Main Reporter Workspace Layout */}
-      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6 sm:py-6">
+      <div
+        style={{
+          paddingTop: 'max(30px, env(safe-area-inset-top, 0px))'
+        }}
+        className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:py-6 lg:!pt-6"
+      >
         
         {/* Mobile Reporter Bar (shown only on mobile/tablet screens < lg) */}
-        <div className="lg:hidden sticky top-3.5 z-40 mb-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-3.5 shadow-md space-y-3">
+        <div
+          style={{
+            top: 'max(12px, env(safe-area-inset-top, 0px))'
+          }}
+          className="lg:hidden sticky z-40 mb-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-3.5 shadow-md space-y-3"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
