@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useLanguage } from '@/context/LanguageContext';
 import { VideoModal } from './VideoModal';
 import { categoryService, CategoryData } from '@/services/categoryService';
 import { mockCategoryTabs } from '@/data/mockNewsData';
@@ -26,6 +27,7 @@ interface MobileBottomNavProps {
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }) => {
   const pathname = usePathname();
   const router = useRouter();
+  const { language } = useLanguage();
 
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -147,7 +149,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
             }`}
           >
             <Home className="w-5 h-5 stroke-[2.2]" />
-            <span>HOME</span>
+            <span>{language === 'hi' ? 'होम' : 'HOME'}</span>
           </Link>
 
           {/* 2. Search Tab */}
@@ -157,7 +159,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
             className="flex flex-col items-center justify-center py-1 space-y-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
           >
             <Search className="w-5 h-5 stroke-[2.2]" />
-            <span>SEARCH</span>
+            <span>{language === 'hi' ? 'सर्च' : 'SEARCH'}</span>
           </button>
 
           {/* 3. Videos Tab */}
@@ -176,7 +178,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                   : 'fill-amber-500 text-amber-500 dark:fill-amber-400 dark:text-amber-400'
               }`}
             />
-            <span>VIDEOS</span>
+            <span>{language === 'hi' ? 'वीडियो' : 'VIDEOS'}</span>
           </Link>
 
           {/* 4. Advertise Tab (Right next to Videos) */}
@@ -198,7 +200,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
               />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             </div>
-            <span className="text-[9px] font-black tracking-tight">विज्ञापन</span>
+            <span className="text-[9px] font-black tracking-tight">
+              {language === 'hi' ? 'विज्ञापन' : 'ADVERTISE'}
+            </span>
           </Link>
 
           {/* 5. Menu (Hamburger) Tab */}
@@ -212,7 +216,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
             }`}
           >
             <Menu className="w-5 h-5 stroke-[2.2]" />
-            <span>MENU</span>
+            <span>{language === 'hi' ? 'मेनू' : 'MENU'}</span>
           </button>
 
         </div>
@@ -271,7 +275,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
             {/* Categories Scroll List */}
             <div className="flex-1 overflow-y-auto overscroll-contain drawer-scrollable p-3 pb-8 space-y-1 touch-pan-y">
               <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-3 py-1.5">
-                ALL SECTIONS
+                {language === 'hi' ? 'सभी अनुभाग' : 'ALL SECTIONS'}
               </div>
 
               {/* Home */}
@@ -288,7 +292,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
               >
                 <span className="flex items-center space-x-2.5">
                   <Home className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                  <span>Home</span>
+                  <span>{language === 'hi' ? 'होम' : 'Home'}</span>
                 </span>
                 {pathname === '/' && <span className="w-2 h-2 rounded-full bg-jagran-red" />}
               </button>
@@ -307,10 +311,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
               >
                 <span className="flex items-center space-x-2.5">
                   <Megaphone className="w-4 h-4 text-red-600 dark:text-red-400" />
-                  <span>विज्ञापन दें (Advertise)</span>
+                  <span>{language === 'hi' ? 'विज्ञापन दें (Advertise)' : 'Advertise with Us'}</span>
                 </span>
                 <span className="text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded-md">
-                  ₹599/माह
+                  {language === 'hi' ? '₹599/माह' : '₹599/mo'}
                 </span>
               </button>
 
@@ -355,7 +359,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                 >
                   <span className="flex items-center space-x-2.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>Privacy Policy</span>
+                    <span>{language === 'hi' ? 'गोपनीयता नीति (Privacy Policy)' : 'Privacy Policy'}</span>
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
                 </button>
@@ -373,7 +377,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                 >
                   <span className="flex items-center space-x-2.5">
                     <RotateCcw className="w-4 h-4 text-blue-500" />
-                    <span>Refund Policy</span>
+                    <span>{language === 'hi' ? 'रिफंड नीति (Refund Policy)' : 'Refund Policy'}</span>
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
                 </button>
@@ -391,7 +395,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
                 >
                   <span className="flex items-center space-x-2.5">
                     <Scale className="w-4 h-4 text-amber-500" />
-                    <span>Terms of Service</span>
+                    <span>{language === 'hi' ? 'नियम व शर्तें (Terms)' : 'Terms of Service'}</span>
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
                 </button>
