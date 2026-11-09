@@ -496,9 +496,6 @@ function ReporterVideosContent() {
                 <span className="text-[9px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full">
                   {deleteTarget.badge || 'VIDEO'}
                 </span>
-                <span className="text-[11px] font-bold text-slate-600 uppercase">
-                  {deleteTarget.category || 'General'}
-                </span>
               </div>
               <p className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
                 {deleteTarget.title.replace(/^["'“]+|["'”]+$/g, '').trim()}

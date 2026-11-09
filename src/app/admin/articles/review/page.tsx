@@ -693,11 +693,6 @@ function AdminReviewQueueContent() {
                                   <Clock className="w-3 h-3 text-amber-600" />
                                   <span>Pending Approval</span>
                                 </span>
-                                {vid.category && vid.category.toLowerCase() !== 'latest' && (
-                                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100">
-                                    {vid.category}
-                                  </span>
-                                )}
                                 {vid.badge && (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
                                     {vid.badge}
@@ -1095,11 +1090,6 @@ function AdminReviewQueueContent() {
                 <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full">
                   {activeVideoModal.badge || 'GROUND REPORT'}
                 </span>
-                {activeVideoModal.category && activeVideoModal.category.toLowerCase() !== 'latest' && (
-                  <span className="text-xs font-bold text-slate-800 uppercase">
-                    {activeVideoModal.category}
-                  </span>
-                )}
               </div>
               <button
                 type="button"
@@ -1217,9 +1207,6 @@ function AdminReviewQueueContent() {
               <div className="flex items-center space-x-2">
                 <span className="text-[9px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full">
                   {videoToReject.badge || 'REPORT'}
-                </span>
-                <span className="text-[11px] font-bold text-slate-600 uppercase">
-                  {videoToReject.category}
                 </span>
               </div>
               <p className="text-xs font-bold text-slate-900 line-clamp-2 pt-1 font-serif">
