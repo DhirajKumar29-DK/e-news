@@ -73,8 +73,18 @@ export const CapacitorBridge = () => {
       const currentPath = window.location.pathname || pathnameRef.current;
       const isRoot = currentPath === '/' || currentPath === '';
 
+      // Special Reporter Section Back Navigation (Never get trapped in redirect loops)
+      if (currentPath.startsWith('/reporter')) {
+        if (currentPath === '/reporter/dashboard' || currentPath === '/reporter/login') {
+          routerRef.current.push('/');
+        } else {
+          routerRef.current.push('/reporter/dashboard');
+        }
+        return;
+      }
+
       if (!isRoot) {
-        // User is on a subpage on phone (e.g. /reporter/dashboard, /cricket, /article/123)
+        // User is on a subpage on phone (e.g. /cricket, /article/123, /videos)
         // Step back one page via Next.js router
         if (window.history.length > 1) {
           routerRef.current.back();

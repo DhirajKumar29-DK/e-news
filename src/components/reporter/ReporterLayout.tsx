@@ -54,10 +54,6 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
                 <span className="text-xs font-black text-slate-900 truncate">
                   {reporter?.name || 'Reporter'}
                 </span>
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[9px] font-black uppercase tracking-wider shrink-0">
-                  <ShieldCheck className="w-2.5 h-2.5 text-red-600" />
-                  <span>Reporter Desk</span>
-                </span>
               </div>
               <div className="text-[10px] font-bold text-emerald-600 flex items-center space-x-1 mt-0.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -99,7 +95,7 @@ function ReporterShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Reporter Workspace Layout */}
-      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-28 sm:py-6">
+      <div className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6">
         
         {/* Desktop 2-Column Grid (Left Sidebar + Right Main Content) */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">

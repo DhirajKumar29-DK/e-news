@@ -127,13 +127,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenSearch }
 
   return (
     <>
-      {/* 4-Item Mobile Bottom Navigation Bar: Home | Search | Videos | Menu (Hamburger) */}
+      {/* 5-Item Mobile Bottom Navigation Bar: Home | Search | Videos | Advertise | Menu (Hamburger) */}
       <nav
         aria-label="Mobile Bottom Navigation"
         style={{
-          paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 6px))'
+          paddingBottom: 'max(4px, env(safe-area-inset-bottom, 0px))'
         }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg text-slate-700 dark:text-white border-t border-slate-200/90 dark:border-slate-800/90 shadow-2xl px-2 pt-2 transition-colors duration-200"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg text-slate-700 dark:text-white border-t border-slate-200/90 dark:border-slate-800/90 shadow-2xl px-2 pt-1 transition-colors duration-200"
       >
         <div className="grid grid-cols-5 items-center text-center text-[10px] font-bold uppercase tracking-wider">
           

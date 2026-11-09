@@ -78,10 +78,10 @@ function ReporterAuthForm() {
     setOtpError('');
   };
 
-  // If already authenticated, redirect straight to article add page!
+  // If already authenticated, redirect straight to reporter dashboard!
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/reporter/articles/create');
+      router.replace('/reporter/dashboard');
     }
   }, [isAuthenticated, router]);
 
@@ -209,7 +209,7 @@ function ReporterAuthForm() {
         }
       }
 
-      router.push('/reporter/articles/create');
+      router.replace('/reporter/dashboard');
     } catch (err: any) {
       setErrorInfo({
         message: err.message || 'Login failed. Please check your credentials.',
