@@ -289,17 +289,17 @@ function AdminVideosListContent() {
             ) : (
               /* Internal Scrollable Table Content */
               <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-                <table className="w-full min-w-[1000px] text-left text-xs">
+                <table className="w-full min-w-[1150px] text-left text-xs">
                   <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 text-slate-500 font-mono text-[11px] uppercase tracking-wider border-b border-slate-200 shadow-xs">
                     <tr>
                       <th className="py-3.5 px-4 font-semibold">Video Clip</th>
-                      <th className="py-3.5 px-4 font-semibold">Badge</th>
-                      <th className="py-3.5 px-4 font-semibold">Type</th>
-                      <th className="py-3.5 px-4 font-semibold">Reporter</th>
-                      <th className="py-3.5 px-4 font-semibold">Highlights</th>
-                      <th className="py-3.5 px-4 font-semibold">Views</th>
-                      <th className="py-3.5 px-4 font-semibold">Status</th>
-                      <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap min-w-[120px] w-32">Actions</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Badge</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Type</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Reporter</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Highlights</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Views</th>
+                      <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Status</th>
+                      <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap min-w-[210px] w-52">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -332,9 +332,9 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Badge */}
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           {vid.badge ? (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-[10px] font-black uppercase tracking-wider">
+                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
                               {vid.badge}
                             </span>
                           ) : (
@@ -343,7 +343,7 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Type */}
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
                             vid.videoType === 'FILE'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -354,12 +354,12 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Reporter */}
-                        <td className="py-3.5 px-4 text-slate-600">
+                        <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
                           {vid.reporterName || 'News Desk'}
                         </td>
 
                         {/* Highlights (Featured / Trending) */}
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {vid.isFeaturedHero && (
                               <span className="bg-amber-50 text-amber-800 border border-amber-300 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
@@ -375,7 +375,7 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Views */}
-                        <td className="py-3.5 px-4 text-slate-600 font-mono">
+                        <td className="py-3.5 px-4 text-slate-600 font-mono whitespace-nowrap">
                           <div className="flex items-center space-x-1">
                             <Eye className="w-3.5 h-3.5 text-slate-400" />
                             <span>{vid.viewsCount.toLocaleString()}</span>
@@ -383,22 +383,29 @@ function AdminVideosListContent() {
                         </td>
 
                         {/* Status */}
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
                             vid.status === 'PUBLISHED'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : vid.status === 'PENDING_REVIEW'
-                              ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : vid.status === 'DRAFT'
                               ? 'bg-slate-100 text-slate-700 border border-slate-300'
                               : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
-                            {vid.status === 'PENDING_REVIEW' ? 'Pending Review' : vid.status}
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              vid.status === 'PUBLISHED'
+                                ? 'bg-emerald-500'
+                                : vid.status === 'PENDING_REVIEW'
+                                ? 'bg-amber-500'
+                                : 'bg-slate-400'
+                            }`} />
+                            <span>{vid.status}</span>
                           </span>
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap min-w-[120px] w-32">
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap min-w-[210px] w-52">
                           <div className="flex items-center justify-end space-x-2 shrink-0">
                             {vid.status === 'PENDING_REVIEW' && (
                               <button
