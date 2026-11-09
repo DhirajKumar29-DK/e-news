@@ -220,6 +220,7 @@ export default function AIPageGeneratorModal({
       if (result && Array.isArray(result.slots) && result.slots.length > 0) {
         const sanitizedSlots = result.slots.map((s: any) => ({
           ...s,
+          showColumnDivider: false, // Default to false: Admin can manually enable if needed
           headline: cleanDateline(s.headline),
           subHeadline: cleanDateline(s.subHeadline),
           summary: cleanDateline(s.summary || s.contentText)
@@ -254,6 +255,7 @@ export default function AIPageGeneratorModal({
       const cleanImg = (s.imageUrl && s.imageUrl.trim() && !s.imageUrl.includes('pollinations.ai')) ? s.imageUrl.trim() : '';
       return {
         ...s,
+        showColumnDivider: false, // Never auto-add vertical divider line
         headline: cleanHl,
         subHeadline: cleanSub,
         summary: cleanBody,
