@@ -55,6 +55,23 @@ export function formatArticleHtml(input: string | null | undefined): string {
   // Normalize x.com URLs inside twitter blockquotes to twitter.com for widget rendering
   html = html.replace(/href=["']https?:\/\/x\.com\/([^"']+)["']/gi, 'href="https://twitter.com/$1"');
 
+  // Unwrap obsolete/translate <font> tags while preserving inner text
+  while (/<font\b[^>]*>/i.test(html)) {
+    html = html.replace(/<font\b[^>]*>([\s\S]*?)<\/font>/gi, '$1');
+  }
+
+  // Strip rogue font-family, font-size, line-height, and white/initial backgrounds from inline styles
+  html = html.replace(/style\s*=\s*(["'])([\s\S]*?)\1/gi, (match, quote, styleStr) => {
+    const cleaned = styleStr
+      .replace(/(?:font-family|font-size|line-height)\s*:[^;]+;?/gi, '')
+      .replace(/background(?:-color)?\s*:\s*(?:transparent|initial|rgba?\(\s*255\s*,\s*255\s*,\s*255[^)]*\)|#fff(?:fff)?);?/gi, '')
+      .trim();
+    return cleaned ? `style=${quote}${cleaned}${quote}` : '';
+  });
+
+  // Strip empty spans created after removing style attributes
+  html = html.replace(/<span\s*>([\s\S]*?)<\/span>/gi, '$1');
+
   return html;
 }
 

@@ -230,6 +230,41 @@ export default function RichTextEditor({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const htmlData = e.clipboardData.getData('text/html');
+    const plainText = e.clipboardData.getData('text/plain');
+
+    if (htmlData) {
+      e.preventDefault();
+      let clean = htmlData;
+      // Strip comments, scripts, styles
+      clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+      clean = clean.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+      clean = clean.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+      // Unwrap font tags (e.g. from Chrome Translate or legacy HTML)
+      while (/<font\b[^>]*>/i.test(clean)) {
+        clean = clean.replace(/<font\b[^>]*>([\s\S]*?)<\/font>/gi, '$1');
+      }
+      // Strip external inline font-family, font-size, line-height, and background colors
+      clean = clean.replace(/style\s*=\s*(["'])([\s\S]*?)\1/gi, (match, quote, styleStr) => {
+        const s = styleStr
+          .replace(/(?:font-family|font-size|line-height)\s*:[^;]+;?/gi, '')
+          .replace(/background(?:-color)?\s*:[^;]+;?/gi, '')
+          .trim();
+        return s ? `style=${quote}${s}${quote}` : '';
+      });
+      // Strip empty spans
+      clean = clean.replace(/<span\s*>([\s\S]*?)<\/span>/gi, '$1');
+
+      try {
+        document.execCommand('insertHTML', false, clean);
+      } catch {
+        document.execCommand('insertText', false, plainText);
+      }
+      handleInput();
+    }
+  };
+
   const placeCaretAtEnd = (container: HTMLElement) => {
     const sel = window.getSelection();
     if (!sel) return;
@@ -845,6 +880,7 @@ export default function RichTextEditor({
             onInput={handleInput}
             onFocus={handleFocus}
             onBlur={handleBlur}
+            onPaste={handlePaste}
             onClick={handleEditorClick}
             onKeyUp={handleSelectionSave}
             onMouseUp={handleSelectionSave}
@@ -933,6 +969,7 @@ export default function RichTextEditor({
                   onInput={handleInput}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
+                  onPaste={handlePaste}
                   onClick={handleEditorClick}
                   onKeyUp={handleSelectionSave}
                   onMouseUp={handleSelectionSave}
