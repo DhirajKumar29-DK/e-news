@@ -386,45 +386,30 @@ export default function ArticleClientView({ initialArticle }: ArticleClientViewP
     rawContent: activeArticle.content
   };
 
-  // Highlights list
+  // Highlights list - Only show if manually entered by editor / reporter
   const highlightsList: string[] = (() => {
     if (activeArticle?.bulletPoints) {
+      if (Array.isArray(activeArticle.bulletPoints)) {
+        const arr = (activeArticle.bulletPoints as any[])
+          .map(p => stripHtml(String(p)).trim())
+          .filter(Boolean);
+        if (arr.length > 0) return arr;
+      }
       try {
         const parsed = JSON.parse(activeArticle.bulletPoints);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(p => stripHtml(String(p))).filter(Boolean);
+          const arr = parsed.map(p => stripHtml(String(p)).trim()).filter(Boolean);
+          if (arr.length > 0) return arr;
         }
       } catch {
-        const lines = activeArticle.bulletPoints
+        const lines = String(activeArticle.bulletPoints)
           .split('\n')
-          .map(l => stripHtml(l.replace(/^[•\-\*]\s*/, '')))
+          .map(l => stripHtml(l.replace(/^[•\-\*]\s*/, '')).trim())
           .filter(Boolean);
         if (lines.length > 0) return lines;
       }
     }
-    const cleanFullContent = stripHtml(activeArticle.content.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, '').replace(/<div class="twitter-tweet-container"[\s\S]*?<\/div>/gi, ''));
-    const points: string[] = [];
-    if (cleanSummary && cleanSummary !== '...') {
-      points.push(cleanSummary.replace(/\.\.\.$/, ''));
-    }
-    
-    const sentences = cleanFullContent
-      .split(/(?<=[.!?])\s+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 25 && s !== cleanSummary && !s.includes('Loading X Post') && !s.includes('twitter.com') && !s.includes('x.com'));
-
-    for (const sent of sentences) {
-      if (points.length >= 3) break;
-      const formatted = sent.endsWith('.') ? sent : `${sent}.`;
-      if (!points.includes(formatted)) {
-        points.push(formatted);
-      }
-    }
-
-    if (points.length === 0) {
-      points.push('Digital report curated by the editorial bureau covering unfolding updates.');
-    }
-    return points.slice(0, 3);
+    return [];
   })();
 
   return (
