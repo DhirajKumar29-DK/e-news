@@ -288,7 +288,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
               </div>
 
               <div className="p-5 sm:p-6 space-y-3">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-tight break-words [overflow-wrap:anywhere]">
                   {typeof leadArticle.title === 'string' ? leadArticle.title : t(leadArticle.title)}
                 </h1>
                 <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
@@ -323,7 +323,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
                   <span className="text-xs font-black uppercase text-jagran-red block">
                     {sub.category}
                   </span>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3 break-words [overflow-wrap:anywhere]">
                     {t(sub.title)}
                   </h3>
                   <div className="flex items-center text-xs text-slate-400 font-medium space-x-1.5 pt-0.5">
@@ -357,7 +357,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ dynamicData, allArticl
                   <span className="text-[11px] sm:text-xs font-black uppercase text-jagran-red block">
                     {sub.category}
                   </span>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3 break-words [overflow-wrap:anywhere]">
                     {t(sub.title)}
                   </h3>
                   <div className="flex items-center text-[11px] sm:text-xs text-slate-400 font-medium space-x-1.5 pt-0.5">

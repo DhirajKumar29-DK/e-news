@@ -80,7 +80,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items, title
                   <span className="text-xs font-black uppercase tracking-wider text-red-700 block">
                     {displayCards[0].category}
                   </span>
-                  <h3 className="text-base font-black font-serif text-slate-900 group-hover:text-red-700 transition-colors leading-snug">
+                  <h3 className="text-base font-black font-serif text-slate-900 group-hover:text-red-700 transition-colors leading-snug break-words [overflow-wrap:anywhere]">
                     {t(displayCards[0].title)}
                   </h3>
                   <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium">
@@ -123,7 +123,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items, title
                   <span className="text-[10px] font-black uppercase tracking-wider text-red-700 block mb-0.5">
                     {card.category}
                   </span>
-                  <h4 className="text-xs font-serif font-bold text-slate-900 group-hover:text-red-700 transition-colors leading-snug line-clamp-2">
+                  <h4 className="text-xs font-serif font-bold text-slate-900 group-hover:text-red-700 transition-colors leading-snug line-clamp-2 break-words [overflow-wrap:anywhere]">
                     {t(card.title)}
                   </h4>
                 </div>
@@ -168,7 +168,7 @@ export const ExplainerSection: React.FC<ExplainerSectionProps> = ({ items, title
                   <span className="text-xs font-black uppercase tracking-wider text-red-700 block">
                     {card.category}
                   </span>
-                  <h3 className="text-sm sm:text-base font-black font-serif text-slate-900 group-hover:text-red-700 transition-colors leading-snug">
+                  <h3 className="text-sm sm:text-base font-black font-serif text-slate-900 group-hover:text-red-700 transition-colors leading-snug break-words [overflow-wrap:anywhere]">
                     {t(card.title)}
                   </h3>
                   <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium">

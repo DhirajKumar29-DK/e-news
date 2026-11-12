@@ -29,7 +29,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
   const { t } = useLanguage();
 
   return (
-    <section className="py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto">
+    <section className="w-full min-w-0 max-w-full py-6 px-4 sm:px-8 lg:px-10 max-w-[1440px] mx-auto overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b-2 border-jagran-red pb-2 mb-6">
         <h2 className="text-2xl sm:text-3xl font-black font-serif uppercase tracking-tight text-slate-900 dark:text-white">
@@ -45,12 +45,12 @@ export const GridSection: React.FC<GridSectionProps> = ({
       </div>
 
       {/* Mobile Layout (< sm): 1 Big Lead Card + Remaining Horizontal Row Cards */}
-      <div className="block sm:hidden space-y-3">
+      <div className="block sm:hidden space-y-3 w-full min-w-0 max-w-full">
         {/* 1st Card: Lead Card on Mobile */}
         {items[0] && (
           <article
             onClick={() => router.push(`/article/${items[0].id}`)}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
+            className="w-full min-w-0 max-w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
           >
             <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
               <img
@@ -65,8 +65,8 @@ export const GridSection: React.FC<GridSectionProps> = ({
                 {items[0].category}
               </span>
             </div>
-            <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5">
-              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug">
+            <div className="p-4 flex-1 w-full min-w-0 flex flex-col justify-between space-y-2.5">
+              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug break-words [overflow-wrap:anywhere]">
                 {t(items[0].title)}
               </h3>
               {items[0].timeAgo && (
@@ -84,7 +84,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
           <article
             key={item.id}
             onClick={() => router.push(`/article/${item.id}`)}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row items-center p-2.5 gap-3"
+            className="w-full min-w-0 max-w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-row items-center p-2.5 gap-3"
           >
             <div className="w-28 h-20 rounded-lg overflow-hidden relative shrink-0 bg-slate-100 dark:bg-slate-800">
               <img
@@ -101,7 +101,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
                 <span className="text-[10px] font-black uppercase text-jagran-red block mb-1">
                   {item.category}
                 </span>
-                <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug break-words [overflow-wrap:anywhere]">
                   {t(item.title)}
                 </h4>
               </div>
@@ -128,7 +128,7 @@ export const GridSection: React.FC<GridSectionProps> = ({
           <article
             key={item.id}
             onClick={() => router.push(`/article/${item.id}`)}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
+            className="w-full min-w-0 max-w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden cursor-pointer transition-all group flex flex-col justify-between"
           >
             <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
               <img
@@ -143,8 +143,8 @@ export const GridSection: React.FC<GridSectionProps> = ({
                 {item.category}
               </span>
             </div>
-            <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3">
+            <div className="p-4 flex-1 w-full min-w-0 flex flex-col justify-between space-y-3">
+              <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors leading-snug line-clamp-3 break-words [overflow-wrap:anywhere]">
                 {t(item.title)}
               </h3>
               {item.timeAgo && (

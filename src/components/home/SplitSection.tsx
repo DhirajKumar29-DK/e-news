@@ -71,7 +71,7 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
             </div>
             <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-2.5">
-                <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-serif text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug break-words [overflow-wrap:anywhere]">
                   {t(leadItem.title)}
                 </h3>
                 {leadItem.summary && (
@@ -119,7 +119,7 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
                   <span className="text-[10px] font-black uppercase text-jagran-red block mb-1">
                     {item.category}
                   </span>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug break-words [overflow-wrap:anywhere]">
                     {t(item.title)}
                   </h4>
                 </div>
@@ -163,7 +163,7 @@ export const SplitSection: React.FC<SplitSectionProps> = ({
               </div>
               <div className="flex-1 min-w-0 p-3.5 flex flex-col justify-between">
                 <div>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug">
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-jagran-red transition-colors line-clamp-3 leading-snug break-words [overflow-wrap:anywhere]">
                     {t(item.title)}
                   </h4>
                 </div>

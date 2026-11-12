@@ -475,7 +475,7 @@ export default function ArticleClientView({ initialArticle }: ArticleClientViewP
                 </span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-bold font-serif text-slate-900 dark:text-white leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-bold font-serif text-slate-900 dark:text-white leading-tight break-words [overflow-wrap:anywhere]">
                 {article.title}
               </h1>
 
