@@ -700,55 +700,6 @@ function FullCleanDashboardInner() {
                 </div>
               </div>
 
-              {/* 3. SYSTEM INFRASTRUCTURE HEALTH */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                      <Server className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">System Infrastructure</h4>
-                      <p className="text-[11px] text-slate-500">Express &amp; Database Health</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-1.5 text-emerald-600 text-[11px] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Operational</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 text-xs text-slate-600">
-                  <div className="flex justify-between items-center">
-                    <span>Express Backend:</span>
-                    <strong className="text-emerald-600 font-bold">Port 5000 (Active)</strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>API Response Latency:</span>
-                    <strong className="text-slate-900 font-mono font-bold">{apiLatency}ms</strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Database Engine:</span>
-                    <strong className="text-slate-900 font-bold">MySQL Live</strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Server Timezone:</span>
-                    <strong className="text-slate-900">Asia/Kolkata (IST)</strong>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400 flex justify-between items-center">
-                  <span>Last synced: {lastRefreshedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                  <button
-                    type="button"
-                    onClick={loadDashboardData}
-                    className="text-red-600 hover:text-red-700 font-bold cursor-pointer"
-                  >
-                    Sync Now
-                  </button>
-                </div>
-              </div>
-
             </div>
 
           </div>

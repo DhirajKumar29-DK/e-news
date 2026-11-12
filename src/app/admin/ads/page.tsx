@@ -32,30 +32,30 @@ const SLOT_OPTIONS = [
     category: 'Homepage Placements',
     icon: '🏠',
     slots: [
-      { value: 'HOMEPAGE_TOP', label: 'Homepage Top Leaderboard', desc: 'Header ke theek neeche, full-width banner' },
-      { value: 'LATEST_VIDEOS_TOP', label: 'Homepage Above Latest Videos', desc: 'Hero 2×2 box ke theek upar' },
-      { value: 'HOMEPAGE_SECTION_1', label: 'Homepage After Section 1', desc: 'Pehle news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_2', label: 'Homepage After Section 2', desc: 'Dusre news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_3', label: 'Homepage After Section 3', desc: 'Teesre news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_4', label: 'Homepage After Section 4', desc: 'Chouthe news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_5', label: 'Homepage After Section 5', desc: 'Paanchve news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_6', label: 'Homepage After Section 6', desc: 'Chhathve news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_7', label: 'Homepage After Section 7', desc: 'Saatve news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_8', label: 'Homepage After Section 8', desc: 'Aathve news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_9', label: 'Homepage After Section 9', desc: 'Nauve news section ke baad' },
-      { value: 'HOMEPAGE_SECTION_10', label: 'Homepage After Section 10', desc: 'Dasve news section ke baad' },
-      { value: 'HOMEPAGE_BEFORE_VIDEOS', label: 'Homepage Above Videos Showcase', desc: 'Video player section ke theek upar' },
-      { value: 'HOMEPAGE_BOTTOM', label: 'Homepage Above Footer', desc: 'Footer ke theek upar' },
+      { value: 'HOMEPAGE_TOP', label: 'Homepage Top Leaderboard', desc: 'Full-width banner directly below main header' },
+      { value: 'LATEST_VIDEOS_TOP', label: 'Homepage Above Latest Videos', desc: 'Featured banner positioned above latest videos grid' },
+      { value: 'HOMEPAGE_SECTION_1', label: 'Homepage After Section 1', desc: 'Placement directly below first news section' },
+      { value: 'HOMEPAGE_SECTION_2', label: 'Homepage After Section 2', desc: 'Placement directly below second news section' },
+      { value: 'HOMEPAGE_SECTION_3', label: 'Homepage After Section 3', desc: 'Placement directly below third news section' },
+      { value: 'HOMEPAGE_SECTION_4', label: 'Homepage After Section 4', desc: 'Placement directly below fourth news section' },
+      { value: 'HOMEPAGE_SECTION_5', label: 'Homepage After Section 5', desc: 'Placement directly below fifth news section' },
+      { value: 'HOMEPAGE_SECTION_6', label: 'Homepage After Section 6', desc: 'Placement directly below sixth news section' },
+      { value: 'HOMEPAGE_SECTION_7', label: 'Homepage After Section 7', desc: 'Placement directly below seventh news section' },
+      { value: 'HOMEPAGE_SECTION_8', label: 'Homepage After Section 8', desc: 'Placement directly below eighth news section' },
+      { value: 'HOMEPAGE_SECTION_9', label: 'Homepage After Section 9', desc: 'Placement directly below ninth news section' },
+      { value: 'HOMEPAGE_SECTION_10', label: 'Homepage After Section 10', desc: 'Placement directly below tenth news section' },
+      { value: 'HOMEPAGE_BEFORE_VIDEOS', label: 'Homepage Above Videos Showcase', desc: 'Prominent banner placed directly above video showcase' },
+      { value: 'HOMEPAGE_BOTTOM', label: 'Homepage Above Footer', desc: 'Full-width banner directly above homepage footer' },
     ]
   },
   {
     category: 'Article & Sidebar Placements',
     icon: '📰',
     slots: [
-      { value: 'ARTICLE_INLINE', label: 'In-Article Inline Content', desc: 'Khabar ke beech mein / Paragraph 2 ke baad' },
-      { value: 'ARTICLE_LATEST_VIDEOS', label: 'Article Sidebar - Above Latest Videos', desc: 'Latest videos ke theek upar' },
-      { value: 'ARTICLE_SIDEBAR', label: 'Article Right Sidebar', desc: 'Sidebar ke bottom par' },
-      { value: 'ARTICLE_BOTTOM', label: 'Article Above Footer', desc: 'Khabar page footer ke theek upar' },
+      { value: 'ARTICLE_INLINE', label: 'In-Article Inline Content', desc: 'Embedded inside story text after paragraph 2' },
+      { value: 'ARTICLE_LATEST_VIDEOS', label: 'Article Sidebar - Above Latest Videos', desc: 'Right sidebar banner above latest video widget' },
+      { value: 'ARTICLE_SIDEBAR', label: 'Article Right Sidebar', desc: 'Sticky right sidebar lower slot' },
+      { value: 'ARTICLE_BOTTOM', label: 'Article Above Footer', desc: 'Full-width banner directly above article footer' },
     ]
   }
 ];
@@ -180,35 +180,35 @@ function AdStudioContent() {
     const sectionSlots = dynamicHomeCategories.map((cat, idx) => ({
       value: `HOMEPAGE_SECTION_${idx + 1}` as AdSlotType,
       label: `Homepage After Section ${idx + 1} (${cat.name})`,
-      desc: `'${cat.name}' न्यूज़ सेक्शन के ठीक नीचे विज्ञापन बैनर`
+      desc: `Banner placement directly below '${cat.name}' section`
     }));
 
     return [
       {
-        category: 'Homepage Placements (मुख्य पृष्ठ)',
+        category: 'Homepage Placements',
         icon: '🏠',
         slots: [
-          { value: 'HOMEPAGE_TOP' as AdSlotType, label: 'Homepage Top Leaderboard', desc: 'Header ke theek neeche, full-width banner' },
-          { value: 'LATEST_VIDEOS_TOP' as AdSlotType, label: 'Homepage Above Latest Videos', desc: 'Hero 2×2 box ke theek upar' },
+          { value: 'HOMEPAGE_TOP' as AdSlotType, label: 'Homepage Top Leaderboard', desc: 'Full-width banner directly below main header' },
+          { value: 'LATEST_VIDEOS_TOP' as AdSlotType, label: 'Homepage Above Latest Videos', desc: 'Featured banner positioned above latest videos grid' },
           ...(sectionSlots.length > 0 ? sectionSlots : [
-            { value: 'HOMEPAGE_SECTION_1' as AdSlotType, label: 'Homepage After Section 1', desc: 'Pehle news section ke baad' },
-            { value: 'HOMEPAGE_SECTION_2' as AdSlotType, label: 'Homepage After Section 2', desc: 'Dusre news section ke baad' },
-            { value: 'HOMEPAGE_SECTION_3' as AdSlotType, label: 'Homepage After Section 3', desc: 'Teesre news section ke baad' },
-            { value: 'HOMEPAGE_SECTION_4' as AdSlotType, label: 'Homepage After Section 4', desc: 'Chouthe news section ke baad' },
-            { value: 'HOMEPAGE_SECTION_5' as AdSlotType, label: 'Homepage After Section 5', desc: 'Paanchve news section ke baad' },
+            { value: 'HOMEPAGE_SECTION_1' as AdSlotType, label: 'Homepage After Section 1', desc: 'Placement directly below first news section' },
+            { value: 'HOMEPAGE_SECTION_2' as AdSlotType, label: 'Homepage After Section 2', desc: 'Placement directly below second news section' },
+            { value: 'HOMEPAGE_SECTION_3' as AdSlotType, label: 'Homepage After Section 3', desc: 'Placement directly below third news section' },
+            { value: 'HOMEPAGE_SECTION_4' as AdSlotType, label: 'Homepage After Section 4', desc: 'Placement directly below fourth news section' },
+            { value: 'HOMEPAGE_SECTION_5' as AdSlotType, label: 'Homepage After Section 5', desc: 'Placement directly below fifth news section' },
           ]),
-          { value: 'HOMEPAGE_BEFORE_VIDEOS' as AdSlotType, label: 'Homepage Above Videos Showcase', desc: 'Video player section ke theek upar' },
-          { value: 'HOMEPAGE_BOTTOM' as AdSlotType, label: 'Homepage Above Footer', desc: 'Footer ke theek upar' },
+          { value: 'HOMEPAGE_BEFORE_VIDEOS' as AdSlotType, label: 'Homepage Above Videos Showcase', desc: 'Prominent banner placed directly above video showcase' },
+          { value: 'HOMEPAGE_BOTTOM' as AdSlotType, label: 'Homepage Above Footer', desc: 'Full-width banner directly above homepage footer' },
         ]
       },
       {
-        category: 'Article & Sidebar Placements (समाचार पृष्ठ)',
+        category: 'Article & Sidebar Placements',
         icon: '📰',
         slots: [
-          { value: 'ARTICLE_INLINE' as AdSlotType, label: 'In-Article Inline Content', desc: 'Khabar ke beech mein / Paragraph 2 ke baad' },
-          { value: 'ARTICLE_LATEST_VIDEOS' as AdSlotType, label: 'Article Sidebar - Above Latest Videos', desc: 'Latest videos ke theek upar' },
-          { value: 'ARTICLE_SIDEBAR' as AdSlotType, label: 'Article Right Sidebar', desc: 'Sidebar ke bottom par' },
-          { value: 'ARTICLE_BOTTOM' as AdSlotType, label: 'Article Above Footer', desc: 'Khabar page footer ke theek upar' },
+          { value: 'ARTICLE_INLINE' as AdSlotType, label: 'In-Article Inline Content', desc: 'Embedded inside story text after paragraph 2' },
+          { value: 'ARTICLE_LATEST_VIDEOS' as AdSlotType, label: 'Article Sidebar - Above Latest Videos', desc: 'Right sidebar banner above latest video widget' },
+          { value: 'ARTICLE_SIDEBAR' as AdSlotType, label: 'Article Right Sidebar', desc: 'Sticky right sidebar lower slot' },
+          { value: 'ARTICLE_BOTTOM' as AdSlotType, label: 'Article Above Footer', desc: 'Full-width banner directly above article footer' },
         ]
       }
     ];
@@ -559,7 +559,7 @@ function AdStudioContent() {
       setVerifyingId(order.id);
       await adService.verifyAndPublishAd(order.id);
       setToastMessage({
-        text: `विज्ञापन "${order.title}" सफलतापूर्वक सत्यापित और लाइव कर दिया गया है! आवेदक (${order.advertiserEmail || 'Advertiser'}) को ईमेल भेज दिया गया है।`,
+        text: `Advertisement "${order.title}" has been successfully verified and published! Notification email sent to applicant (${order.advertiserEmail || 'Advertiser'}).`,
         type: 'success'
       });
       setTimeout(() => setToastMessage(null), 6000);
@@ -570,7 +570,7 @@ function AdStudioContent() {
         setSelectedOrder(prev => prev ? { ...prev, approvalStatus: 'APPROVED', isActive: true } : null);
       }
     } catch (err: any) {
-      setToastMessage({ text: err.message || 'सत्यापित करने में विफल', type: 'error' });
+      setToastMessage({ text: err.message || 'Verification failed', type: 'error' });
       setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setVerifyingId(null);
@@ -584,7 +584,7 @@ function AdStudioContent() {
       setIsRejecting(true);
       await adService.rejectAd(rejectOrderTarget.id, rejectionReason.trim());
       setToastMessage({
-        text: `विज्ञापन अस्वीकार (Reject) कर दिया गया और आवेदक को ईमेल भेज दिया गया।`,
+        text: `Advertisement has been rejected and notification email sent to applicant.`,
         type: 'success'
       });
       setTimeout(() => setToastMessage(null), 6000);
@@ -596,7 +596,7 @@ function AdStudioContent() {
         setSelectedOrder(null);
       }
     } catch (err: any) {
-      setToastMessage({ text: err.message || 'रिजेक्ट करने में विफल', type: 'error' });
+      setToastMessage({ text: err.message || 'Rejection failed', type: 'error' });
       setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setIsRejecting(false);
@@ -1569,7 +1569,7 @@ function AdStudioContent() {
                                       </a>
 
                                       <a
-                                        href={`https://wa.me/91${order.advertiserPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`नमस्ते ${order.advertiserName || ''}, e-News पर आपके विज्ञापन "${order.title}" के संबंध में:`)}`}
+                                        href={`https://wa.me/91${order.advertiserPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.advertiserName || ''}, regarding your advertisement "${order.title}" on Vartiq:`)}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="inline-flex items-center space-x-0.5 text-emerald-600 hover:text-emerald-700 font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 transition-colors"
@@ -1608,7 +1608,7 @@ function AdStudioContent() {
                                   <div className="flex items-center space-x-1 text-slate-500 text-[11px]">
                                     <MapPin className="w-3 h-3 text-red-500 shrink-0" />
                                     <span className="truncate max-w-[140px]">
-                                      {order.targetDistrict || 'सभी जिले'}
+                                      {order.targetDistrict || 'All Districts'}
                                     </span>
                                   </div>
 

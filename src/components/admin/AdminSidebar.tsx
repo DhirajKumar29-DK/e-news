@@ -1,26 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, Newspaper, LogOut, ChevronRight, FileText, Video, Sparkles, X, Megaphone,
   ClipboardCheck, Users, Bot, CalendarClock, ChevronDown, IndianRupee, Sliders
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
-export const AdminSidebar: React.FC = () => {
+const AdminSidebarContent: React.FC = () => {
   const pathname = usePathname();
-  const [currentTab, setCurrentTab] = useState('campaigns');
+  const searchParams = useSearchParams();
+  const currentTab = searchParams ? (searchParams.get('tab') || 'campaigns') : 'campaigns';
   const { user, logout } = useAdminAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      setCurrentTab(params.get('tab') || 'campaigns');
-    }
-  }, [pathname]);
 
   useEffect(() => {
     const handleToggle = () => setIsMobileOpen(prev => !prev);
@@ -238,5 +232,15 @@ export const AdminSidebar: React.FC = () => {
         </div>
       )}
     </>
+  );
+};
+
+export const AdminSidebar: React.FC = () => {
+  return (
+    <Suspense fallback={
+      <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex-col h-screen sticky top-0 shrink-0 select-none z-30" />
+    }>
+      <AdminSidebarContent />
+    </Suspense>
   );
 };
