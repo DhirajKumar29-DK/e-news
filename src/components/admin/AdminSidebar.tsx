@@ -108,9 +108,11 @@ const AdminSidebarContent: React.FC = () => {
 
           const isActive = item.href === '/admin/articles'
             ? (pathname === '/admin/articles' || (pathname.startsWith('/admin/articles/') && !pathname.startsWith('/admin/articles/review')))
-            : item.href === '/admin/dashboard'
-              ? pathname === '/admin/dashboard'
-              : pathname.startsWith(item.href);
+            : item.href === '/admin/epaper'
+              ? (pathname === '/admin/epaper' || (pathname.startsWith('/admin/epaper/') && !pathname.startsWith('/admin/epaper/automation')))
+              : item.href === '/admin/dashboard'
+                ? pathname === '/admin/dashboard'
+                : (pathname === item.href || pathname.startsWith(`${item.href}/`));
 
           if (hasChildren) {
             return (
