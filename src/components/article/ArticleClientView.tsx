@@ -194,23 +194,28 @@ export default function ArticleClientView({ initialArticle }: ArticleClientViewP
   }, [articleId, initialArticle]);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [likes, setLikes] = useState(120);
+  const [likes, setLikes] = useState(() => {
+    if (typeof initialArticle?.likesCount === 'number') return initialArticle.likesCount;
+    return 0;
+  });
   const [hasLiked, setHasLiked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   useEffect(() => {
-    if (dynamicArticle?.likesCount) {
+    if (typeof dynamicArticle?.likesCount === 'number') {
       setLikes(dynamicArticle.likesCount);
+    } else if (typeof initialArticle?.likesCount === 'number') {
+      setLikes(initialArticle.likesCount);
     }
-  }, [dynamicArticle]);
+  }, [dynamicArticle, initialArticle]);
 
   const handleLike = () => {
     if (!hasLiked) {
       setLikes(prev => prev + 1);
       setHasLiked(true);
     } else {
-      setLikes(prev => prev - 1);
+      setLikes(prev => Math.max(0, prev - 1));
       setHasLiked(false);
     }
   };
